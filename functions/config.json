@@ -1,0 +1,20 @@
+{
+	"app_name": "TREASAPP",
+	"app_description": "Somos una empresa de tecnológia en movilidad ",
+	"app_identifier": "com.treasapp.treas22",
+	"ios_app_version": "1.8.8",
+	"android_app_version": "444",
+	"web_version": "1.0.1",
+	"firebaseProjectId": "treasupdate",
+	"googleApiKeys": {
+		"ios": "AIzaSyCSVNAzcal6oqDoX65qVmTIXUR8IFYWaYE",
+		"android": "AIzaSyBnGj3tm9U0WLfwSY8YRolMvLuQERMzWJM",
+		"web": "AIzaSyCreEp8jRr57cqbzEKl-DhGdoTc5H4czAM",
+		"server": "AIzaSyDdkvNeB_M3yf_elrPagGAb8kKMARn4oIU"
+	},
+	"expo_owner": "treas",
+	"expo_slug": "treasapp-desarrollo",
+	"expo_project_id": "dc698937-0f27-4392-bea5-388fc1cc97c4",
+	"admin_email": "gerenciageneral@solucionestreas.com",
+	"purchase_code": "9a32cf4f-de66-42e4-b970-4fe26a693b19"
+}

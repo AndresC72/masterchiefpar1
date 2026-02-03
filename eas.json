@@ -1,0 +1,49 @@
+{
+  "build": {
+    "development": {
+      "channel": "development",
+      "developmentClient": true,
+      "distribution": "internal"
+    },
+    "preview": {
+      "channel": "preview",
+      "android": {
+        "buildType": "app-bundle",
+        "image": "latest"
+      },
+      "ios": {
+        "simulator": false,
+        "image": "latest"
+      },
+      "distribution": "internal"
+    },
+    "simulator": {
+      "channel": "simulator",
+      "developmentClient": true,
+      "ios": {
+        "simulator": true
+      },
+      "distribution": "internal"
+    },
+    "production": {
+      "autoIncrement": true,
+      "channel": "production",
+      "android": {
+        "buildType": "app-bundle"
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "android": {
+        "serviceAccountKeyPath": "./serviceaccount.json",
+        "track": "internal"
+      }
+    }
+  },
+  "cli": {
+    "version": ">= 0.50.0",
+    "requireCommit": true,
+    "appVersionSource": "remote"
+  }
+}
