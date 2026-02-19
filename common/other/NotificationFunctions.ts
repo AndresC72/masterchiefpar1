@@ -1,9 +1,24 @@
 // src/utils/NotificationFunctions.ts
 import { app } from "@/config/SupabaseConfig";
-import { getMessaging, getToken, onMessage } from "firebase/messaging";
 
-// Obtener la instancia de Firebase Messaging
-const messaging = getMessaging(app);
+let messaging: any = null;
+let getTokenFn: any = null;
+let onMessageFn: any = null;
+try {
+  // Require firebase/messaging at runtime — may not be available in Expo dev without native module
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const firebaseMessaging = require("firebase/messaging");
+  const { getMessaging, getToken, onMessage } = firebaseMessaging;
+  if (getMessaging && app) {
+    messaging = getMessaging(app);
+  }
+  getTokenFn = getToken;
+  onMessageFn = onMessage;
+} catch (e) {
+  messaging = null;
+  getTokenFn = null;
+  onMessageFn = null;
+}
 
 export const sendNotification = async (token: string, title: string, body: string) => {
   const message = {
@@ -31,15 +46,13 @@ export const sendNotification = async (token: string, title: string, body: strin
 
 // Función para obtener el token de notificación
 export const getNotificationToken = async () => {
+  if (!getTokenFn || !messaging) {
+    console.warn("Firebase messaging not available - cannot get notification token.");
+    return null;
+  }
   try {
-    const token = await getToken(messaging, { vapidKey: process.env.FIREBASE_VAPID_KEY });
-    if (token) {
-      //console.log("Token de notificación obtenido:", token);
-      return token;
-    } else {
-      //console.log("No se pudo obtener el token de notificación.");
-      return null;
-    }
+    const token = await getTokenFn(messaging, { vapidKey: process.env.FIREBASE_VAPID_KEY });
+    return token ?? null;
   } catch (error) {
     console.error("Error al obtener el token de notificación:", error);
     return null;
@@ -48,27 +61,19 @@ export const getNotificationToken = async () => {
 
 // Función para escuchar mensajes en primer plano
 export const onMessageListener = () => {
-  onMessage(messaging, (payload) => {
+  if (!onMessageFn || !messaging) {
+    // No-op when messaging isn't available
+    return () => {};
+  }
+  onMessageFn(messaging, (payload: any) => {
     //console.log("Mensaje recibido en primer plano:", payload);
-    // Aquí puedes manejar el mensaje como desees
   });
 };
 
 
 
-export const sendRideShareNotification = async (userId, rideData) => {
-  const payload = {
-    notification: {
-      title: "Viaje Compartido",
-      body: `Tienes un viaje compartido disponible. ¿Aceptar?`,
-    },
-    data: {
-      bookingId: rideData.bookingId,
-      driverLocation: JSON.stringify(rideData.driverLocation),
-    },
-  };
-
-  // Obtener el token de notificación del usuario
-  const userToken = await getUserPushToken(userId);
-  await admin.messaging().sendToDevice(userToken, payload);
+export const sendRideShareNotification = async (_userId: any, _rideData: any) => {
+  // Server-side notification sending isn't available in this runtime.
+  // This function is a safe no-op here — implement server-side push via Supabase edge function or a backend.
+  console.warn("sendRideShareNotification: not available in this environment. Use server-side push.");
 };

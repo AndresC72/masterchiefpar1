@@ -22,7 +22,7 @@ import {
   getAuth,
 } from "firebase/auth";
 import base64 from "react-native-base64";
-
+ 
 import AccessKey from "@/common/other/AccessKey";
 
 import { Dispatch } from "redux";
@@ -95,9 +95,9 @@ export const fetchUser = () => (dispatch) => {
 
           const settings = store.getState().settingsdata.settings;
           let host =
-            window &&
+            typeof window !== 'undefined' &&
             window.location &&
-            settings.CompanyWebsite === window.location.origin
+            window.location.origin
               ? window.location.origin
               : `https://${config.projectId}.web.app`;
           let url = `${host}/check_auth_exists`;
@@ -405,9 +405,9 @@ export const updateAuthMobile = async (mobile, otp) => {
 
   const settings = store.getState().settingsdata.settings;
   let host =
-    window &&
+    typeof window !== 'undefined' &&
     window.location &&
-    settings.CompanyWebsite === window.location.origin
+    window.location.origin
       ? window.location.origin
       : `https://${config.projectId}.web.app`;
   let url = `${host}/update_auth_mobile`;

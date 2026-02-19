@@ -19,13 +19,7 @@ import {
   ScrollView,
 } from "react-native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import {
-  getAuth,
-  createUserWithEmailAndPassword,
-  sendEmailVerification,
-} from "firebase/auth";
-import { database } from "@/config/SupabaseConfig";
-import { ref, set } from "firebase/database";
+import supabase from '@/config/SupabaseConfig';
 import { settings } from "@/scripts/settings";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -91,62 +85,60 @@ export default function SignUp({ navigation }: NativeStackScreenProps<any>) {
     }
 
     try {
-      const auth = getAuth();
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        email,
-        password
-      );
-      const user = userCredential.user;
-      const userData = {
-        firstName,
-        lastName,
-        email,
-        mobile,
-        uid: user.uid,
-        usertype,
-        verifyId: "",
-        referralId: [...Array(5)]
-          .map(
-            () => "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[Math.floor(Math.random() * 26)]
-          )
-          .join(""),
-        reviewed: false,
-        blocked: false,
-        approved: true,
-        city: "",
-        signupViaReferral: referralId !== "" ? signupViaReferral : "",
-        walletBalance: referralId !== "" ? 600 : 0,
-        createdAt: Date.now(),
-      };
+      // Create user with Supabase
+      const { data, error } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
+      });
 
-      await set(ref(database, `users/${user.uid}`), userData);
-      await sendEmailVerification(user);
-      Alert.alert(
-        "Registro exitoso",
-        "Por favor verifica tu correo electrónico."
-      );
-      navigation.navigate("EmailVerification", { email });
-    } catch (error: any) {
-      let errorMessage = "Error desconocido";
-      if (error.code) {
-        switch (error.code) {
-          case "auth/email-already-in-use":
-            errorMessage =
-              "Este correo ya está registrado. Intenta iniciar sesión.";
-            break;
-          case "auth/invalid-email":
-            errorMessage = "El formato del correo es inválido.";
-            break;
-          case "auth/weak-password":
-            errorMessage = "La contraseña debe tener al menos 6 caracteres.";
-            break;
-          default:
-            errorMessage = error.message;
-            break;
+      if (error) throw error;
+
+      const user = data?.user;
+
+      if (user && user?.email_confirmed_at) {
+        const newUserId = user.id;
+        const userData = {
+          firstName,
+          lastName,
+          email,
+          mobile,
+          uid: newUserId,
+          usertype,
+          verifyId: "",
+          referralId: [...Array(5)]
+            .map(() => "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[Math.floor(Math.random() * 26)])
+            .join(""),
+          reviewed: false,
+          blocked: false,
+          approved: true,
+          city: "",
+          signupViaReferral: referralId !== "" ? signupViaReferral : "",
+          walletBalance: referralId !== "" ? 600 : 0,
+          createdAt: Date.now(),
+        };
+
+        const { error: insertError } = await supabase.from('users').insert(userData);
+        if (insertError) {
+          console.warn('Error inserting user profile:', insertError.message);
         }
+
+        Alert.alert('Registro exitoso', 'Usuario registrado y confirmado.');
+        navigation.navigate('EmailVerification', { email });
+        return;
       }
-      Alert.alert("Error de registro", errorMessage);
+
+      Alert.alert(
+        'Registro iniciado',
+        'Hemos enviado un enlace para verificar tu correo. Revisa tu email y luego inicia sesión.'
+      );
+      navigation.navigate('EmailVerification', { email });
+    } catch (error: any) {
+      let errorMessage = error?.message || 'Error desconocido';
+      // Map some common Supabase errors
+      if (error?.status === 400 || (errorMessage && errorMessage.includes('already'))) {
+        errorMessage = 'Este correo ya está registrado. Intenta iniciar sesión.';
+      }
+      Alert.alert('Error de registro', errorMessage);
     }
   };
 
@@ -235,47 +227,41 @@ export default function SignUp({ navigation }: NativeStackScreenProps<any>) {
                     onChangeText={setMobile}
                     keyboardType="phone-pad"
                   />
-                  <View style={styles.passwordContainer}>
+                  <View style={[styles.inputContainer, colorScheme === 'dark' ? styles.inputDark : styles.inputLight]}>
                     <TextInput
-                      style={styles.input(colorScheme)}
+                      style={[styles.inputInner, { color: colorScheme === 'dark' ? '#fff' : '#000' }]}
                       placeholderTextColor={
                         colorScheme === "dark" ? "#aaaaaa" : "#555555"
-                      } // Ajuste del color del placeholder
+                      }
                       placeholder="Contraseña"
                       value={password}
                       onChangeText={setPassword}
                       secureTextEntry={!showPassword}
                     />
-                    <TouchableOpacity
-                      onPress={togglePasswordVisibility}
-                      style={styles.eyeIcon}
-                    >
+                    <TouchableOpacity onPress={togglePasswordVisibility} style={styles.iconInside}>
                       <Ionicons
                         name={showPassword ? "eye-off" : "eye"}
-                        size={24}
+                        size={20}
                         color={colorScheme === "dark" ? "#fff" : "#000"}
                       />
                     </TouchableOpacity>
                   </View>
 
-                  <View style={styles.passwordContainer}>
+                  <View style={[styles.inputContainer, colorScheme === 'dark' ? styles.inputDark : styles.inputLight]}>
                     <TextInput
-                      style={styles.input(colorScheme)}
+                      style={[styles.inputInner, { color: colorScheme === 'dark' ? '#fff' : '#000' }]}
                       placeholderTextColor={
                         colorScheme === "dark" ? "#aaaaaa" : "#555555"
-                      } // Ajuste del color del placeholder
+                      }
                       placeholder="Confirmar Contraseña"
                       value={confirmPassword}
                       onChangeText={setConfirmPassword}
                       secureTextEntry={!showPassword}
                     />
-                    <TouchableOpacity
-                      onPress={togglePasswordVisibility}
-                      style={styles.eyeIcon}
-                    >
+                    <TouchableOpacity onPress={togglePasswordVisibility} style={styles.iconInside}>
                       <Ionicons
                         name={showPassword ? "eye-off" : "eye"}
-                        size={24}
+                        size={20}
                         color={colorScheme === "dark" ? "#fff" : "#000"}
                       />
                     </TouchableOpacity>
@@ -512,5 +498,33 @@ const styles = StyleSheet.create({
     right: 1,
     bottom: 6,
     position: "absolute",
+  },
+  inputContainer: {
+    width: '100%',
+    paddingHorizontal: 10,
+    height: 48,
+    borderRadius: 16,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  inputInner: {
+    flex: 1,
+    height: '100%',
+  },
+  inputDark: {
+    backgroundColor: '#333',
+    borderColor: '#444',
+  },
+  inputLight: {
+    backgroundColor: '#F6F6F6',
+    borderColor: '#ddd',
+  },
+  iconInside: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

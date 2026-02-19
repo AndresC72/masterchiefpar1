@@ -2,16 +2,14 @@
 import React, { useEffect, useState } from "react";
 import { LogBox, Platform } from "react-native";
 import { Provider, useDispatch, } from "react-redux";
-import messaging from "@react-native-firebase/messaging";
-import { onAuthStateChanged, getAuth } from "firebase/auth";
+import { supabase } from "@/config/SupabaseConfig";
 import AppContainer from "@/app/Navigation/Navigation";
 import { registerForPushNotificationsAsync } from "@/common/actions/NotificationService";
 import store, { AppDispatch, RootState } from "@/common/store";
 import { fetchAndDispatchUserData } from "@/common/actions/userActions";
-import * as Notifications from 'expo-notifications';
+// Use dynamic import for notifications so we don't trigger auto-registration in Expo Go
 import { updatePushToken, updateUserLocation } from "@/common/actions/authactions";
 import FirebaseConfig from "@/config/SupabaseConfig";
-import { FirebaseProvider, initializeFirebaseApp } from "@/config/configureFirebase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import GetPushToken from "@/components/GetPushToken";
 import * as Location from "expo-location";
@@ -30,7 +28,7 @@ Sentry.init({
     profilesSampleRate: 1.0,
     replaysSessionSampleRate: 1.0,
     replaysOnErrorSampleRate: 1.0,
-  },
+  }, 
   integrations: [
     Sentry.mobileReplayIntegration({
       maskAllText: true,
@@ -42,29 +40,48 @@ Sentry.init({
 
 const LOCATION_TASK_NAME = 'background-location-task';
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
+// We'll set the notification handler dynamically during initialization.
 
-// Handler para mensajes en segundo plano
-messaging().setBackgroundMessageHandler(async (remoteMessage) => {
-  try {
-    const { data } = remoteMessage;
-    if (data) {
-      const body = typeof data.body === 'string' ? JSON.parse(data.body).message || 'Nueva notificación' : 'Nueva notificación';
-      await Notifications.scheduleNotificationAsync({
-        content: { title: data.title || 'Nueva Notificación', body },
-        trigger: null,
-      });
-    }
-  } catch (error) {
-    console.error('Error manejando el mensaje en segundo plano:', error);
-  }
-});
+// Handler para mensajes en segundo plano (solo si está disponible el módulo de messaging)
+let _messagingModule = null;
+try {
+  // intentar requerir el módulo @react-native-firebase/messaging si está instalado
+  // lo hacemos en tiempo de ejecución para evitar errores cuando no esté disponible
+  // eslint-disable-next-line global-require
+  const messagingImport = require('@react-native-firebase/messaging');
+  _messagingModule = messagingImport && (typeof messagingImport.default === 'function' ? messagingImport.default : messagingImport);
+} catch (e) {
+  _messagingModule = null;
+}
+
+    if (_messagingModule) {
+      try {
+        _messagingModule().setBackgroundMessageHandler(async (remoteMessage) => {
+          try {
+            const { data } = remoteMessage || {};
+            if (data) {
+              const body = typeof data.body === 'string' ? (JSON.parse(data.body).message || 'Nueva notificación') : 'Nueva notificación';
+              try {
+                const Notifications = await import('expo-notifications');
+                await Notifications.scheduleNotificationAsync({
+                  content: { title: data.title || 'Nueva Notificación', body },
+                  trigger: null,
+                });
+              } catch (nerr) {
+                console.warn('Could not schedule notification (expo-notifications not available):', nerr);
+              }
+            }
+          } catch (error) {
+            console.error('Error manejando el mensaje en segundo plano:', error);
+          }
+        });
+      } catch (err) {
+        console.warn('No se pudo configurar setBackgroundMessageHandler:', err);
+      }
+    } else {
+  // Módulo de mensajería no disponible en este entorno (dev client / Expo Go sin plugin)
+  // Esto es esperado si no se instaló react-native-firebase/messaging.
+}
 
 // Tarea para la captura de ubicación en segundo plano
 TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data: { locations }, error }) => {
@@ -73,8 +90,15 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data: { locations }, error }
     return;
   }
 
-  const auth = getAuth();
-  const user = auth.currentUser;
+  // Check current user via Supabase session
+  let user: any = null;
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    user = session?.user ?? null;
+  } catch (e) {
+    user = null;
+  }
+
   if (!user) {
     const isTaskRegistered = await TaskManager.isTaskRegisteredAsync(LOCATION_TASK_NAME);
     if (isTaskRegistered) await TaskManager.unregisterTaskAsync(LOCATION_TASK_NAME);
@@ -223,37 +247,86 @@ const RootLayout = () => {
   const dispatch = useDispatch<AppDispatch>();
 
 
-useEffect(() => {
-    const foregroundSubscription = Notifications.addNotificationReceivedListener(notification => {});
-    const backgroundSubscription = Notifications.addNotificationResponseReceivedListener(response => {});
-    const messageSubscription = messaging().onMessage(async (remoteMessage) => {
-      const { title = 'Nueva Notificación', message = 'Has recibido una nueva notificación' } = remoteMessage.data || {};
-      await Notifications.scheduleNotificationAsync({ content: { title, body: message }, trigger: null });
-    });
+  useEffect(() => {
+    let foregroundSubscription: any = null;
+    let backgroundSubscription: any = null;
+    let unsubscribeMessage: (() => void) | null = null;
+
+    (async () => {
+      try {
+        const Notifications = await import('expo-notifications');
+        Notifications.setNotificationHandler({
+          handleNotification: async () => ({
+            shouldShowAlert: true,
+            shouldPlaySound: true,
+            shouldSetBadge: false,
+          }),
+        });
+
+        foregroundSubscription = Notifications.addNotificationReceivedListener(() => {});
+        backgroundSubscription = Notifications.addNotificationResponseReceivedListener(() => {});
+
+        try {
+          if (_messagingModule) {
+            const m = typeof _messagingModule === 'function' ? _messagingModule() : _messagingModule;
+            if (m && typeof m.onMessage === 'function') {
+              unsubscribeMessage = m.onMessage(async (remoteMessage: any) => {
+                const { title = 'Nueva Notificación', message = 'Has recibido una nueva notificación' } = remoteMessage.data || {};
+                try {
+                  await Notifications.scheduleNotificationAsync({ content: { title, body: message }, trigger: null });
+                } catch (nerr) {
+                  console.warn('Could not schedule notification (expo-notifications not available):', nerr);
+                }
+              });
+            }
+          }
+        } catch (e) {
+          console.warn('Error setting up message listener:', e);
+        }
+      } catch (e) {
+        console.warn('expo-notifications not available; skipping notification listeners', e);
+      }
+    })();
 
     return () => {
-      foregroundSubscription.remove();
-      backgroundSubscription.remove();
-      messageSubscription();
+      try {
+        if (foregroundSubscription && typeof foregroundSubscription.remove === 'function') foregroundSubscription.remove();
+        if (backgroundSubscription && typeof backgroundSubscription.remove === 'function') backgroundSubscription.remove();
+        if (unsubscribeMessage) unsubscribeMessage();
+      } catch (err) {
+        // ignore cleanup errors
+      }
     };
   }, []);
 
   useEffect(() => {
+    // Suppress the verbose expo-notifications Expo Go warning during development.
+    // The underlying limitation remains: remote notifications are not available in Expo Go.
+    LogBox.ignoreLogs([
+      'expo-notifications: Android Push notifications',
+      "Couldn't find a screen named 'Home' to use as 'initialRouteName'",
+    ]);
     LogBox.ignoreAllLogs(true);
 
     const initializeApp = async () => {
       try {
         await registerForPushNotificationsAsync();
-        messaging().onNotificationOpenedApp((remoteMessage) => {
-          // Manejar la notificación abierta
-        });
-        const initialNotification = await messaging().getInitialNotification();
-        if (initialNotification) {
-          // Manejar la notificación inicial
+        if (_messagingModule) {
+          const m = typeof _messagingModule === 'function' ? _messagingModule() : _messagingModule;
+          if (m && typeof m.onNotificationOpenedApp === 'function') {
+            m.onNotificationOpenedApp((remoteMessage: any) => {
+              // Manejar la notificación abierta
+            });
+          }
+          if (m && typeof m.getInitialNotification === 'function') {
+            const initialNotification = await m.getInitialNotification();
+            if (initialNotification) {
+              // Manejar la notificación inicial
+            }
+          }
         }
       } catch (error) {
         console.error('Error initializing app:', error);
-        // Considerar reportar este error a Sentry
       }
     };
 
@@ -262,22 +335,26 @@ useEffect(() => {
 
   useEffect(() => {
     checkAppVersion(dispatch);
-    const auth = getAuth();
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      const user = session?.user ?? null;
       if (user) {
-        dispatch(login(user)); // Actualiza el estado de autenticación
-        await fetchAndDispatchUserData(user.uid, dispatch);
+        dispatch(login(user));
+        try {
+          await fetchAndDispatchUserData(user.id, dispatch);
+        } catch (e) {
+          console.warn('Error fetching user data from Supabase:', e);
+        }
         const token = (await GetPushToken()) || "token_error";
         dispatch(updatePushToken(token, Platform.OS === "ios" ? "IOS" : "ANDROID"));
         await startBackgroundLocation();
         await startForegroundLocationUpdates(dispatch);
       } else {
-        dispatch(logout()); // Maneja el caso donde no hay usuario autenticado
+        dispatch(logout());
       }
       setAuthStateChecked(true);
     });
-  
-    return () => unsubscribe();
+
+    return () => subscription.unsubscribe();
   }, [dispatch]);
   
 
@@ -285,16 +362,9 @@ useEffect(() => {
 };
 
 const RootApp: React.FC = () => {
-
-  useEffect(() => {
-    initializeFirebaseApp();
-  }, []);
-
   return (
     <Provider store={store}>
-      <FirebaseProvider config={FirebaseConfig} AsyncStorage={AsyncStorage}>
-        <RootLayout />
-      </FirebaseProvider>
+      <RootLayout />
     </Provider>
   );
 };

@@ -1,48 +1,57 @@
-import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import axios from 'axios';
 
 export async function registerForPushNotificationsAsync() {
+  // Avoid trying to get expo push token inside Expo Go (not supported for remote notifications)
+  if (Constants.appOwnership === 'expo') {
+    console.warn('registerForPushNotificationsAsync: running in Expo Go — use a dev client to test push notifications.');
+    return null;
+  }
   if (Device.isDevice) {
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
-    if (existingStatus !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
-    }
-    if (finalStatus !== 'granted') {
-      alert('Failed to get push token for push notification!');
-      return;
-    }
+    try {
+      const Notifications = await import('expo-notifications');
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
+      if (existingStatus !== 'granted') {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+      if (finalStatus !== 'granted') {
+        alert('Failed to get push token for push notification!');
+        return null;
+      }
 
-    const token = (await Notifications.getExpoPushTokenAsync()).data;
-    ////console.log('Token de expo ' + token);
-    return token;
+      const token = (await Notifications.getExpoPushTokenAsync()).data;
+      // configure Android channel if needed
+      if (Platform.OS === 'android') {
+        try {
+          await Notifications.setNotificationChannelAsync('customSound', {
+            name: 'Custom Sound Channel',
+            importance: Notifications.AndroidImportance.MAX,
+            vibrationPattern: [0, 250, 250, 250],
+            lightColor: '#FF231F7C',
+            sound: 'horn.wav',
+          });
+        } catch (chErr) {
+          console.warn('Could not set Android notification channel:', chErr);
+        }
+      }
+
+      return token;
+    } catch (err) {
+      console.warn('registerForPushNotificationsAsync: expo-notifications not available or failed', err);
+      return null;
+    }
   } else {
     alert('Must use physical device for Push Notifications');
-  }
-
-  if (Platform.OS === 'android') {
-    Notifications.setNotificationChannelAsync('customSound', {
-      name: 'Custom Sound Channel',
-      importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#FF231F7C',
-      sound: 'horn.wav',  // Nombre del archivo de sonido
-    });
+    return null;
   }
 }
 
 // Configure how the notification will be displayed when the app is in foreground
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
+// Notification handler should be configured where notifications are initialized
 
 
 

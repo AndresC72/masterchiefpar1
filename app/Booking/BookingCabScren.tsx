@@ -59,14 +59,14 @@ import { MAIN_COLOR } from "@/common/other/sharedFunctions";
 import moment from "moment";
 import { fonts } from "@/scripts/font";
 import CancelModal from "@/components/CancelModal";
-import { getDatabase } from "firebase/database";
+import { getDatabase } from "firebase/database";   
 import {
   listenToSettingsChanges,
   selectSettings,
 } from "@/common/reducers/settingsSlice";
 import RadioForm from "react-native-simple-radio-button";
 
-import { API_KEY } from "../config"; // Asegúrate de importar la clave API
+import { API_KEY } from '@/config/AppConfig'; // Asegúrate de importar la clave API
 import MapSensor from "../(tabs)/mapaSensors";
 import AntDesign from "@expo/vector-icons/AntDesign";
 

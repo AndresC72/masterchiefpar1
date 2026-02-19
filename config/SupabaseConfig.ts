@@ -1,7 +1,16 @@
 import 'react-native-url-polyfill/auto';
 import { createClient, SupabaseClient, Session, User } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { SupabaseConfig } from './AppConfig';
+/* import { SupabaseConfig } from './AppConfig'; */
+// Ignora AppConfig dentro de la app, usa directamente los valores del manifest
+import Constants from 'expo-constants';
+const extra = Constants.expoConfig?.extra || {};
+
+const SupabaseConfig = {
+  url: extra.SUPABASE_URL as string,
+  anonKey: extra.SUPABASE_ANON_KEY as string,
+};
+
 import { Database } from './database.types';
 
 // ==================== INTERFACES TYPESCRIPT ====================
@@ -58,12 +67,25 @@ const createSupabaseClientOptions = (): SupabaseClientOptions => ({
   },
 });
 
+console.log('Supabase URL efectiva:', SupabaseConfig.url);
+
+
 // ==================== CLIENTE PRINCIPAL SUPABASE TIPADO ====================
 export const supabase: SupabaseClient<Database> = createClient<Database>(
   SupabaseConfig.url,
   SupabaseConfig.anonKey,
   createSupabaseClientOptions()
-);
+); 
+
+
+/* export const supabase = createClient<Database>(
+  'https://utofhxgzkdhljrixperh.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV0b2ZoeGd6a2RobGpyaXhwZXJoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcwMzAzNTcsImV4cCI6MjA3MjYwNjM1N30.m3I2UMBCDz8b3TwChMpws53B3FtvhCL9nydaYbOydew',
+  createSupabaseClientOptions()
+); */
+
+
+
 
 // ==================== FUNCIONES DE AUTENTICACION MEJORADAS ====================
 export const Auth = {
@@ -486,6 +508,9 @@ if (process.env.NODE_ENV === 'development') {
 
 // ==================== EXPORTACIONES PRINCIPALES ====================
 export default supabase;
+
+
+console.log('Supabase URL efectiva:', SupabaseConfig.url);
 
 /*
 export {

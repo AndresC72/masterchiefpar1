@@ -24,13 +24,13 @@ import markerIcon from "@/assets/images/green_pin.png";
 import { RootState } from "@/common/store";
 import { useSelector } from "react-redux";
 import {
-  listenToSettingsChanges,
+  listenToSettingsChanges, 
   selectSettings,
 } from "@/common/reducers/settingsSlice";
 import { useDispatch } from "react-redux";
 import { debounce } from "lodash"; // Importa debounce
 import { useFocusEffect } from "@react-navigation/native"; // Importa useFocusEffect
-import { API_KEY } from '../config'; // Asegúrate de importar la clave API
+import { API_KEY } from '@/config/AppConfig'; // Asegúrate de importar la clave API
 import { Ionicons } from "@expo/vector-icons";
 import { ref, get, query, orderByChild, equalTo } from 'firebase/database';
 import { database } from '../../config/SupabaseConfig'; // Asegúrate de que la ruta sea correcta

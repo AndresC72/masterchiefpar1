@@ -17,7 +17,10 @@ import axios from 'axios';
 import { codeLength, identificationNumberMappingDev, typeDocumentMapping } from "@/constants/daviplata.constants";
 import Modal from "react-native-modal";
 import { useRoute } from "@react-navigation/native";
-import * as Notifications from 'expo-notifications';
+// Importing `expo-notifications` at module top-level causes it to attempt
+// automatic device push token registration which errors in Expo Go. Use
+// dynamic import when needed so we can guard by `Constants.appOwnership`.
+import Constants from 'expo-constants';
 import RNPickerSelect from "react-native-picker-select";
 
 var { width, height } = Dimensions.get('window');
@@ -272,20 +275,26 @@ const DaviplataPayment = (props) => {
         const otp = otpResponse.otp;
         console.log(otpResponse, "otp daniel")
 
-        const notificationId = await Notifications.scheduleNotificationAsync({
-            content: {
-                title: 'TREASAPP',
-                body: `Tu código de verificación es ${otp},!`,
-                ios: {
-                    sound: 'default',
-                },
-                android: {
-                    sound: 'default',
+                let notificationId = null;
+                if (Constants.appOwnership === 'expo') {
+                    console.warn('expo-notifications: scheduling disabled in Expo Go; use dev client to test.');
+                } else {
+                    const Notifications = await import('expo-notifications');
+                    notificationId = await Notifications.scheduleNotificationAsync({
+                        content: {
+                            title: 'TREASAPP',
+                            body: `Tu código de verificación es ${otp},!`,
+                            ios: {
+                                sound: 'default',
+                            },
+                            android: {
+                                sound: 'default',
+                            }
+                        },
+                        trigger: null,
+                    });
                 }
-            },
-            trigger: null, // Si no proporcionas un disparador (trigger), la notificación se mostrará inmediatamente
-        });
-        console.log('Notificación enviada con ID:', notificationId);
+                console.log('Notificación enviada con ID:', notificationId);
 
 
     }

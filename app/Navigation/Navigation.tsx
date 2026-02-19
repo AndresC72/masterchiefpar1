@@ -1,5 +1,5 @@
 import React from "react";
-import { createStackNavigator } from "@react-navigation/stack";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { useSelector } from "react-redux";
 import { RootState } from "./../../common/store";
 import LoginScreen from "./../login/LoginScreen";
@@ -41,7 +41,7 @@ import MapScreen from "../(tabs)/mapaSensors";
 
 import UpdatesScreen from '../(tabs)/UpdatesScreen';
 
-const Stack = createStackNavigator();
+const Stack = createNativeStackNavigator();
 
 const Navigation = () => {
   

@@ -1,9 +1,13 @@
-import { AppConfig, API_KEY } from "./config/AppConfig";
+// Load .env early so `config/AppConfig` can read process.env when required
+require('dotenv').config();
 
-export default {
+const { AppConfig, API_KEY } = require("./config/AppConfig");
+
+module.exports = {
     name: AppConfig.app_name,
     description: AppConfig.app_description,
-    owner: AppConfig.expo_owner,
+    owner: "tmasplus",
+    sdkVersion: '54.0.0',
     slug: AppConfig.expo_slug,
     scheme: AppConfig.expo_slug,
     privacy: "public",
@@ -33,7 +37,16 @@ export default {
     extra: {
         eas: {
             projectId: AppConfig.expo_project_id
-        }
+        },
+        APP_NAME: AppConfig.app_name,
+        APP_DISPLAY_NAME: AppConfig.app_display_name,
+        APP_IDENTIFIER: AppConfig.app_identifier,
+        EXPO_PROJECT_ID: AppConfig.expo_project_id,
+        SUPABASE_URL: process.env.SUPABASE_URL || '',
+        SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY || '',
+        SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
+        GOOGLE_MAPS_API_KEY_ANDROID: process.env.GOOGLE_MAPS_API_KEY_ANDROID || '',
+        GOOGLE_MAPS_API_KEY_IOS: process.env.GOOGLE_MAPS_API_KEY_IOS || ''
     },
     assetBundlePatterns: [
         "**/*"
@@ -109,7 +122,6 @@ export default {
             "BODY_SENSORS"
         ],
         blockedPermissions: ["com.google.android.gms.permission.AD_ID"],
-        googleServicesFile: "./google-services.json",
         config: {
             googleMaps: {
                 apiKey: API_KEY
@@ -119,8 +131,8 @@ export default {
     "plugins": [
         "expo-asset",
         "expo-localization",
-        "@react-native-firebase/app",
-        "@react-native-firebase/auth",
+        // "@react-native-firebase/app",
+        // "@react-native-firebase/auth",
         // "react-native-background-fetch",
         [
             "expo-notifications",

@@ -43,12 +43,12 @@ import { Avatar } from "react-native-elements";
 
 import { Ionicons, } from "@expo/vector-icons";
 import { database } from "@/config/SupabaseConfig";
-import { ref, get } from "firebase/database";
+import { ref, get } from "firebase/database"; 
 import {
   fetchRecentDrivers,
 } from "@/common/store/bookingsSlice"; // Asegúrate de que esta acción esté importada
-import { API_KEY } from '../config'; // Asegúrate de importar la clave API
-import { useColorScheme } from "react-native";
+import { API_KEY } from '@/config/AppConfig'; // Asegúrate de importar la clave API
+import { useColorScheme } from "react-native"; 
 const { width, height } = Dimensions.get("window");
 
 const GOOGLE_MAPS_APIKEY_PROD = API_KEY; // Asignar la clave API

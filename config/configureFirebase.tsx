@@ -98,21 +98,51 @@ const FirebaseProvider: React.FC<{ config: any, children: React.ReactNode, Async
     if (!getApps().length) {
         try {
             app = initializeApp(config);
-
-            if (typeof document !== 'undefined') {
-                auth = initializeAuth(app, {
-                    persistence: browserLocalPersistence,
-                    popupRedirectResolver: browserPopupRedirectResolver,
-                });
-            } else {
-                auth = initializeAuth(app, {
-                    persistence: getReactNativePersistence(AsyncStorage),
-                });
-            }
-            database = getDatabase(app);
-            storage = getStorage(app);
         } catch (error) {
-            //console.log("Error initializing app: " + error);
+            console.warn("Error initializing Firebase app:", error);
+            app = null;
+        }
+
+        if (app) {
+            try {
+                if (typeof document !== 'undefined') {
+                    auth = initializeAuth(app, {
+                        persistence: browserLocalPersistence,
+                        popupRedirectResolver: browserPopupRedirectResolver,
+                    });
+                } else {
+                    try {
+                        auth = initializeAuth(app, {
+                            persistence: getReactNativePersistence(AsyncStorage),
+                        });
+                    } catch (e) {
+                        console.warn('initializeAuth with react-native persistence failed:', e);
+                        try {
+                            auth = initializeAuth(app);
+                        } catch (ee) {
+                            console.warn('initializeAuth fallback failed:', ee);
+                            auth = null;
+                        }
+                    }
+                }
+            } catch (e) {
+                console.warn('Error initializing Firebase Auth:', e);
+                auth = null;
+            }
+
+            try {
+                database = getDatabase(app);
+            } catch (e) {
+                console.warn('Error initializing Firebase Database:', e);
+                database = null;
+            }
+
+            try {
+                storage = getStorage(app);
+            } catch (e) {
+                console.warn('Error initializing Firebase Storage:', e);
+                storage = null;
+            }
         }
     } else {
         app = getApp();
@@ -121,7 +151,29 @@ const FirebaseProvider: React.FC<{ config: any, children: React.ReactNode, Async
         storage = getStorage(app);
     }
 
-    firebase = createFullStructure(app, database, auth, storage, config);
+    try {
+        if (!app) {
+            // If app is not initialized, provide a safe minimal firebase object to avoid crashes
+            firebase = {
+                app: null,
+                config,
+                database: null,
+                auth: null,
+                storage: null,
+            };
+        } else {
+            firebase = createFullStructure(app, database, auth, storage, config);
+        }
+    } catch (e) {
+        console.warn('Error creating full firebase structure:', e);
+        firebase = {
+            app: app || null,
+            config,
+            database: database || null,
+            auth: auth || null,
+            storage: storage || null,
+        };
+    }
 
     return (
         <FirebaseContext.Provider value={firebase}>

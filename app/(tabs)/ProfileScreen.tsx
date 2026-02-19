@@ -14,7 +14,7 @@ import {
 import {
   Ionicons,
   AntDesign,
-  FontAwesome5,
+  FontAwesome5, 
   MaterialIcons,
 } from "@expo/vector-icons";
 import { useSelector, useDispatch } from "react-redux";
@@ -25,7 +25,7 @@ import { settings } from "@/scripts/settings";
 import { logout } from "@/common/reducers/authReducer";
 import { signOff, updateProfile } from "@/common/actions/authactions";
 import { ScrollView } from "react-native-gesture-handler";
-import { AppConfig } from '@/app/config';
+import { AppConfig } from '@/config/AppConfig';
 import * as Updates from 'expo-updates'; // Importar Updates
 import UpdatesScreen from './UpdatesScreen'; // Importar la nueva pantalla
 

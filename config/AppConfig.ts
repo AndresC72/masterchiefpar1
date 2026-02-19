@@ -33,9 +33,24 @@ interface StorageConfiguration {
 interface GoogleMapsConfiguration {
   readonly development: string;
   readonly production: string;
-}
+} 
 
 // ==================== VALIDACIÓN DE VARIABLES DE ENTORNO ====================
+// Helper para leer variables de entorno desde process.env o desde Constants.expoConfig.extra
+const getEnv = (name: string, defaultValue: string = ''): string => {
+  try {
+    // Priorizar process.env (cuando se ejecuta en Node durante build)
+    if (process.env && process.env[name]) return process.env[name] as string;
+
+    // En runtime de Expo/Metro usar Constants.expoConfig.extra
+    const extras = (Constants.expoConfig && (Constants.expoConfig as any).extra) || (Constants.manifest && (Constants.manifest as any).extra) || {};
+    if (extras && extras[name]) return extras[name];
+  } catch (e) {
+    // ignore
+  }
+  return defaultValue;
+};
+
 const validateEnvVars = (): void => {
   const requiredVars = [
     'SUPABASE_URL',
@@ -44,13 +59,23 @@ const validateEnvVars = (): void => {
     'EXPO_PROJECT_ID'
   ];
 
-  const missingVars = requiredVars.filter(varName => !process.env[varName]);
+  const missingVars = requiredVars.filter(varName => !getEnv(varName));
   
   if (missingVars.length > 0) {
-    throw new Error(
-      `Variables de entorno requeridas faltantes: ${missingVars.join(', ')}\n` +
-      `Por favor verifica tu archivo .env`
-    );
+    const message = `Variables de entorno requeridas faltantes: ${missingVars.join(', ')}\nPor favor verifica tu archivo .env`;
+    // Si estamos en un entorno Node (ej. al ejecutar app.config.js) lanzamos el error
+    // En el runtime de React Native (Metro/Expo) `window` existe, así que evitamos tirar
+    const isNode = typeof window === 'undefined';
+    if (isNode) {
+      throw new Error(message);
+    } else {
+      // Mostrar advertencia en tiempo de ejecución del bundle para permitir que Metro compile
+      // y que la app use valores desde Constants.expoConfig.extra o process.env inyectados.
+      // Esto evita que la app se detenga en desarrollo por ausencia de variables en `process.env`.
+      // Se seguirá mostrando la validación detallada más adelante si es necesario.
+      // eslint-disable-next-line no-console
+      console.warn(message);
+    }
   }
 };
 
@@ -61,38 +86,38 @@ if (process.env.NODE_ENV !== 'test') {
 
 // ==================== CONFIGURACIÓN T+PLUS SEGURA ====================
 export const AppConfig: AppConfiguration = {
-  app_name: process.env.APP_NAME!,
-  app_description: process.env.APP_DESCRIPTION || 'Sistema de transporte urbano inteligente T+Plus',
-  app_display_name: process.env.APP_DISPLAY_NAME || 'TmasPlus',
+  app_name: getEnv('APP_NAME'),
+  app_description: getEnv('APP_DESCRIPTION', 'Sistema de transporte urbano inteligente T+Plus'),
+  app_display_name: getEnv('APP_DISPLAY_NAME', 'TmasPlus'),
   icon_app: './assets/images/logo-Preview.png',
   
   // Identificadores de aplicación
-  app_identifier: process.env.APP_IDENTIFIER || 'com.tmasplus.tmasplus',
-  app_identifier_ios: process.env.APP_IDENTIFIER_IOS || 'tmasplus.tmasplus',
+  app_identifier: getEnv('APP_IDENTIFIER', 'com.tmasplus.tmasplus'),
+  app_identifier_ios: getEnv('APP_IDENTIFIER_IOS', 'tmasplus.tmasplus'),
   
   // Control de versiones
-  ios_app_version: process.env.APP_VERSION || '1.10.3',
-  runtime_Version: process.env.EXPO_RUNTIME_VERSION || '1.0.4',
-  android_app_version: parseInt(process.env.ANDROID_APP_VERSION || '1', 10),
+  ios_app_version: getEnv('APP_VERSION', '1.10.3'),
+  runtime_Version: getEnv('EXPO_RUNTIME_VERSION', '1.0.4'),
+  android_app_version: parseInt(getEnv('ANDROID_APP_VERSION', '1'), 10),
   
   // Configuración Expo
-  expo_owner: process.env.EXPO_OWNER || 'tmasplus_cto',
-  expo_slug: process.env.EXPO_SLUG || 'treasapp',
-  expo_project_id: process.env.EXPO_PROJECT_ID!
+  expo_owner: getEnv('EXPO_OWNER', 'tmasplus_cto'),
+  expo_slug: getEnv('EXPO_SLUG', 'treasapp'),
+  expo_project_id: getEnv('EXPO_PROJECT_ID')
 } as const;
 
 // ==================== CONFIGURACIÓN SUPABASE SEGURA ====================
 export const SupabaseConfig: SupabaseConfiguration = {
-  url: process.env.SUPABASE_URL!,
-  anonKey: process.env.SUPABASE_ANON_KEY!,
-  serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
-  jwtSecret: process.env.JWT_SECRET || ''
+  url: getEnv('SUPABASE_URL'),
+  anonKey: getEnv('SUPABASE_ANON_KEY'),
+  serviceRoleKey: getEnv('SUPABASE_SERVICE_ROLE_KEY', ''),
+  jwtSecret: getEnv('JWT_SECRET', '')
 } as const;
 
 // ==================== CONFIGURACIÓN GOOGLE MAPS SEGURA ====================
 const GoogleMapsConfig: GoogleMapsConfiguration = {
-  development: process.env.GOOGLE_MAPS_API_KEY_DEV || process.env.GOOGLE_MAPS_API_KEY_ANDROID || '',
-  production: process.env.GOOGLE_MAPS_API_KEY_PROD || process.env.GOOGLE_MAPS_API_KEY_IOS || ''
+  development: getEnv('GOOGLE_MAPS_API_KEY_DEV', getEnv('GOOGLE_MAPS_API_KEY_ANDROID', '')),
+  production: getEnv('GOOGLE_MAPS_API_KEY_PROD', getEnv('GOOGLE_MAPS_API_KEY_IOS', ''))
 } as const;
 
 export const getGoogleMapsApiKey = (): string => {
@@ -136,8 +161,9 @@ export const validateConfiguration = (): {
     errors.push('SUPABASE_ANON_KEY inválida - debe ser un JWT válido');
   }
   
-  if (!AppConfig.expo_project_id || !AppConfig.expo_project_id.match(/^[a-f0-9\-]{36}$/)) {
-    errors.push('EXPO_PROJECT_ID inválido - debe ser un UUID válido');
+  // UUID v4: 8-4-4-4-12 caracteres hex + guiones (ej: a1b2c3d4-e5f6-7890-abcd-ef1234567890)
+  if (!AppConfig.expo_project_id || !AppConfig.expo_project_id.match(/^[a-fA-F0-9\-]{36}$/)) {
+    errors.push('EXPO_PROJECT_ID inválido - debe ser un UUID válido (obtenerlo en https://expo.dev → tu proyecto → Project ID)');
   }
   
   // Validaciones de seguridad

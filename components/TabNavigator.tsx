@@ -37,11 +37,8 @@ const TabNavigator: React.FC = () => {
     height: hasNotch ? 80 : 55,
   };
 
-  const initialRoute = useMemo(() => {
-    if (user?.usertype === "driver") return "Map";
-    if (user?.usertype === "customer") return "CustMap";
-    return "Home";
-  }, [user]);
+  // Build screens first and then pick a sensible initial route.
+  // Default to the first available tab when no user-specific home exists.
 
   const tabScreens = useMemo(() => {
     const screens = [];
@@ -97,6 +94,12 @@ const TabNavigator: React.FC = () => {
 
     return screens;
   }, [user]);
+
+  const initialRoute = useMemo(() => {
+    if (user?.usertype === "driver") return "Map";
+    if (user?.usertype === "customer") return "CustMap";
+    return tabScreens[0]?.name ?? "RideList";
+  }, [user, tabScreens]);
 
   return (
     <Tab.Navigator

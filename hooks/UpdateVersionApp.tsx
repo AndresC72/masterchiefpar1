@@ -1,55 +1,45 @@
 import { Platform, Linking } from "react-native";
+import Constants from 'expo-constants';
 import { updateProfile } from "@/common/actions/authactions";
 
 export const checkAppVersion = async (dispatch: any) => {
     console.log('checkAppVersion------ Iniciando verificación de versión');
-    console.log('checkAppVersion------ Iniciando verificación de versión',);
     try {
-        const appConfig = require('../app/config');
-        console.log('App Config Cargado:', appConfig);
-        
-    //    const dispatch = useDispatch();
-        console.log('useDispatch hook inicializado');
+        // Prefer runtime manifest if available, otherwise use config/AppConfig
+        const manifestVersion = Constants.expoConfig?.version || Constants.manifest?.version;
+        let currentVersion: any = manifestVersion;
 
-        const currentVersion =  appConfig.expo.version; // Obtiene la versión actual de la app
+        try {
+            const { AppConfig } = require('../config/AppConfig');
+            if (!currentVersion) currentVersion = AppConfig.ios_app_version || AppConfig.runtime_Version;
+            console.log('AppConfig cargado desde config:', AppConfig?.app_name);
+        } catch (e) {
+            console.warn('No se pudo cargar config/AppConfig, usando manifest si está disponible');
+        }
+
         console.log('Versión Actual de la App:', currentVersion);
 
         // URLs de las tiendas configuradas según la plataforma
-        const playStoreUrl = 'https://play.google.com/store/apps/details?id=com.treasapp.treas22'; // Reemplaza con tu URL de Play Store
-        const appleStoreUrl = 'https://apps.apple.com/app/treasapp/id6456222848'; // Reemplaza con tu URL de Apple Store
-        console.log('URLs de las tiendas configuradas:', { playStoreUrl, appleStoreUrl });
+        const playStoreUrl = 'https://play.google.com/store/apps/details?id=com.treasapp.treas22';
+        const appleStoreUrl = 'https://apps.apple.com/app/treasapp/id6456222848';
 
         dispatch(updateProfile({ AppVersion: currentVersion }));
-        console.log('Perfil actualizado con la versión actual de la app');
 
         if (Platform.OS === 'android') {
-            const settingsVersion = parseInt(settings.android_app_version, 10); // Obtener la versión desde settings y convertir a número
-            console.log('Versión obtenida de Settings:', settingsVersion);
-
-            console.log(`Comparando versiones: Actual=${currentVersion} vs Settings=${settingsVersion}`);
-            if (currentVersion < settingsVersion) {
-                console.log('Nueva versión disponible según Settings. Abriendo URL de Play Store.');
-                Linking.openURL(playStoreUrl);
-            } else {
-                console.log('La versión actual está actualizada con respecto a Settings.');
+            try {
+                const { AppConfig } = require('../config/AppConfig');
+                const settingsVersion = parseInt(String(AppConfig.android_app_version || 0), 10);
+                if (currentVersion < settingsVersion) {
+                    Linking.openURL(playStoreUrl);
+                }
+            } catch (e) {
+                console.warn('No se pudo obtener android_app_version de AppConfig:', e);
             }
         } else if (Platform.OS === 'ios') {
             const appleStoreVersion = await fetchAppleStoreVersion();
-            console.log('Versión obtenida de Apple Store:', appleStoreVersion);
-
-            if (appleStoreVersion) {
-                console.log(`Comparando versiones: Actual=${currentVersion} vs AppleStore=${appleStoreVersion}`);
-                if (currentVersion < appleStoreVersion) {
-                    console.log('Nueva versión disponible en Apple Store. Abriendo URL de Apple Store.');
-                    Linking.openURL(appleStoreUrl);
-                } else {
-                    console.log('La versión actual está actualizada con respecto a Apple Store.');
-                }
-            } else {
-                console.log('No se pudo obtener la versión de Apple Store.');
+            if (appleStoreVersion && currentVersion < appleStoreVersion) {
+                Linking.openURL(appleStoreUrl);
             }
-        } else {
-            console.log('Plataforma no soportada para verificación de versión.');
         }
 
     } catch (error) {
