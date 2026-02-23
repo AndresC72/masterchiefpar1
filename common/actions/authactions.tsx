@@ -19,7 +19,6 @@ import {
   signOut,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
-  getAuth,
 } from "firebase/auth";
 import base64 from "react-native-base64";
  
@@ -28,8 +27,36 @@ import AccessKey from "@/common/other/AccessKey";
 import { Dispatch } from "redux";
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL ,uploadBytesResumable} from "firebase/storage";
 
+// Helper seguro para obtener la instancia de auth cuando Firebase está inicializado
+const getSafeAuth = () => {
+  try {
+    if (firebase && firebase.auth) return firebase.auth;
+    // fallback: si hay apps inicializadas, intentar obtener auth desde el SDK
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const authModule = require('firebase/auth');
+    const appModule = require('firebase/app');
+    if (appModule && typeof appModule.getApps === 'function' && appModule.getApps().length) {
+      return authModule.getAuth();
+    }
+  } catch (e) {
+    // ignore
+  }
+  return null;
+};
+
 export const fetchUser = () => (dispatch) => {
   const { auth, config, singleUserRef } = firebase;
+
+  if (!auth) {
+    dispatch({
+      type: FETCH_USER_FAILED,
+      payload: {
+        code: store.getState().languagedata.defaultLanguage.auth_error,
+        message: store.getState().languagedata.defaultLanguage.not_logged_in,
+      },
+    });
+    return;
+  }
 
   dispatch({
     type: FETCH_USER,
@@ -142,8 +169,8 @@ export const fetchUser = () => (dispatch) => {
 export const signOff = () => (dispatch) => {
   const { singleUserRef, walletHistoryRef, userNotificationsRef } = firebase;
 
-  const auth = getAuth();
-  const user = auth.currentUser;
+  const auth = getSafeAuth();
+  const user = auth?.currentUser;
 
   if (user) {
     const uid = user.uid;
@@ -177,16 +204,21 @@ export const signOff = () => (dispatch) => {
       { onlyOnce: true }
     );
   } else {
-    console.log("No user is signed in");
+    console.log("No user is signed in or Firebase Auth not available");
+    dispatch({ type: USER_SIGN_OUT, payload: null });
   }
 };
 
 export const updateProfile = (updateData: object, imgUri?: string) => {
   return async (dispatch: Dispatch) => {
     try {
-      const auth = getAuth();
-      const user = auth.currentUser;
+      const auth = getSafeAuth();
+      const user = auth?.currentUser;
 
+      if (!auth || !user) {
+        console.warn('Firebase Auth not available — skipping updateProfile');
+        return;
+      }
       if (!user) {
         console.warn("Intento de actualizar perfil sin usuario autenticado");
         return;
@@ -250,8 +282,8 @@ export const updatePushToken = (token: string, platform: string) => {
   return async (dispatch: Dispatch) => {
     try {
       ////console.log("Dispatching updatePushToken with token:", token, "and platform:", platform);
-      const auth = getAuth();
-      const user = auth.currentUser;
+      const auth = getSafeAuth();
+      const user = auth?.currentUser;
       if (user) {
         //  //console.log("User is authenticated, proceeding to update token.");
         const db = getDatabase();
@@ -266,7 +298,9 @@ export const updatePushToken = (token: string, platform: string) => {
         });
         //  //console.log("Dispatch action for updating push token executed");
       } else {
-        throw new Error("No user is signed in");
+        // No auth available: skip silently
+        console.warn('updatePushToken: no firebase auth available — skipping');
+        return;
       }
     } catch (error) {
       console.error("Failed to update push token:", error);
@@ -277,11 +311,11 @@ export const updatePushToken = (token: string, platform: string) => {
 export const updateUserLocation = (latitude: number | undefined, longitude: number | undefined) => {
   return async (dispatch: Dispatch) => {
     try {
-      const auth = getAuth();
-      const user = auth.currentUser;
+      const auth = getSafeAuth();
+      const user = auth?.currentUser;
 
       if (!user) {
-        console.log("No user is signed in, stopping location update");
+        console.log("No user is signed in or Firebase Auth unavailable, stopping location update");
         return;
       }
 
@@ -315,6 +349,12 @@ export const clearLoginError = () => (dispatch) => {
 export const fetchWalletHistory = () => (dispatch) => {
   const { auth, walletHistoryRef } = firebase;
 
+  if (!auth || !auth.currentUser) {
+    console.warn('fetchWalletHistory: no firebase auth/currentUser available');
+    dispatch({ type: UPDATE_USER_WALLET_HISTORY, payload: [] });
+    return;
+  }
+
   const uid = auth.currentUser.uid;
 
   onValue(walletHistoryRef(uid), (snapshot) => {
@@ -333,8 +373,13 @@ export const fetchWalletHistory = () => (dispatch) => {
 };
 export const fetchUserWalletHistory = (userId) => (dispatch) => {
   const { auth, walletHistoryRef } = firebase;
-
   const uid = userId;
+
+  if (!walletHistoryRef) {
+    console.warn('fetchUserWalletHistory: walletHistoryRef not available');
+    dispatch({ type: UPDATE_USER_WALLET_HISTORY, payload: [] });
+    return;
+  }
 
   onValue(walletHistoryRef(uid), (snapshot) => {
     const data = snapshot.val();

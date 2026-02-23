@@ -100,8 +100,9 @@ const LoginScreen = ({ navigation }: Props) => {
   };
 
   const navigateBasedOnUserType = () => {
-    if (user?.usertype) {  // Asegúrate de que fetchAndDispatchUserData popule usertype
-      switch (user.usertype) {
+    const userType = user?.user_metadata?.usertype;
+    if (userType) {
+      switch (userType) {
         case "driver":
           navigation.navigate("Map");
           break;
@@ -112,7 +113,7 @@ const LoginScreen = ({ navigation }: Props) => {
           navigation.navigate("CompanyHome");
           break;
         default:
-          console.error("Tipo de usuario desconocido:", user.usertype);
+          console.error("Tipo de usuario desconocido:", userType);
       }
     }
   };

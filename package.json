@@ -45,6 +45,7 @@
     "dotenv": "^16.3.1",
     "expo": "~54.0.0",
     "expo-asset": "~12.0.12",
+    "expo-auth-session": "^7.0.10",
     "expo-background-fetch": "~14.0.9",
     "expo-build-properties": "~1.0.10",
     "expo-calendar": "~15.0.8",

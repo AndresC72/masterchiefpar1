@@ -28,6 +28,8 @@ import { ScrollView } from "react-native-gesture-handler";
 import { AppConfig } from '@/config/AppConfig';
 import * as Updates from 'expo-updates'; // Importar Updates
 import UpdatesScreen from './UpdatesScreen'; // Importar la nueva pantalla
+import * as TaskManager from 'expo-task-manager';
+import * as Location from 'expo-location';
 
 type Props = NativeStackScreenProps<any>;
 
@@ -62,11 +64,11 @@ const ProfileScreen = ({ navigation }: Props) => {
   };
 
   const logOff = () => {
-    if (user?.usertype === "driver") StopBackgroundLocation();
+    if ((user as any)?.usertype === "driver") StopBackgroundLocation();
     setLoading(true);
     setTimeout(() => {
-      if (user?.pushToken) dispatch(updateProfile({ pushToken: null }));
-      dispatch(signOff());
+      if ((user as any)?.pushToken) dispatch(updateProfile({ pushToken: null }) as any);
+      dispatch(signOff() as any);
     }, 1000);
   };
 
@@ -81,7 +83,7 @@ const ProfileScreen = ({ navigation }: Props) => {
 
   const refer = () => {
     const message = settings.bonus > 0
-      ? `${user.firstName} ya se mueve con TREASAPP y te invita a que seas parte de este cambio para la movilidad. Descarga, regístrate y disfruta de este bono en tu próximo servicio. ${settings.code} ${settings.bonus}.\nCódigo :${user.referralId}\n ${settings.DinamikLink}`
+      ? `${(user as any).firstName} ya se mueve con TREASAPP y te invita a que seas parte de este cambio para la movilidad. Descarga, regístrate y disfruta de este bono en tu próximo servicio. ${settings.code} ${settings.bonus}.\nCódigo :${(user as any).referralId}\n ${settings.DinamikLink}`
       : `share_msg_no_bonus\napp_link${Platform.OS === "ios" ? settings.AppleStoreLink : settings.PlayStoreLink}`;
     Share.share({ message });
   };
@@ -104,7 +106,7 @@ const ProfileScreen = ({ navigation }: Props) => {
 
   const checkAppVersion = async () => {
     const currentVersion = AppConfig.ios_app_version;
-    dispatch(updateProfile({ AppVersion: currentVersion }));
+    dispatch(updateProfile({ AppVersion: currentVersion }) as any);
   };
 
   const dynamicStyles = styles(isDarkMode);
@@ -113,12 +115,12 @@ const ProfileScreen = ({ navigation }: Props) => {
     <View style={dynamicStyles.container}>
       <View style={dynamicStyles.profileContainer}>
         <Image
-          source={user?.profile_image ? { uri: user.profile_image } : require("@/assets/images/profile.png")}
+          source={(user as any)?.profile_image ? { uri: (user as any).profile_image } : require("@/assets/images/profile.png")}
           style={dynamicStyles.profileImage}
         />
         <View>
-          <Text style={dynamicStyles.profileName}>{user?.firstName} {user?.lastName}</Text>
-          <Text style={dynamicStyles.profileSubtitle}>{user?.CompanyName}</Text>
+          <Text style={dynamicStyles.profileName}>{(user as any)?.firstName} {(user as any)?.lastName}</Text>
+          <Text style={dynamicStyles.profileSubtitle}>{(user as any)?.CompanyName}</Text>
         </View>
       </View>
 
@@ -130,7 +132,7 @@ const ProfileScreen = ({ navigation }: Props) => {
             <Ionicons name="chevron-forward-outline" size={24} color="#F20505" />
           </TouchableOpacity>
 
-          {user?.usertype === "customer" ? (
+          {(user as any)?.usertype === "customer" ? (
             <TouchableOpacity style={dynamicStyles.menuItem} onPress={() => navigation.navigate("Search")}>
               <FontAwesome5 name="search-location" size={24} color="#F20505" />
               <Text style={dynamicStyles.menuText}>Mis lugares</Text>
@@ -175,7 +177,7 @@ const ProfileScreen = ({ navigation }: Props) => {
           </TouchableOpacity>
 
           <TouchableOpacity style={dynamicStyles.menuItem} onPress={refer}>
-            <AntDesign name="sharealt" size={24} color="#F20505" />
+            <AntDesign name="share-alt" size={24} color="#F20505" />
             <Text style={dynamicStyles.menuText}>Comparte y gana</Text>
             <Ionicons name="chevron-forward-outline" size={24} color="#F20505" />
           </TouchableOpacity>
@@ -186,7 +188,7 @@ const ProfileScreen = ({ navigation }: Props) => {
             <Ionicons name="chevron-forward-outline" size={23} color="#F20505" />
           </TouchableOpacity>
 
-          {user?.usertype === "driver" && (
+          {(user as any)?.usertype === "driver" && (
             <>
               <TouchableOpacity style={dynamicStyles.menuItem} onPress={() => navigation.navigate("Insurance")}>
                 <MaterialIcons name="security" size={24} color="#F20505" />

@@ -25,11 +25,11 @@ import {
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 import MapViewDirections from "react-native-maps-directions";
 import { useRoute, useNavigation } from "@react-navigation/native";
-import markeIcon from "@/assets/images/rsz_2red_pin.png";
-import markeIconO from "@/assets/images/green_pin.png";
+/* import markeIcon from "@/assets/images/rsz_2red_pin.png";
+import markeIconO from "@/assets/images/rsz_2red_pin.png"; */
 import { AntDesign, } from "@expo/vector-icons";
 import { useDispatch, useSelector } from "react-redux";
-import { RootState } from "@/common/store";
+import { RootState, AppDispatch } from "@/common/store";
 import {
   BottomSheetModal,
   BottomSheetModalProvider,
@@ -42,7 +42,7 @@ import PromoComp from "@/components/PromoComp"; // Asegúrate de importar el com
 import { Avatar } from "react-native-elements";
 
 import { Ionicons, } from "@expo/vector-icons";
-import { database } from "@/config/SupabaseConfig";
+import database from "@/config/SupabaseConfig";
 import { ref, get } from "firebase/database"; 
 import {
   fetchRecentDrivers,
@@ -55,18 +55,31 @@ const GOOGLE_MAPS_APIKEY_PROD = API_KEY; // Asignar la clave API
 
 const BookingScreen = () => {
   const route = useRoute();
-  const { origin, destination, type } = route.params;
+  const { origin, destination, type } = route.params as { origin: any; destination: any; type: any };
   const mapRef = useRef<MapView | null>(null);
   const [distance, setDistance] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const [selectedVehicle, setSelectedVehicle] = useState(null);
+  const [selectedVehicle, setSelectedVehicle] = useState<{
+    value: string;
+    name: any;
+    capacity: any;
+    service: any;
+    carImage: any;
+    base_fare: any;
+    rate_per_unit_distance: any;
+    rate_per_hour: any;
+    min_fare: any;
+    convenience_fees: any;
+    convenience_fee_type: any;
+    estimatedPrice: any;
+  } | null>(null);
   const [fareDetails, setFareDetails] = useState(null);
   const [passedTolls, setPassedTolls] = useState([]);
   const [immediatePickup, setImmediatePickup] = useState(true);
   const [soloIda, setSoloIda] = useState(false);
   const [scheduleRide, setScheduleRide] = useState(false);
-  const [date, setDate] = useState(new Date());
+  const [date, setDate] = useState<number>(new Date().getTime());
   const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedPaymentType, setSelectedPaymentType] = useState("cash");
@@ -78,16 +91,29 @@ const BookingScreen = () => {
   const [isScheduled, setIsScheduled] = useState(false);
   const [tripType, setTripType] = useState("Solo Ida"); // Estado para el tipo de viaje
   const [observations, setObservations] = useState("");
-  const dispatch = useDispatch();
   const [selectedPromo, setSelectedPromo] = useState(null); // Estado para la promo seleccionada
   const [successModalVisible, setSuccessModalVisible] = useState(false);
   const [fadeAnim] = useState(new Animated.Value(0)); // Animación de fade
   const [errorMessage, setErrorMessage] = useState("");
+  const dispatch = useDispatch<AppDispatch>();
 
-  const [taxiOptions, setTaxiOptions] = useState([]);
+  const [taxiOptions, setTaxiOptions] = useState<Array<{
+    value: string;
+    name: any;
+    capacity: any;
+    service: any;
+    carImage: any;
+    base_fare: any;
+    rate_per_unit_distance: any;
+    rate_per_hour: any;
+    min_fare: any;
+    convenience_fees: any;
+    convenience_fee_type: any;
+    estimatedPrice: any;
+  }>>([]);
   const [isVehicleModalVisible, setIsVehicleModalVisible] = useState(false);
 
-  const drivers = useSelector((state) => state.bookings.recentDrivers);
+  const drivers = useSelector((state: RootState) => state.bookings.recentDrivers);
   const [selectedDriver, setSelectedDriver] = useState(null);
   const [isDriverModalVisible, setIsDriverModalVisible] = useState(false); // Estado para el modal de conductores
   const [isSoloIdaActive, setIsSoloIdaActive] = useState(true); // Cambiado a true para que esté activo por defecto
@@ -98,12 +124,12 @@ const colorScheme = useColorScheme();
   const [isButtonDisabled, setIsButtonDisabled] = useState(false);
 //console.log(type,"type")
   useEffect(() => {
-    dispatch(fetchPromos());
-    dispatch(fetchRecentDrivers());
+    dispatch(fetchPromos() as any);
+    dispatch(fetchRecentDrivers() as any);
   }, [dispatch]);
   const styles = colorScheme === "dark" ? darkStyles : lightStyles; // Estilos dinámicos
 
-  const handleSelectDriver = (driver) => {
+  const handleSelectDriver = (driver: any) => {
     setSelectedDriver(driver);
    // console.log("Conductor seleccionado:", driver); // Guardar en log
     setIsDriverModalVisible(false); // Cerrar el modal
@@ -175,8 +201,8 @@ const colorScheme = useColorScheme();
               },
               body: JSON.stringify({
                 bookingData: {
-                  roundedDistance: parseFloat(distance),
-                  durationMinutes: parseFloat(duration),
+                  roundedDistance: typeof distance === 'string' ? parseFloat(distance) : distance,
+                  durationMinutes: typeof duration === 'string' ? parseFloat(duration) : duration,
                   carType: rateDetails,
                 },
                 tolls: [],
@@ -195,7 +221,7 @@ const colorScheme = useColorScheme();
             });
             fareDetails = await response.json();
             //console.log(parseFloat(distance),"-----distance----")
-            const distancia = parseFloat(duration)
+            const distancia = duration
            // console.log(distancia,"Duration")
           } catch (error) {
             console.error("Error al calcular el precio:", error);
@@ -230,8 +256,8 @@ const colorScheme = useColorScheme();
               },
               body: JSON.stringify({
                 bookingData: {
-                  roundedDistance: parseFloat(distance),
-                  durationMinutes: parseFloat(duration),
+                  roundedDistance: typeof distance === 'string' ? parseFloat(distance) : distance,
+                  durationMinutes: typeof duration === 'string' ? parseFloat(duration) : duration,
                   carType: rateDetails,
                 },
                 tolls: [],
@@ -385,7 +411,7 @@ const colorScheme = useColorScheme();
     setDatePickerVisibility(false);
   };
 
-  const handleConfirm = (selectedDate) => {
+  const handleConfirm = (selectedDate: Date) => {
     const timestamp = new Date(selectedDate).getTime(); // Convertir la fecha seleccionada a un timestamp
     setDate(timestamp); // Guardamos el timestamp en el estado
     setIsScheduled(true); // Indicamos que el viaje es programado

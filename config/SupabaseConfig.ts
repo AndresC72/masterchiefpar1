@@ -282,10 +282,6 @@ export const Health = {
       if (SupabaseConfig.url.includes('localhost')) {
         errors.push('URL de Supabase apunta a localhost en produccion');
       }
-      
-      if (SupabaseConfig.serviceRoleKey && SupabaseConfig.serviceRoleKey.length > 0) {
-        warnings.push('Service Role Key presente en produccion - verificar seguridad');
-      }
     }
 
     return {

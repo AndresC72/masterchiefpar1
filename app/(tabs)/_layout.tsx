@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from "react";
-import { LogBox, Platform } from "react-native";
+import { LogBox, Platform, View, Text, Button, StyleSheet, Alert } from "react-native";
 import { Provider, useDispatch, } from "react-redux";
 import { supabase } from "@/config/SupabaseConfig";
 import AppContainer from "@/app/Navigation/Navigation";
@@ -9,14 +9,16 @@ import store, { AppDispatch, RootState } from "@/common/store";
 import { fetchAndDispatchUserData } from "@/common/actions/userActions";
 // Use dynamic import for notifications so we don't trigger auto-registration in Expo Go
 import { updatePushToken, updateUserLocation } from "@/common/actions/authactions";
-import FirebaseConfig from "@/config/SupabaseConfig";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+/* import FirebaseConfig from "@/config/SupabaseConfig";
+import AsyncStorage from "@react-native-async-storage/async-storage"; */
 import GetPushToken from "@/components/GetPushToken";
 import * as Location from "expo-location";
 import * as TaskManager from "expo-task-manager";
 import * as Sentry from "@sentry/react-native";
 import { login, logout } from "@/common/reducers/authReducer";
 import { checkAppVersion } from "@/hooks/UpdateVersionApp";
+import { Linking } from 'react-native';
+// AsyncStorage/router/auth helper imports removed (no longer needed here)
 
 // Inicialización de Sentry
 Sentry.init({
@@ -56,7 +58,7 @@ try {
 
     if (_messagingModule) {
       try {
-        _messagingModule().setBackgroundMessageHandler(async (remoteMessage) => {
+        _messagingModule().setBackgroundMessageHandler(async (remoteMessage: any) => {
           try {
             const { data } = remoteMessage || {};
             if (data) {
@@ -84,7 +86,7 @@ try {
 }
 
 // Tarea para la captura de ubicación en segundo plano
-TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data: { locations }, error }) => {
+TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data: { locations }, error }: { data: { locations: any[] }; error: any }) => {
   if (error || !locations?.length) {
     console.error("Error o sin ubicaciones en la tarea de localización:", error);
     return;
@@ -244,7 +246,83 @@ const startForegroundLocationUpdates = async (dispatch: AppDispatch) => {
 
 const RootLayout = () => {
   const [authStateChecked, setAuthStateChecked] = useState(false);
+  const [confirmationMessage, setConfirmationMessage] = useState<string | null>(null);
   const dispatch = useDispatch<AppDispatch>();
+
+
+  // Manejo de deep links para intercambiar tokens de Supabase
+  useEffect(() => {
+    const parseFragment = (url: string) => {
+      const hashIndex = url.indexOf('#');
+      if (hashIndex === -1) return {} as Record<string, string>;
+      const fragment = url.substring(hashIndex + 1);
+      return fragment.split('&').reduce((acc: Record<string, string>, pair) => {
+        const [k, v] = pair.split('=');
+        if (!k) return acc;
+        acc[decodeURIComponent(k)] = decodeURIComponent(v || '');
+        return acc;
+      }, {} as Record<string, string>);
+    };
+
+    const processUrl = async (url?: string | null) => {
+      if (!url) return;
+      try {
+        const params = parseFragment(url);
+        if (params.error) {
+          console.warn('Supabase auth redirect error:', params);
+          // Si es otp_expired, indicar al usuario que reenvíe el enlace
+          if (params.error_code === 'otp_expired') {
+            // Aquí puedes mostrar un modal/alert en la app haciéndolo más visible
+            console.warn('El enlace de confirmación ha expirado. Reenvía el correo.');
+          }
+          return;
+        }
+
+        // Si tenemos tokens en el fragmento, setear la sesión manualmente
+        if (params.access_token) {
+          try {
+            await supabase.auth.setSession({
+              access_token: params.access_token,
+              refresh_token: params.refresh_token,
+            });
+            console.log('Sesión iniciada desde deep link');
+            // Mostrar mensaje de confirmación breve en UI
+            setConfirmationMessage('Email confirmado. ¡Bienvenido!');
+          } catch (e) {
+            console.warn('No se pudo establecer la sesión desde el deep link:', e);
+            setConfirmationMessage('Confirmación completada. Puedes cerrar esta ventana.');
+          }
+          return;
+        }
+
+        // Fallback: intentar que supabase procese la URL (en caso de que la SDK lo soporte)
+        try {
+          // Algunos entornos exponen getSessionFromUrl
+          // @ts-ignore
+          if (typeof supabase.auth.getSessionFromUrl === 'function') {
+            // @ts-ignore
+            const { data, error } = await supabase.auth.getSessionFromUrl({ storeSession: true });
+            if (error) console.warn('getSessionFromUrl error:', error);
+            if (data?.session) console.log('Sesion obtenida via getSessionFromUrl');
+          }
+        } catch (e) {
+          // ignore
+        }
+      } catch (err) {
+        console.error('Error procesando deep link de autenticacion:', err);
+      }
+    };
+
+    (async () => {
+      const initial = await Linking.getInitialURL();
+      if (initial) await processUrl(initial);
+    })();
+
+    const sub = Linking.addEventListener('url', ({ url }) => processUrl(url));
+    return () => {
+      try { sub.remove(); } catch { /* noop */ }
+    };
+  }, []);
 
 
   useEffect(() => {
@@ -260,6 +338,8 @@ const RootLayout = () => {
             shouldShowAlert: true,
             shouldPlaySound: true,
             shouldSetBadge: false,
+            shouldShowBanner: true,
+            shouldShowList: true,
           }),
         });
 
@@ -358,8 +438,40 @@ const RootLayout = () => {
   }, [dispatch]);
   
 
+  if (confirmationMessage) {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.title}>{confirmationMessage}</Text>
+        <Text style={styles.sub}>Puedes cerrar esta ventana o continuar en la app.</Text>
+        <View style={{ marginTop: 16 }}>
+          <Button title="Continuar" onPress={() => setConfirmationMessage(null)} />
+        </View>
+      </View>
+    );
+  }
+
   return <AppContainer />;
 };
+
+const styles = StyleSheet.create({
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    paddingHorizontal: 20,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  sub: {
+    fontSize: 14,
+    color: '#666',
+  },
+ 
+});
 
 const RootApp: React.FC = () => {
   return (
