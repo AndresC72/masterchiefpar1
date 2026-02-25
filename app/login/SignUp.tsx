@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -17,6 +17,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Animated,
 } from "react-native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import supabase from '@/config/SupabaseConfig';
@@ -77,7 +78,27 @@ export default function SignUp({ navigation }: NativeStackScreenProps<any>) {
   const [signupViaReferral, setSignupViaReferral] = useState("");
   const [walletBalance, setWalletBalance] = useState(0);
 
+  // Animación de entrada desde la derecha
+  const slideAnim = useRef(new Animated.Value(500)).current;
+  const opacityAnim = useRef(new Animated.Value(0)).current;
+
   const colorScheme = useColorScheme(); // Hook para detectar modo claro/oscuro
+
+  // Animar entrada de la pantalla
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.timing(opacityAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [slideAnim, opacityAnim]);
 
   const handleReferralChange = (text: string) => {
     setReferralId(text.toUpperCase());
@@ -193,7 +214,7 @@ export default function SignUp({ navigation }: NativeStackScreenProps<any>) {
         // Usar función RPC para verificar si el email existe en auth.users
         const { data, error } = await supabase.rpc('check_email_exists', {
           check_email: email.toLowerCase().trim(),
-        });
+        } as any);
         
         if (!mounted) return;
         
@@ -244,7 +265,7 @@ export default function SignUp({ navigation }: NativeStackScreenProps<any>) {
           console.warn('Error checking phone:', error.message);
           setPhoneExists(false);
         } else {
-          const exists = count && count > 0;
+          const exists = (count ?? 0) > 0;
           console.log('Teléfono existe:', exists, 'Count:', count);
           setPhoneExists(exists);
         }
@@ -451,56 +472,67 @@ export default function SignUp({ navigation }: NativeStackScreenProps<any>) {
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"} // Ajuste específico para iOS
+      behavior="padding"
       style={{ flex: 1 }}
     >
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <ImageBackground
           source={require("./../../assets/images/login.jpg")}
           resizeMode="cover"
-          style={styles.background(colorScheme)}
+          style={[
+            styles.background,
+            { flex: 1, backgroundColor: colorScheme === "dark" ? "#000" : "#fff" }
+          ]}
         >
-          <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
-            <View style={styles.container}>
-              <View style={[styles.card, styles.blurEffect]}>
-                <View style={styles.logo}>
-                  <Image
-                    source={require("./../../assets/images/logo1024x1024.png")}
-                    style={{ width: 120, height: 110, borderRadius: 23 }}
-                  />
-                </View>
-                <View style={styles.form}>
-                  <Text style={styles.title(colorScheme)}>REGISTRO</Text>
+          <ScrollView 
+            contentContainerStyle={{ flexGrow: 1 }}
+            keyboardDismissMode="on-drag"
+            keyboardShouldPersistTaps="handled"
+          >
+            <Animated.View
+              style={{
+                flex: 1,
+                transform: [{ translateX: slideAnim }],
+                opacity: opacityAnim,
+              }}
+            >
+              <View style={styles.container}>
+                <View style={[styles.card, styles.glassEffect]}>
+                  <View style={styles.logo}>
+                    <Image
+                      source={require("./../../assets/images/logo1024x1024.png")}
+                      style={{ width: 120, height: 110, borderRadius: 23 }}
+                    />
+                  </View>
+                  <View style={styles.form}>
+                  <Text style={{ fontSize: 24, marginBottom: 20, fontWeight: "bold", color: "#fff" }}>REGISTRO</Text>
                   <TextInput
-                    style={styles.input(colorScheme)}
-                    placeholderTextColor={
-                      colorScheme === "dark" ? "#aaaaaa" : "#555555"
-                    } // Ajuste del color del placeholder
+                    style={styles.input}
+                    placeholderTextColor="rgba(255,255,255,0.8)"
                     placeholder="Nombre"
                     value={firstName}
                     onChangeText={setFirstName}
+                    onBlur={Keyboard.dismiss}
                   />
                   <TextInput
-                    style={styles.input(colorScheme)}
-                    placeholderTextColor={
-                      colorScheme === "dark" ? "#aaaaaa" : "#555555"
-                    } // Ajuste del color del placeholder
+                    style={styles.input}
+                    placeholderTextColor="rgba(255,255,255,0.8)"
                     placeholder="Apellido"
                     value={lastName}
                     onChangeText={setLastName}
+                    onBlur={Keyboard.dismiss}
                   />
                   <TextInput
                     style={[
-                      styles.input(colorScheme),
+                      styles.input,
                       !emailFormatValid && email ? { borderColor: '#d00', borderWidth: 2 } : null,
                       emailExists ? { borderColor: '#d00', borderWidth: 2 } : null,
                     ]}
-                    placeholderTextColor={
-                      colorScheme === "dark" ? "#aaaaaa" : "#555555"
-                    }
+                    placeholderTextColor="rgba(255,255,255,0.8)"
                     placeholder="Email"
                     value={email}
                     onChangeText={handleEmailChange}
+                    onBlur={Keyboard.dismiss}
                     keyboardType="email-address"
                     autoCapitalize="none"
                     autoCorrect={false}
@@ -537,7 +569,12 @@ export default function SignUp({ navigation }: NativeStackScreenProps<any>) {
                     </TouchableOpacity>
                     <TextInput
                       style={[
-                        styles.phoneInput(colorScheme),
+                        styles.phoneInput,
+                        {
+                          borderColor: colorScheme === 'dark' ? '#444' : '#ddd',
+                          backgroundColor: colorScheme === 'dark' ? '#333' : '#F6F6F6',
+                          color: colorScheme === 'dark' ? '#fff' : '#000',
+                        },
                         !phoneFormatValid && mobile ? { borderColor: '#d00', borderWidth: 2 } : null,
                         phoneExists ? { borderColor: '#d00', borderWidth: 2 } : null,
                       ]}
@@ -609,13 +646,12 @@ export default function SignUp({ navigation }: NativeStackScreenProps<any>) {
                   </View>
 
                   <TextInput
-                    style={styles.input(colorScheme)}
-                    placeholderTextColor={
-                      colorScheme === "dark" ? "#aaaaaa" : "#555555"
-                    } // Ajuste del color del placeholder
+                    style={styles.input}
+                    placeholderTextColor="rgba(255,255,255,0.8)"
                     placeholder="Código de referido"
                     value={referralId}
                     onChangeText={handleReferralChange}
+                    onBlur={Keyboard.dismiss}
                     editable={!isCheckingReferral}
                   />
 
@@ -623,8 +659,8 @@ export default function SignUp({ navigation }: NativeStackScreenProps<any>) {
                     style={[
                       styles.button,
                       (isButtonDisabled || emailExists || checkingEmail || phoneExists || checkingPhone)
-                        ? styles.buttonDisabled(colorScheme)
-                        : styles.buttonEnabled(colorScheme),
+                        ? getDynamicButtonDisabledStyle(colorScheme ?? 'light')
+                        : getDynamicButtonEnabledStyle(colorScheme ?? 'light'),
                     ]}
                     onPress={handleRegisterPress}
                     disabled={isButtonDisabled || emailExists || checkingEmail || phoneExists || checkingPhone || isCheckingReferral}
@@ -636,10 +672,10 @@ export default function SignUp({ navigation }: NativeStackScreenProps<any>) {
                     )}
                   </TouchableOpacity>
 
-                  <Text style={styles.text(colorScheme)}>
+                  <Text style={[styles.text, { color: colorScheme === "dark" ? "#fff" : "#000" }]}>
                     Ya tienes una cuenta?{" "}
                     <Text
-                      style={styles.link(colorScheme)}
+                      style={[styles.link, { color: colorScheme === "dark" ? "#FF4081" : "#F20505" }]}
                       onPress={() => navigation.navigate("Login")}
                     >
                       Iniciar sesión
@@ -648,17 +684,17 @@ export default function SignUp({ navigation }: NativeStackScreenProps<any>) {
 
                   <View>
                     <TouchableOpacity onPress={openPolitics}>
-                      <Text style={styles.text(colorScheme)}>
+                      <Text style={[styles.text, { color: colorScheme === "dark" ? "#fff" : "#000" }]}>
                         ✔ Política y privacidad
                       </Text>
                     </TouchableOpacity>
                     <TouchableOpacity onPress={openTerms}>
-                      <Text style={styles.text(colorScheme)}>
+                      <Text style={[styles.text, { color: colorScheme === "dark" ? "#fff" : "#000" }]}>
                         ✔ Términos y Condiciones
                       </Text>
                     </TouchableOpacity>
                     <TouchableOpacity onPress={openTreatment}>
-                      <Text style={styles.text(colorScheme)}>
+                      <Text style={[styles.text, { color: colorScheme === "dark" ? "#fff" : "#000" }]}>
                         ✔ Tratamiento de Datos
                       </Text>
                     </TouchableOpacity>
@@ -681,7 +717,7 @@ export default function SignUp({ navigation }: NativeStackScreenProps<any>) {
                   </Text>
 
                   <TouchableOpacity
-                    style={styles.modalButton1(colorScheme)}
+                    style={styles.modalButton1}
                     onPress={() => handleUserTypeSelect("driver")}
                   >
                     <Image
@@ -691,7 +727,7 @@ export default function SignUp({ navigation }: NativeStackScreenProps<any>) {
                     <Text style={styles.modalButtonText}>Conductor</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={styles.modalButton(colorScheme)}
+                    style={getDynamicModalButtonStyle(colorScheme ?? 'light')}
                     onPress={() => handleUserTypeSelect("customer")}
                   >
                     <Image
@@ -716,7 +752,6 @@ export default function SignUp({ navigation }: NativeStackScreenProps<any>) {
               visible={showCountryModal}
               transparent={true}
               animationType="slide"
-              presentationStyle="pageSheet"
               onRequestClose={() => {
                 setShowCountryModal(false);
                 setCountrySearchText("");
@@ -737,11 +772,19 @@ export default function SignUp({ navigation }: NativeStackScreenProps<any>) {
                 </View>
 
                 <TextInput
-                  style={[styles.countrySearchInput(colorScheme)]}
+                  style={[
+                    styles.countrySearchInput,
+                    {
+                      borderColor: colorScheme === 'dark' ? '#444' : '#ddd',
+                      backgroundColor: colorScheme === 'dark' ? '#333' : '#F6F6F6',
+                      color: colorScheme === 'dark' ? '#fff' : '#000',
+                    }
+                  ]}
                   placeholder="Buscar país..."
-                  placeholderTextColor={colorScheme === 'dark' ? '#888' : '#aaa'}
+                  placeholderTextColor="rgba(255,255,255,0.8)"
                   value={countrySearchText}
                   onChangeText={setCountrySearchText}
+                  onBlur={Keyboard.dismiss}
                 />
 
                 <FlatList
@@ -774,6 +817,7 @@ export default function SignUp({ navigation }: NativeStackScreenProps<any>) {
                 />
               </View>
             </Modal>
+            </Animated.View>
           </ScrollView>
         </ImageBackground>
       </TouchableWithoutFeedback>
@@ -781,11 +825,34 @@ export default function SignUp({ navigation }: NativeStackScreenProps<any>) {
   );
 }
 
+const getDynamicButtonEnabledStyle = (colorScheme: string) => ({
+  backgroundColor: "#f20505",
+  shadowColor: "#f20505",
+  shadowOffset: { width: 0, height: 4 },
+  shadowOpacity: 0.4,
+  shadowRadius: 8,
+  elevation: 6,
+});
+
+const getDynamicButtonDisabledStyle = (colorScheme: string) => ({
+  backgroundColor: "rgba(242, 5, 5, 0.5)",
+});
+
+const getDynamicModalButtonStyle = (colorScheme: string | null) => ({
+  width: "100%" as any,
+  padding: 15,
+  backgroundColor: colorScheme === "dark" ? "#333" : "#ffdddd",
+  borderRadius: 16,
+  alignItems: "center" as const,
+  marginBottom: 10,
+  flexDirection: "row" as const,
+  justifyContent: "center" as const,
+} as any);
+
 const styles = StyleSheet.create({
-  background: (colorScheme: string) => ({
+  background: {
     flex: 1,
-    backgroundColor: colorScheme === "dark" ? "#000" : "#fff", // Dinámico según el modo oscuro
-  }),
+  },
   container: {
     flex: 1,
     justifyContent: "center",
@@ -797,41 +864,43 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   card: {
-    backgroundColor: "rgba(255, 255, 255, 0.3)",
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
     padding: 20,
-    borderRadius: 10,
+    borderRadius: 20,
     width: "90%",
   },
-  blurEffect: {
-    borderRadius: 10,
+  glassEffect: {
+    borderColor: "rgba(255, 255, 255, 0.25)",
+    borderWidth: 1.5,
+    borderRadius: 20,
     overflow: "hidden",
-    borderColor: "rgba(255, 255, 255, 0.6)",
+    shadowColor: "rgba(255, 255, 255, 0.15)",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 5,
   },
   form: {
     alignItems: "center",
   },
-  title: (colorScheme: string) => ({
+  title: {
     fontSize: 24,
     marginBottom: 20,
     fontWeight: "bold",
     color: "#fff",
-  }),
-  input: (colorScheme: string) => ({
+  },
+  input: {
     width: "100%",
-    padding: 10,
+    padding: 12,
     borderWidth: 1,
-    borderColor: colorScheme === "dark" ? "#444" : "#ddd",
+    borderColor: "rgba(255, 255, 255, 0.3)",
     borderRadius: 16,
-    marginBottom: 10,
-    color: colorScheme === "dark" ? "#fff" : "#000",
-    backgroundColor: colorScheme === "dark" ? "#333" : "#F6F6F6",
-  }),
-  buttonEnabled: (colorScheme: string) => ({
-    backgroundColor: colorScheme === "dark" ? "#555" : "black",
-  }),
-  buttonDisabled: (colorScheme: string) => ({
-    backgroundColor: colorScheme === "dark" ? "#777" : "gray",
-  }),
+    marginBottom: 12,
+    color: "#fff",
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
+    fontSize: 15,
+    fontWeight: "500",
+  },
   button: {
     width: "100%",
     padding: 15,
@@ -842,14 +911,14 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 16,
   },
-  text: (colorScheme: string) => ({
+  text: {
     marginTop: 10,
-    color: colorScheme === "dark" ? "#fff" : "#000", // Dinámico según el modo oscuro
-  }),
-  link: (colorScheme: string) => ({
-    color: colorScheme === "dark" ? "#FF4081" : "#F20505",
+    color: "#fff",
+  },
+  link: {
+    color: "#FF4081",
     fontWeight: "bold",
-  }),
+  },
   modalContainer: {
     flex: 1,
     justifyContent: "center",
@@ -868,26 +937,26 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginBottom: 20,
   },
-  modalButton: (colorScheme: string) => ({
+  modalButton: {
     width: "100%",
     padding: 15,
-    backgroundColor: colorScheme === "dark" ? "#000" : "#ffdddd",
+    backgroundColor: "#ffdddd",
     borderRadius: 16,
     alignItems: "center",
     marginBottom: 10,
     flexDirection: "row",
     justifyContent: "center",
-  }),
-  modalButton1: (colorScheme: string) => ({
+  } as const,
+  modalButton1: {
     width: "100%",
     padding: 15,
-    backgroundColor: colorScheme === "dark" ? "#444" : "#000",
+    backgroundColor: "#000",
     borderRadius: 16,
     alignItems: "center",
     marginBottom: 10,
     flexDirection: "row",
     justifyContent: "center",
-  }),
+  } as const,
   modalButtonText: {
     color: "white",
     fontSize: 16,
@@ -903,11 +972,11 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     marginBottom: 10,
   },
-  passwordInput: (colorScheme: string) => ({
+  passwordInput: {
     flex: 1,
     padding: 10,
-    color: colorScheme === "dark" ? "#444" : "#000",
-  }),
+    color: "#000",
+  },
   eyeIcon: {
     padding: 10,
     right: 1,
@@ -982,17 +1051,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  phoneInput: (colorScheme: string) => ({
+  phoneInput: {
     flex: 1,
     height: 48,
     padding: 10,
     borderWidth: 1,
-    borderColor: colorScheme === 'dark' ? '#444' : '#ddd',
+    borderColor: '#ddd',
     borderRadius: 16,
-    color: colorScheme === 'dark' ? '#fff' : '#000',
-    backgroundColor: colorScheme === 'dark' ? '#333' : '#F6F6F6',
+    color: '#000',
+    backgroundColor: '#F6F6F6',
     fontSize: 16,
-  }),
+  },
   // Estilos para el Modal de Países
   countryModalContainer: {
     flex: 1,
@@ -1011,7 +1080,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
   },
-  countrySearchInput: (colorScheme: string) => ({
+  countrySearchInput: {
     marginHorizontal: 16,
     marginVertical: 12,
     paddingHorizontal: 12,
@@ -1019,11 +1088,11 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colorScheme === 'dark' ? '#444' : '#ddd',
-    backgroundColor: colorScheme === 'dark' ? '#333' : '#F6F6F6',
-    color: colorScheme === 'dark' ? '#fff' : '#000',
+    borderColor: '#ddd',
+    backgroundColor: '#F6F6F6',
+    color: '#000',
     fontSize: 16,
-  }),
+  },
   countryOption: {
     flexDirection: 'row',
     alignItems: 'center',

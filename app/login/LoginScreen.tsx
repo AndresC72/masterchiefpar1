@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   View,
   Text,
@@ -14,6 +14,8 @@ import {
   TouchableWithoutFeedback,
   Platform,
   Keyboard,
+  Animated,
+  ScrollView,
 } from "react-native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 /* import { createClient } from '@supabase/supabase-js'; */
@@ -40,8 +42,28 @@ const LoginScreen = ({ navigation }: Props) => {
   const [loading, setLoading] = useState(false);
   const dispatch = useDispatch();
   const colorScheme = useColorScheme();
+  
+  // Animación de entrada desde la derecha
+  const slideAnim = useRef(new Animated.Value(500)).current;
+  const opacityAnim = useRef(new Animated.Value(0)).current;
  
   const user = useSelector((state: RootState) => state.auth.user);
+  
+  // Animar entrada de la pantalla
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.timing(opacityAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [slideAnim, opacityAnim]);
 
   useEffect(() => {
     // Listener de auth state en Supabase
@@ -125,40 +147,55 @@ const LoginScreen = ({ navigation }: Props) => {
   // ... (mismo para los otros)
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
+    <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <ImageBackground source={require("./../../assets/images/login.jpg")} resizeMode="cover" style={styles.background}>
-          <View style={styles.container}>
-            <View style={[styles.card, styles.blurEffect]}>
+        <ScrollView 
+          style={{ flex: 1 }}
+          contentContainerStyle={{ flexGrow: 1 }}
+          keyboardDismissMode="on-drag"
+          keyboardShouldPersistTaps="handled"
+        >
+          <ImageBackground source={require("./../../assets/images/login.jpg")} resizeMode="cover" style={styles.background}>
+          <Animated.View
+            style={{
+              flex: 1,
+              transform: [{ translateX: slideAnim }],
+              opacity: opacityAnim,
+            }}
+          >
+            <View style={styles.container}>
+              <View style={[styles.card, styles.glassEffect]}>
               <View style={styles.logo}>
                 <Image source={require("./../../assets/images/logo1024x1024.png")} style={{ width: 120, height: 110, borderRadius: 23 }} />
               </View>
               <View style={styles.form}>
                 <Text style={styles.title}>Iniciar Sesión</Text>
-                <View style={[styles.inputContainer, colorScheme === 'dark' ? styles.inputDark : styles.inputLight]}>
+                <View style={[styles.inputContainer, styles.inputLight]}>
                   <TextInput
-                    style={[styles.inputInner, { color: colorScheme === 'dark' ? '#fff' : '#000' }]}
+                    style={[styles.inputInner, { color: '#fff' }]}
                     placeholder="Email"
                     keyboardType="email-address"
                     value={email}
                     onChangeText={setEmail}
-                    placeholderTextColor={colorScheme === "dark" ? "#aaaaaa" : "#555555"}
+                    onBlur={Keyboard.dismiss}
+                    placeholderTextColor="rgba(255,255,255,0.8)"
                     editable={!loading}
                     autoCapitalize="none"
                   />
                 </View>
-                <View style={[styles.inputContainer, styles.passwordContainer, colorScheme === 'dark' ? styles.inputDark : styles.inputLight]}>
+                <View style={[styles.inputContainer, styles.passwordContainer, styles.inputLight]}>
                   <TextInput
-                    style={[styles.inputInner, { color: colorScheme === 'dark' ? '#fff' : '#000' }]}
+                    style={[styles.inputInner, { color: '#fff' }]}
                     placeholder="Contraseña"
                     secureTextEntry={!isPasswordVisible}
                     value={password}
                     onChangeText={setPassword}
-                    placeholderTextColor={colorScheme === "dark" ? "#aaaaaa" : "#555555"}
+                    onBlur={Keyboard.dismiss}
+                    placeholderTextColor="rgba(255,255,255,0.8)"
                     editable={!loading}
                   />
                   <TouchableOpacity onPress={() => setIsPasswordVisible(!isPasswordVisible)} style={styles.iconInside} disabled={loading}>
-                    {isPasswordVisible ? <AntDesign name="eye" size={20} color={colorScheme === 'dark' ? '#fff' : '#000'} /> : <Entypo name="eye-with-line" size={20} color={colorScheme === 'dark' ? '#fff' : '#000'} />}
+                    {isPasswordVisible ? <AntDesign name="eye" size={20} color="#fff" /> : <Entypo name="eye-with-line" size={20} color="#fff" />}
                   </TouchableOpacity>
                 </View>
                 <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={loading}>
@@ -174,7 +211,9 @@ const LoginScreen = ({ navigation }: Props) => {
               </View>
             </View>
           </View>
+          </Animated.View>
         </ImageBackground>
+        </ScrollView>
       </TouchableWithoutFeedback>
     </KeyboardAvoidingView>
   );
@@ -183,22 +222,30 @@ const LoginScreen = ({ navigation }: Props) => {
 const styles = StyleSheet.create({
   background: { flex: 1, width: '100%', height: '100%' },
   container: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 16 },
-  card: { width: '100%', maxWidth: 420, borderRadius: 12, padding: 16, backgroundColor: 'rgba(255,255,255,0.9)' },
-  blurEffect: { shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10 },
-  logo: { alignItems: 'center', marginBottom: 8 },
-  form: { marginTop: 8 },
-  title: { fontSize: 22, fontWeight: '700', marginBottom: 12, textAlign: 'center' },
-  inputContainer: { width: '100%', maxWidth: 420, height: 48, borderRadius: 8, borderWidth: 1, borderColor: '#ddd', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, marginBottom: 12 },
-  inputInner: { flex: 1, height: '100%', paddingHorizontal: 8 },
-  inputDark: { backgroundColor: '#333', borderColor: '#333' },
-  inputLight: { backgroundColor: '#F6F6F6', borderColor: '#ddd' },
+  card: { width: '100%', maxWidth: 420, borderRadius: 20, padding: 20, backgroundColor: 'rgba(255,255,255,0.1)' },
+  glassEffect: { 
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+    borderWidth: 1.5,
+    shadowColor: 'rgba(255, 255, 255, 0.15)',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 5,
+  },
+  logo: { alignItems: 'center', marginBottom: 16 },
+  form: { marginTop: 12 },
+  title: { fontSize: 24, fontWeight: '700', marginBottom: 20, textAlign: 'center', color: '#fff' },
+  inputContainer: { width: '100%', height: 48, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.3)', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, marginBottom: 14, backgroundColor: 'rgba(255, 255, 255, 0.08)' },
+  inputInner: { flex: 1, height: '100%', paddingHorizontal: 8, color: '#fff', fontSize: 15, fontWeight: '500' },
+  inputDark: { backgroundColor: 'rgba(255, 255, 255, 0.08)', borderColor: 'rgba(255, 255, 255, 0.3)' },
+  inputLight: { backgroundColor: 'rgba(255, 255, 255, 0.08)', borderColor: 'rgba(255, 255, 255, 0.3)' },
   inputFlex: { flex: 1 },
   passwordContainer: { width: '100%' },
   iconInside: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
-  button: { backgroundColor: '#007AFF', paddingVertical: 12, borderRadius: 8, alignItems: 'center', marginTop: 8 },
-  buttonText: { color: '#fff', fontWeight: '600' },
-  text: { textAlign: 'center', color: '#333', marginTop: 8 },
-  link: { color: '#007AFF', fontWeight: '600' }
+  button: { backgroundColor: '#f20505', paddingVertical: 14, borderRadius: 16, alignItems: 'center', marginTop: 12, shadowColor: '#f20505', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 6 },
+  buttonText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+  text: { textAlign: 'center', color: '#fff', marginTop: 12, fontSize: 14 },
+  link: { color: '#fff', fontWeight: '700', textDecorationLine: 'underline' }
 });
 
 export default LoginScreen;
