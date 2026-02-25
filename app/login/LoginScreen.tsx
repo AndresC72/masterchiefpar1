@@ -242,7 +242,7 @@ const styles = StyleSheet.create({
   inputFlex: { flex: 1 },
   passwordContainer: { width: '100%' },
   iconInside: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
-  button: { backgroundColor: '#f20505', paddingVertical: 14, borderRadius: 16, alignItems: 'center', marginTop: 12, shadowColor: '#f20505', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 6 },
+  button: { backgroundColor: '#00f4f5', paddingVertical: 14, borderRadius: 16, alignItems: 'center', marginTop: 12, shadowColor: '#00f4f5', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 6 },
   buttonText: { color: '#fff', fontWeight: '700', fontSize: 16 },
   text: { textAlign: 'center', color: '#fff', marginTop: 12, fontSize: 14 },
   link: { color: '#fff', fontWeight: '700', textDecorationLine: 'underline' }

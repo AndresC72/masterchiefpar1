@@ -14,20 +14,12 @@ import {
 
 } from "react-native";
 import { Fontisto, Ionicons, Octicons } from "@expo/vector-icons";
-import {
-  ref,
-  orderByChild,
-  equalTo,
-  query,
-  onValue,
-  limitToLast,
-} from "firebase/database";
 import { useNavigation } from "@react-navigation/native";
 import moment from "moment/min/moment-with-locales";
 import { Avatar } from "react-native-elements";
 import StarRating from "react-native-star-rating-widget";
 import { RootState } from "@/common/store";
-import { database } from "@/config/SupabaseConfig";
+import supabase from "@/config/SupabaseConfig";
 import { colors } from "@/scripts/theme";
 import MapView, { Marker } from "react-native-maps";
 import MapViewDirections from "react-native-maps-directions";
@@ -88,79 +80,64 @@ const ActiveBookingScreen = () => {
     { label: "Otros", value: "Otros" },
     // Agrega más opciones según sea necesario
   ];
-  const fetchBookingsByStatus = (
+  const fetchBookingsByStatus = async (
     status,
     page,
     setBookings,
     currentBookings
   ) => {
     if (user) {
-      const bookingsRef = ref(database, "bookings");
-      const statusField =
-        user?.usertype === "driver" ? "driver_status" : "customer_status";
-      const bookingsQuery = query(
-        bookingsRef,
-        orderByChild(statusField),
-        equalTo(`${user?.id}_${status}`),
-        limitToLast(page * PAGE_SIZE)
-      );
-
-      onValue(
-        bookingsQuery,
-        (snapshot) => {
-          const bookingsData = snapshot.val();
-          const bookingsArray = [];
-          if (bookingsData) {
-            for (const key in bookingsData) {
-              bookingsArray.push({ id: key, ...bookingsData[key] });
-            }
-          }
-          const newBookings = bookingsArray.reverse();
-          setBookings([...currentBookings, ...newBookings]);
-        },
-        (error) => {
-          console.error("Error fetching bookings:", error);
+      try {
+        const statusField =
+          user?.usertype === "driver" ? "driver_status" : "customer_status";
+        
+        const { data, error } = await supabase
+          .from("bookings")
+          .select("*")
+          .eq(statusField, status)
+          .order("created_at", { ascending: false })
+          .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
+        
+        if (error) {
+          console.error("Error fetching bookings:", error.message);
           setBookings(currentBookings);
+          return;
         }
-      );
+        
+        setBookings([...currentBookings, ...(data || [])]);
+      } catch (error) {
+        console.error("Error in fetchBookingsByStatus:", error);
+        setBookings(currentBookings);
+      }
     } else {
       setBookings(currentBookings);
     }
   };
 
-  const fetchBookingsByStatuses = (statuses, setBookings, currentBookings) => {
+  const fetchBookingsByStatuses = async (statuses, setBookings, currentBookings) => {
     if (user) {
-      const bookingsRef = ref(database, "bookings");
-      const statusField =
-        user?.usertype === "driver" ? "driver_status" : "customer_status";
+      try {
+        const statusField =
+          user?.usertype === "driver" ? "driver_status" : "customer_status";
 
-      let bookingsMap = {};
+        // Build query for multiple statuses - use in() for multiple values
+        const { data, error } = await supabase
+          .from("bookings")
+          .select("*")
+          .in(statusField, statuses)
+          .order("created_at", { ascending: false });
 
-      statuses.forEach((status) => {
-        const bookingsQuery = query(
-          bookingsRef,
-          orderByChild(statusField),
-          equalTo(`${user?.id}_${status}`)
-        );
+        if (error) {
+          console.error("Error fetching bookings:", error.message);
+          setBookings(currentBookings);
+          return;
+        }
 
-        onValue(
-          bookingsQuery,
-          (snapshot) => {
-            const bookingsData = snapshot.val();
-            if (bookingsData) {
-              for (const key in bookingsData) {
-                bookingsMap[key] = { id: key, ...bookingsData[key] };
-              }
-            }
-            const combinedBookings = Object.values(bookingsMap).reverse();
-            setBookings([...currentBookings, ...combinedBookings]);
-          },
-          (error) => {
-            console.error("Error fetching bookings:", error);
-            setBookings(currentBookings);
-          }
-        );
-      });
+        setBookings([...currentBookings, ...(data || [])]);
+      } catch (error) {
+        console.error("Error in fetchBookingsByStatuses:", error);
+        setBookings(currentBookings);
+      }
     } else {
       setBookings(currentBookings);
     }

@@ -208,29 +208,102 @@ export default function SignUp({ navigation }: NativeStackScreenProps<any>) {
     
     const t = setTimeout(async () => {
       if (!mounted) return;
+      
+      let emailFound = false;
+      const startTime = Date.now();
+      
       try {
-        console.log('Verificando email en autenticación:', email);
+        console.log('🔍 Verificando email:', email);
+        const trimmedEmail = email.toLowerCase().trim();
         
-        // Usar función RPC para verificar si el email existe en auth.users
-        const { data, error } = await supabase.rpc('check_email_exists', {
-          check_email: email.toLowerCase().trim(),
-        } as any);
+        // Crear timeout de 5 segundos (más corto que 10)
+        const timeoutBefore = Date.now();
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => {
+            const elapsed = Date.now() - timeoutBefore;
+            reject(new Error(`Timeout después de ${elapsed}ms (esperado: 5000ms)`));
+          }, 5000)
+        );
         
+        try {
+          // Verificar en la tabla users (case-insensitive)
+          console.log('⏳ Buscando en tabla users...');
+          const queryStart = Date.now();
+          const queryPromise = supabase
+            .from('users')
+            .select('email', { count: 'exact' })
+            .ilike('email', trimmedEmail);
+          
+          const { data: usersData, error: usersError, count } = await Promise.race([queryPromise, timeoutPromise]) as any;
+          const queryTime = Date.now() - queryStart;
+          
+          if (!mounted) return;
+          
+          if (usersError) {
+            console.warn(`❌ Error checking email en users (${queryTime}ms):`, usersError.message);
+          } else {
+            const existsInUsers = (count ?? 0) > 0;
+            console.log(`📊 Resultado búsqueda en users (${queryTime}ms):`, { exists: existsInUsers, count });
+            
+            if (existsInUsers) {
+              console.log('⚠️ Email YA existe en tabla users');
+              emailFound = true;
+            }
+          }
+        } catch (userQueryError: any) {
+          console.error('❌ Error en query de users:', userQueryError.message);
+        }
+        
+        // Solo verificar RPC si no se encontró en users
+        if (!emailFound) {
+          try {
+            console.log('⏳ Buscando en auth.users (RPC)...');
+            const rpcStart = Date.now();
+            const rpcPromise = supabase.rpc('check_email_exists', {
+              check_email: trimmedEmail,
+            } as any);
+            
+            const rpcResult = await Promise.race([rpcPromise, timeoutPromise]) as any;
+            const rpcTime = Date.now() - rpcStart;
+            
+            if (!mounted) return;
+            
+            if (rpcResult.error) {
+              console.warn(`⚠️ RPC check_email_exists error (${rpcTime}ms):`, rpcResult.error.message);
+            } else {
+              const existsInAuth = rpcResult.data === true;
+              console.log(`📊 Resultado búsqueda en auth.users (${rpcTime}ms):`, existsInAuth);
+              
+              if (existsInAuth) {
+                console.log('⚠️ Email YA existe en auth.users');
+                emailFound = true;
+              }
+            }
+          } catch (rpcError: any) {
+            console.warn('⚠️ RPC check_email_exists no disponible:', rpcError?.message);
+          }
+        }
+        
+        // Resultado final
         if (!mounted) return;
         
-        if (error) {
-          console.warn('Error checking email:', error.message);
-          // Si la función RPC no existe, intentar verificación alternativa
-          setEmailExists(false);
+        const totalTime = Date.now() - startTime;
+        if (emailFound) {
+          console.log(`❌ Email existe (tiempo total: ${totalTime}ms)`);
+          setEmailExists(true);
         } else {
-          console.log('Email existe en auth:', data);
-          setEmailExists(data === true);
+          console.log(`✅ Email disponible para registro (tiempo total: ${totalTime}ms)`);
+          setEmailExists(false);
         }
-      } catch (e) {
-        console.warn('Error checking email:', e);
-        setEmailExists(false);
+      } catch (e: any) {
+        const totalTime = Date.now() - startTime;
+        console.error(`❌ Error general checking email (${totalTime}ms):`, e?.message || e);
+        if (mounted) setEmailExists(false);
       } finally {
-        if (mounted) setCheckingEmail(false);
+        if (mounted) {
+          console.log('🏁 Finalizando verificación de email');
+          setCheckingEmail(false);
+        }
       }
     }, 800);
     
@@ -252,28 +325,59 @@ export default function SignUp({ navigation }: NativeStackScreenProps<any>) {
     
     const t = setTimeout(async () => {
       if (!mounted) return;
+      
+      const startTime = Date.now();
+      
       try {
-        console.log('Verificando teléfono:', `${countryCode}${mobile}`);
+        console.log('🔍 Verificando teléfono:', `${countryCode}${mobile}`);
         const fullPhone = `${countryCode}${mobile}`;
-        const { data, error, count } = await supabase
+        const mobileOnly = mobile;
+        
+        // Crear timeout de 5 segundos
+        const timeoutBefore = Date.now();
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => {
+            const elapsed = Date.now() - timeoutBefore;
+            reject(new Error(`Timeout después de ${elapsed}ms (esperado: 5000ms)`));
+          }, 5000)
+        );
+        
+        console.log('⏳ Buscando teléfono en tabla users...');
+        const queryStart = Date.now();
+        const queryPromise = supabase
           .from('users')
           .select('mobile', { count: 'exact' })
-          .or(`mobile.eq.${fullPhone},mobile.eq.${mobile}`);
+          .in('mobile', [fullPhone, mobileOnly]);
+        
+        const result = await Promise.race([queryPromise, timeoutPromise]) as any;
+        const queryTime = Date.now() - queryStart;
         
         if (!mounted) return;
-        if (error) {
-          console.warn('Error checking phone:', error.message);
+        
+        if (result.error) {
+          console.warn(`❌ Error checking phone (${queryTime}ms):`, result.error.message);
           setPhoneExists(false);
         } else {
-          const exists = (count ?? 0) > 0;
-          console.log('Teléfono existe:', exists, 'Count:', count);
+          const exists = (result.count ?? 0) > 0;
+          console.log(`📊 Resultado búsqueda teléfono (${queryTime}ms):`, { exists, count: result.count, buscando: [fullPhone, mobileOnly] });
+          
+          if (exists) {
+            console.log('⚠️ Teléfono YA existe en la base de datos');
+          } else {
+            console.log('✅ Teléfono disponible para registro');
+          }
+          
           setPhoneExists(exists);
         }
-      } catch (e) {
-        console.warn('Error checking phone:', e);
-        setPhoneExists(false);
+      } catch (e: any) {
+        const totalTime = Date.now() - startTime;
+        console.error(`❌ Error general checking phone (${totalTime}ms):`, e?.message || e);
+        if (mounted) setPhoneExists(false);
       } finally {
-        if (mounted) setCheckingPhone(false);
+        if (mounted) {
+          console.log('🏁 Finalizando verificación de teléfono');
+          setCheckingPhone(false);
+        }
       }
     }, 800);
     
@@ -390,7 +494,7 @@ export default function SignUp({ navigation }: NativeStackScreenProps<any>) {
 
         console.log('Datos a insertar en tabla users:', userData);
 
-        const { error: insertError, data: insertData } = await supabase.from('users').insert([userData]);
+        const { error: insertError, data: insertData } = await supabase.from('users').insert([userData] as any);
         if (insertError) {
           console.warn('Error inserting user profile:', insertError.message);
           console.warn('Error details:', insertError);
@@ -672,10 +776,10 @@ export default function SignUp({ navigation }: NativeStackScreenProps<any>) {
                     )}
                   </TouchableOpacity>
 
-                  <Text style={[styles.text, { color: colorScheme === "dark" ? "#fff" : "#000" }]}>
+                  <Text style={[styles.text, { color: "#ffffff" }]}>
                     Ya tienes una cuenta?{" "}
                     <Text
-                      style={[styles.link, { color: colorScheme === "dark" ? "#FF4081" : "#F20505" }]}
+                      style={[styles.link, { color: colorScheme === "dark" ? "#00f4f5" : "#00f4f5" }]}
                       onPress={() => navigation.navigate("Login")}
                     >
                       Iniciar sesión
@@ -684,17 +788,17 @@ export default function SignUp({ navigation }: NativeStackScreenProps<any>) {
 
                   <View>
                     <TouchableOpacity onPress={openPolitics}>
-                      <Text style={[styles.text, { color: colorScheme === "dark" ? "#fff" : "#000" }]}>
+                      <Text style={[styles.text, { color: "#ffffff" }]}>
                         ✔ Política y privacidad
                       </Text>
                     </TouchableOpacity>
                     <TouchableOpacity onPress={openTerms}>
-                      <Text style={[styles.text, { color: colorScheme === "dark" ? "#fff" : "#000" }]}>
+                      <Text style={[styles.text, { color: "#ffffff" }]}>
                         ✔ Términos y Condiciones
                       </Text>
                     </TouchableOpacity>
                     <TouchableOpacity onPress={openTreatment}>
-                      <Text style={[styles.text, { color: colorScheme === "dark" ? "#fff" : "#000" }]}>
+                      <Text style={[styles.text, { color: "#ffffff" }]}>
                         ✔ Tratamiento de Datos
                       </Text>
                     </TouchableOpacity>
@@ -789,7 +893,7 @@ export default function SignUp({ navigation }: NativeStackScreenProps<any>) {
 
                 <FlatList
                   data={filteredCountries}
-                  keyExtractor={(item) => item.code}
+                  keyExtractor={(item) => item.name}
                   renderItem={({ item }) => (
                     <TouchableOpacity
                       style={[
@@ -826,8 +930,8 @@ export default function SignUp({ navigation }: NativeStackScreenProps<any>) {
 }
 
 const getDynamicButtonEnabledStyle = (colorScheme: string) => ({
-  backgroundColor: "#f20505",
-  shadowColor: "#f20505",
+  backgroundColor: "#00f4f5",
+  shadowColor: "#00f4f5",
   shadowOffset: { width: 0, height: 4 },
   shadowOpacity: 0.4,
   shadowRadius: 8,
@@ -835,7 +939,7 @@ const getDynamicButtonEnabledStyle = (colorScheme: string) => ({
 });
 
 const getDynamicButtonDisabledStyle = (colorScheme: string) => ({
-  backgroundColor: "rgba(242, 5, 5, 0.5)",
+  backgroundColor: "rgba(0, 244, 245, 0.5)",
 });
 
 const getDynamicModalButtonStyle = (colorScheme: string | null) => ({

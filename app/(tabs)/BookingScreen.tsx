@@ -42,8 +42,7 @@ import PromoComp from "@/components/PromoComp"; // Asegúrate de importar el com
 import { Avatar } from "react-native-elements";
 
 import { Ionicons, } from "@expo/vector-icons";
-import database from "@/config/SupabaseConfig";
-import { ref, get } from "firebase/database"; 
+import supabase from "@/config/SupabaseConfig";
 import {
   fetchRecentDrivers,
 } from "@/common/store/bookingsSlice"; // Asegúrate de que esta acción esté importada
@@ -86,7 +85,7 @@ const BookingScreen = () => {
   const user = useSelector((state: RootState) => state.auth.user);
   const navigation = useNavigation();
   const [isPromoModalVisible, setIsPromoModalVisible] = useState(false); // Estado para el modal de promo
-  const [promotions, setPromotions] = useState([]); // Lista de promociones
+  const [promotions, setPromotions] = useState<any[]>([]); // Lista de promociones
   const [promoDiscount, setPromoDiscount] = useState(0); // Estado para el descuento de la promoción
   const [isScheduled, setIsScheduled] = useState(false);
   const [tripType, setTripType] = useState("Solo Ida"); // Estado para el tipo de viaje
@@ -164,25 +163,39 @@ const colorScheme = useColorScheme();
 
   const fetchTaxiOptionsFromFirebase = async () => {
     try {
-      const cartypesRef = ref(database, "cartypes");
-      const snapshot = await get(cartypesRef);
+      const { data: carTypes, error } = await supabase
+        .from("car_types")
+        .select("*")
+        .eq("is_active", true);
 
-      if (snapshot.exists()) {
-        const data = snapshot.val();
-        const options = await Promise.all(Object.keys(data).map(async (key) => {
+      if (error) {
+        console.error("Error fetching car types:", error.message);
+        setTaxiOptions([]);
+        return;
+      }
+
+      if (!carTypes || carTypes.length === 0) {
+        console.warn("No active car types found");
+        setTaxiOptions([]);
+        return;
+      }
+
+      const options = await Promise.all(
+        carTypes.map(async (carType: any) => {
           const vehicle = {
-            value: key,
-            name: data[key].name,
-            capacity: data[key].typeService,
-            service: data[key].extra_info,
-            carImage: data[key].image || "",
-            base_fare: data[key].base_fare || 0,
-            rate_per_unit_distance: data[key].rate_per_unit_distance || 0,
-            rate_per_hour: data[key].rate_per_hour || 0,
-            min_fare: data[key].min_fare || 0,
-            convenience_fees: data[key].convenience_fees || 0,
-            convenience_fee_type: data[key].convenience_fee_type || "flat",
+            value: carType.id,
+            name: carType.name,
+            capacity: carType.capacity,
+            service: carType.description || "",
+            carImage: carType.image || "",
+            base_fare: carType.base_price || 0,
+            rate_per_unit_distance: carType.price_per_km || 0,
+            rate_per_hour: 0, // No disponible en Supabase por ahora
+            min_fare: 0, // No disponible en Supabase por ahora
+            convenience_fees: 0, // No disponible en Supabase por ahora
+            convenience_fee_type: "flat", // Default value
           };
+
           const rateDetails = {
             rate_per_unit_distance: vehicle.rate_per_unit_distance,
             rate_per_hour: vehicle.rate_per_hour,
@@ -191,7 +204,7 @@ const colorScheme = useColorScheme();
             convenienceFee: vehicle.convenience_fees,
             convenience_fee_type: vehicle.convenience_fee_type,
           };
-       // console.log(duration,"distanciaaaa")
+
           let fareDetails;
           try {
             const response = await fetch('https://us-central1-treasupdate.cloudfunctions.net/calculatePrice2', {
@@ -219,78 +232,28 @@ const colorScheme = useColorScheme();
                 filteredUsers: [],
               }),
             });
+
             fareDetails = await response.json();
-            //console.log(parseFloat(distance),"-----distance----")
-            const distancia = duration
-           // console.log(distancia,"Duration")
           } catch (error) {
             console.error("Error al calcular el precio:", error);
             fareDetails = null;
           }
-        
+
           return {
             ...vehicle,
-            estimatedPrice: fareDetails ? fareDetails.estimateFare : 0,
+            estimatedPrice: fareDetails || 0,
           };
-        }));
-        
+        })
+      );
 
-        setTaxiOptions(options);
-        if (options.length > 0) {
-          const selectedIndex = type ? Math.max(0, type - 1) : 0;
-          setSelectedVehicle(options[selectedIndex]);
-          const rateDetails = {
-            rate_per_unit_distance: options[selectedIndex].rate_per_unit_distance,
-            rate_per_hour: options[selectedIndex].rate_per_hour,
-            base_fare: options[selectedIndex].base_fare,
-            min_fare: options[selectedIndex].min_fare,
-            convenienceFee: options[selectedIndex].convenience_fees,
-            convenience_fee_type: options[selectedIndex].convenience_fee_type,
-          };
-       let fareDetails
-          try {
-            const response = await fetch('https://us-central1-treasupdate.cloudfunctions.net/calculatePrice2', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                bookingData: {
-                  roundedDistance: typeof distance === 'string' ? parseFloat(distance) : distance,
-                  durationMinutes: typeof duration === 'string' ? parseFloat(duration) : duration,
-                  carType: rateDetails,
-                },
-                tolls: [],
-                isScheduled,
-                settings: {
-                  decimal: 2,
-                  distanceIntermunicipal: 50,
-                },
-                addressOrigin: "Origen",
-                addressDestination: "Destino",
-                selectedPaymentMethod: selectedPaymentType,
-                selectedUser: null,
-                authState: null,
-                filteredUsers: [],
-              }),
-            });
-            fareDetails = await response.json();
-           // console.log(parseFloat(distance),"-----distance2----")
-            const distancia = parseFloat(duration)
-           // console.log(distancia,"Duration2")
-           // console.log(fareDetails,"fareee")
-            setFareDetails(fareDetails)
-          } catch (error) {
-            console.error("Error al calcular el precio:", error);
-            fareDetails = null;
-          }
-        }
-      }
+      setTaxiOptions(options);
     } catch (error) {
-      console.error("Error obteniendo datos:", error);
+      console.error("Error in fetchTaxiOptionsFromFirebase:", error);
+      setTaxiOptions([]);
     }
   };
-  const handleSelectVehicle = async (vehicle) => {
+
+  const handleSelectVehicle = async (vehicle: any) => {
     setSelectedVehicle(vehicle);
     const rateDetails = {
       rate_per_unit_distance: vehicle.rate_per_unit_distance,
@@ -310,8 +273,8 @@ const colorScheme = useColorScheme();
         },
         body: JSON.stringify({
           bookingData: {
-            roundedDistance: parseFloat(distance),
-            durationMinutes: parseFloat(duration),
+            roundedDistance: typeof distance === 'string' ? parseFloat(distance) : distance,
+            durationMinutes: typeof duration === 'string' ? parseFloat(duration) : duration,
             carType: rateDetails,
           },
           tolls: [],
@@ -330,7 +293,7 @@ const colorScheme = useColorScheme();
       });
       calculatedFareDetails = await response.json();
       //console.log(parseFloat(distance), "-----distance2----");
-      const distancia = parseFloat(duration);
+      const distancia = typeof duration === 'string' ? parseFloat(duration) : duration;
       //console.log(distancia, "Duration2");
       //console.log(fareDetails, "fareee");
       setFareDetails(calculatedFareDetails);
@@ -390,7 +353,7 @@ const colorScheme = useColorScheme();
     ));
   };
 
-  const handleShowPromoModal = async (promos) => {
+  const handleShowPromoModal = async (promos: any[]) => {
     try {
       setPromotions(promos); // Guarda las promociones en el estado
       setIsPromoModalVisible(true); // Muestra el modal
@@ -433,12 +396,12 @@ const colorScheme = useColorScheme();
     { label: "Billetera", value: "wallet" },
   ];
 
-  const handleSelectPaymentType = (value) => {
+  const handleSelectPaymentType = (value: string) => {
     setSelectedPaymentType(value);
     setShowPaymentModal(false);
   };
 
-  const renderPaymentOption = ({ item }) => (
+  const renderPaymentOption = ({ item }: { item: { label: string; value: string } }) => (
     <TouchableOpacity
       style={styles.paymentOption}
       onPress={() => handleSelectPaymentType(item.value)}
@@ -447,7 +410,7 @@ const colorScheme = useColorScheme();
     </TouchableOpacity>
   );
 
-  const getPrice = (bookingData, tolls, isScheduled) => {
+  const getPrice = (bookingData: any, tolls: any, isScheduled: boolean) => {
     const { roundedDistance, durationMinutes, carType } = bookingData;
 
     if (!carType) {
@@ -472,7 +435,7 @@ const colorScheme = useColorScheme();
       return null;
     }
 
-    const tollsCost = tolls.reduce((acc, toll) => acc + toll.PriceToll, 0);
+    const tollsCost = tolls.reduce((acc: number, toll: any) => acc + toll.PriceToll, 0);
     grandTotal += tollsCost * 2;
 
     if (isScheduled) {

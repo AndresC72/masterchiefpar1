@@ -9,7 +9,8 @@ import {
   Share,
   Linking,
   Alert,
-  useColorScheme, // Importamos useColorScheme
+  useColorScheme,
+  ScrollView,
 } from "react-native";
 import {
   Ionicons,
@@ -19,15 +20,13 @@ import {
 } from "@expo/vector-icons";
 import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "@/common/store";
-import { getAuth, signOut, onAuthStateChanged } from "firebase/auth";
+import supabase from '@/config/SupabaseConfig';
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { settings } from "@/scripts/settings";
 import { logout } from "@/common/reducers/authReducer";
-import { signOff, updateProfile } from "@/common/actions/authactions";
-import { ScrollView } from "react-native-gesture-handler";
 import { AppConfig } from '@/config/AppConfig';
-import * as Updates from 'expo-updates'; // Importar Updates
-import UpdatesScreen from './UpdatesScreen'; // Importar la nueva pantalla
+import * as Updates from 'expo-updates';
+import UpdatesScreen from './UpdatesScreen';
 import * as TaskManager from 'expo-task-manager';
 import * as Location from 'expo-location';
 
@@ -42,34 +41,53 @@ const ProfileScreen = ({ navigation }: Props) => {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const auth = getAuth();
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (!user) {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!session) {
         navigation.navigate("Login");
       }
     });
     checkAppVersion();
-    return () => unsubscribe();
+    return () => subscription.unsubscribe();
   }, [navigation]);
 
   const handleLogout = async () => {
     try {
-      const auth = getAuth();
-      await signOut(auth);
+      setLoading(true);
+      console.log("Iniciando logout...");
+      
+      // Detener ubicación en background si es conductor
+      if ((user as any)?.usertype === "driver") {
+        console.log("Deteniendo ubicación en background...");
+        await StopBackgroundLocation();
+      }
+      
+      // Limpiar estado de Redux primero
+      console.log("Limpiando estado de Redux...");
       dispatch(logout());
-      logOff();
+      
+      // Cerrar sesión en Supabase
+      console.log("Cerrando sesión en Supabase...");
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error("Error en Supabase logout:", error.message);
+        throw error;
+      }
+      
+      console.log("Sesión cerrada exitosamente");
+      
+      // Navegar directamente a Login
+      setLoading(false);
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Login' }],
+      });
+      
     } catch (error) {
       console.error("Error al cerrar sesión:", error);
+      const errorMessage = error instanceof Error ? error.message : "Error desconocido";
+      Alert.alert("Error", `No se pudo cerrar sesión: ${errorMessage}`);
+      setLoading(false);
     }
-  };
-
-  const logOff = () => {
-    if ((user as any)?.usertype === "driver") StopBackgroundLocation();
-    setLoading(true);
-    setTimeout(() => {
-      if ((user as any)?.pushToken) dispatch(updateProfile({ pushToken: null }) as any);
-      dispatch(signOff() as any);
-    }, 1000);
   };
 
   const StopBackgroundLocation = async () => {
@@ -106,7 +124,7 @@ const ProfileScreen = ({ navigation }: Props) => {
 
   const checkAppVersion = async () => {
     const currentVersion = AppConfig.ios_app_version;
-    dispatch(updateProfile({ AppVersion: currentVersion }) as any);
+    // AppVersion ya se actualiza en el servidor
   };
 
   const dynamicStyles = styles(isDarkMode);
@@ -213,9 +231,9 @@ const ProfileScreen = ({ navigation }: Props) => {
           </TouchableOpacity>
           
   
-          <TouchableOpacity style={dynamicStyles.menuItem} onPress={handleLogout}>
+          <TouchableOpacity style={dynamicStyles.menuItem} onPress={handleLogout} disabled={loading}>
             <Ionicons name="log-out-outline" size={24} color="#F20505" />
-            <Text style={dynamicStyles.menuText}>Cerrar Sesión</Text>
+            <Text style={dynamicStyles.menuText}>{loading ? "Cerrando..." : "Cerrar Sesión"}</Text>
             <Ionicons name="chevron-forward-outline" size={24} color="#F20505" />
           </TouchableOpacity>
 
