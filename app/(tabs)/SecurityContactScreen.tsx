@@ -49,7 +49,7 @@ const SecurityContactScreen = ({ navigation }) => {
       </View>
     
       <Text style={[styles.description, isDarkMode ? styles.textDark : {}]}>
-        Aquí puedes buscar y gestionar tus contactos de seguridad. Ten en cuenta que para que tu contacto pueda visualizar tu ubicación, debe tener instalada la app de TREASAPP.
+        Aquí puedes buscar y gestionar tus contactos de seguridad. Ten en cuenta que para que tu contacto pueda visualizar tu ubicación, debe tener instalada la app de T+Plus.
       </Text>
       <TouchableOpacity style={styles.button} onPress={handleContactLookup}>
         <Text style={styles.buttonText}>Marcar como Contacto de Respaldo</Text>

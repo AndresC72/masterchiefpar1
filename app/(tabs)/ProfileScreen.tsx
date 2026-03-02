@@ -101,7 +101,7 @@ const ProfileScreen = ({ navigation }: Props) => {
 
   const refer = () => {
     const message = settings.bonus > 0
-      ? `${(user as any).firstName} ya se mueve con TREASAPP y te invita a que seas parte de este cambio para la movilidad. Descarga, regístrate y disfruta de este bono en tu próximo servicio. ${settings.code} ${settings.bonus}.\nCódigo :${(user as any).referralId}\n ${settings.DinamikLink}`
+      ? `${(user as any).firstName} ya se mueve con T+Plus y te invita a que seas parte de este cambio para la movilidad. Descarga, regístrate y disfruta de este bono en tu próximo servicio. ${settings.code} ${settings.bonus}.\nCódigo :${(user as any).referralId}\n ${settings.DinamikLink}`
       : `share_msg_no_bonus\napp_link${Platform.OS === "ios" ? settings.AppleStoreLink : settings.PlayStoreLink}`;
     Share.share({ message });
   };

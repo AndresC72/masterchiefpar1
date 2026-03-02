@@ -603,7 +603,7 @@ const CustomerMap = ({ navigation }: Props) => {
 
                 <>
                   <Text style={styles.stepTitle}>Sube tu foto de perfil</Text>
-                  <Text style={styles.explanatoryText}>¡Gracias por registrarte en TREASAPP!</Text>
+                  <Text style={styles.explanatoryText}>¡Gracias por registrarte en T+Plus!</Text>
                   <Text style={styles.explanatoryText}>
                     Por tu seguridad y la de los conductores que te atenderán, es necesario completar los siguientes campos y datos para poder proceder con todas tus solicitudes.                  </Text>
 
@@ -760,11 +760,11 @@ const CustomerMap = ({ navigation }: Props) => {
                   <Text style={styles.explanatoryText}>Por favor verifica que la información registrada corresponda y sea conforme a la realidad, ya que con ella haremos una verificación en línea, para garantizar tu seguridad y la de nuestros conductores, si quieres revisarlas ingresa al siguiente link:
 
                   </Text>
-                  <TouchableOpacity style={styles.linkButton} onPress={() => Linking.openURL('https://treasapp.com/politica-de-privacidad')}>
+                  {/* <TouchableOpacity style={styles.linkButton} onPress={() => Linking.openURL('https://treasapp.com/politica-de-privacidad')}>
                     <Text style={styles.linkButton}>
                       https://treasapp.com/politica-de-privacidad
                     </Text>
-                  </TouchableOpacity>
+                  </TouchableOpacity> */}
                   <Text style={styles.summaryText}>Teléfono: {userData.mobile}</Text>
                   <Text style={styles.summaryText}>
                     Tipo de Documento: {userData.docType}
@@ -890,7 +890,7 @@ const CustomerMap = ({ navigation }: Props) => {
           break;
         case 5:
           // Abrir Términos y Condiciones en un navegador web
-          Linking.openURL('https://treasapp.com/terminos-y-condiciones');
+          Linking.openURL('https://tmasplus.com/terminos-y-condiciones');
           break;
         case 6:
           // Navegar a la pantalla de "Contactos de seguridad"
@@ -910,7 +910,7 @@ const CustomerMap = ({ navigation }: Props) => {
       {
         id: 1,
         title: "¡Usa tu carnet!",
-        subtitle: "Presenta tu carnet de TREASAPP para identificarte fácilmente ante los conductores. ¡Es tu acceso seguro y confiable!",
+        subtitle: "Presenta tu carnet de T+plus para identificarte fácilmente ante los conductores. ¡Es tu acceso seguro y confiable!",
         image: require("@/assets/images/iconos3d/43.png"),
       },
       {
@@ -933,19 +933,19 @@ const CustomerMap = ({ navigation }: Props) => {
       {
         id: 4,
         title: "Verifica y actualiza tu perfil",
-        subtitle: "En TREASAPP, tu seguridad es nuestra prioridad. Realizamos un estudio de seguridad para garantizar que todo esté en orden. ¡Actualiza tu perfil con total tranquilidad!",
+        subtitle: "En T+plus, tu seguridad es nuestra prioridad. Realizamos un estudio de seguridad para garantizar que todo esté en orden. ¡Actualiza tu perfil con total tranquilidad!",
         image: require("@/assets/images/iconos3d/19.png"),
       },
       {
         id: 5,
         title: "Términos y condiciones",
-        subtitle: "Consulta los términos y condiciones de TREASAPP para conocer nuestras políticas y cómo aseguramos una experiencia segura y transparente para todos nuestros usuarios.",
+        subtitle: "Consulta los términos y condiciones de T+plus para conocer nuestras políticas y cómo aseguramos una experiencia segura y transparente para todos nuestros usuarios.",
         image: require("@/assets/images/iconos3d/25.png"),
       },
       {
         id: 6,
         title: "Acceso a contacto de seguridad",
-        subtitle: "Añade contactos de confianza para que podamos notificarles en caso de emergencia. Mantén a tus seres queridos informados y seguros mientras usas TREASAPP.",
+        subtitle: "Añade contactos de confianza para que podamos notificarles en caso de emergencia. Mantén a tus seres queridos informados y seguros mientras usas T+plus.",
         image: require("@/assets/images/iconos3d/24.png"),
       },
       {
@@ -958,7 +958,7 @@ const CustomerMap = ({ navigation }: Props) => {
 
     return (
       <View style={styles.containerDayli}>
-        <Text style={styles.headerDayli}>TREASAPP</Text>
+        <Text style={styles.headerDayli}>T+plus</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.scrollContainerDayli}>
           {cards.map((card) => (
             <TouchableOpacity key={card.id} style={styles.cardDayli} onPress={() => handlePress(card.id)}>
@@ -1433,11 +1433,11 @@ const CustomerMap = ({ navigation }: Props) => {
           <Text style={[styles.tourText, { flexShrink: 1 }]}>{loadingMessage}</Text>
         ) : currentStep === 5 ? (
           <Text style={[styles.tourText, { flexShrink: 1 }]}>
-            🎉¡Felicidades!🎉 Estas a un paso de completar tu registro en TREASAPP.
+            🎉¡Felicidades!🎉 Estas a un paso de completar tu registro en T+Plus.
           </Text>
         ) : (
           <Text style={[styles.tourText, { flexShrink: 1 }]}>
-            Hola, bienvenido a TREASAPP, Asegúrate de completar los siguientes pasos para poder disfrutar de todas nuestras funcionalidades
+            Hola, bienvenido a T+Plus, Asegúrate de completar los siguientes pasos para poder disfrutar de todas nuestras funcionalidades
           </Text>
         )}
       </View>

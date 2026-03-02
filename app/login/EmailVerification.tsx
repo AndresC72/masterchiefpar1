@@ -11,7 +11,7 @@ import {
   Linking, // Importa Linking para abrir Gmail
 } from "react-native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { getAuth, sendEmailVerification, reload } from "firebase/auth";
+/* import { getAuth, sendEmailVerification, reload } from "firebase/auth"; */
 import { useDispatch } from "react-redux";
 import { verifyEmail } from "@/common/store/authSlice";
 import {updateProfile} from "@/common/actions/authactions"

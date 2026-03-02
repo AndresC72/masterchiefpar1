@@ -1,5 +1,5 @@
 {
-  "name": "treasapp",
+  "name": "tmasplus",
   "main": "expo-router/entry",
   "version": "1.0.0",
   "scripts": {
@@ -10,6 +10,7 @@
     "test": "jest --watchAll",
     "lint": "expo lint",
     "dev": "APP_VARIANT=development npx expo start",
+    "update-version": "node scripts/updateVersion.js",
     "auto:sub:android": "eas build --platform android --auto-submit",
     "auto:sub:ios": "eas build --platform ios --auto-submit",
     "developer": "eas build --platform ios --profile development",

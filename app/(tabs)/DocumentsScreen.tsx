@@ -234,7 +234,7 @@ const DocumentsScreen = ({ navigation }: Props) => {
         if (hasAntecedents) {
           Alert.alert(
             "Consulta de antecedentes",
-            "Su cuenta ha sido aprobada. ¡Bienvenido a TREASAPP!"
+            "Su cuenta ha sido aprobada. ¡Bienvenido a T+Plus!"
           );
           dispatch(updateProfile({ blocked: false }));
         } else {

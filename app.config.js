@@ -1,12 +1,32 @@
-// Load .env early so `config/AppConfig` can read process.env when required
+// Load .env early so environment variables are available
 require('dotenv').config();
 
-const { AppConfig, API_KEY } = require("./config/AppConfig");
+// Construct AppConfig from environment variables directly instead of requiring a JS file.
+const AppConfig = {
+    app_name: process.env.APP_NAME || 'TmasPlus',
+    app_description: process.env.APP_DESCRIPTION || 'Sistema de transporte urbano inteligente T+Plus',
+    app_display_name: process.env.APP_DISPLAY_NAME || 'TmasPlus',
+    icon_app: './assets/images/logo-Preview.png',
+    app_identifier: process.env.APP_IDENTIFIER || 'com.tmasplus.tmasplus',
+    app_identifier_ios: process.env.APP_IDENTIFIER_IOS || 'tmasplus.tmasplus',
+    ios_app_version: process.env.APP_VERSION || '1.10.3',
+    runtime_Version: process.env.EXPO_RUNTIME_VERSION || '1.0.4',
+    android_app_version: parseInt(process.env.ANDROID_APP_VERSION || '1', 10),
+    expo_owner: process.env.EXPO_OWNER || 'tmasplus',
+    expo_slug: process.env.EXPO_SLUG || 'tmasplus',
+    expo_project_id: process.env.EXPO_PROJECT_ID || ''
+};
+
+const SUPABASE_URL = process.env.SUPABASE_URL || '';
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || '';
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+
+const API_KEY = process.env.GOOGLE_MAPS_API_KEY_ANDROID || process.env.GOOGLE_MAPS_API_KEY_IOS || '';
 
 module.exports = {
     name: AppConfig.app_name,
     description: AppConfig.app_description,
-    owner: "tmasplus",
+    owner: "tmasplus", 
     sdkVersion: '54.0.0',
     slug: AppConfig.expo_slug,
     scheme: AppConfig.expo_slug,

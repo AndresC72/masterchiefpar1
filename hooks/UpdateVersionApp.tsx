@@ -9,12 +9,14 @@ export const checkAppVersion = async (dispatch: any) => {
         const manifestVersion = Constants.expoConfig?.version || Constants.manifest?.version;
         let currentVersion: any = manifestVersion;
 
+        // preferir la configuración de AppConfig.ts si está disponible
         try {
-            const { AppConfig } = require('../config/AppConfig');
+            // importar dinámicamente para evitar problemas en el bundler
+            const { AppConfig } = await import('../config/AppConfig');
             if (!currentVersion) currentVersion = AppConfig.ios_app_version || AppConfig.runtime_Version;
             console.log('AppConfig cargado desde config:', AppConfig?.app_name);
         } catch (e) {
-            console.warn('No se pudo cargar config/AppConfig, usando manifest si está disponible');
+            console.warn('No se pudo cargar config/AppConfig dinámicamente, usando manifest si está disponible');
         }
 
         console.log('Versión Actual de la App:', currentVersion);
@@ -27,13 +29,13 @@ export const checkAppVersion = async (dispatch: any) => {
 
         if (Platform.OS === 'android') {
             try {
-                const { AppConfig } = require('../config/AppConfig');
+                const { AppConfig } = await import('../config/AppConfig');
                 const settingsVersion = parseInt(String(AppConfig.android_app_version || 0), 10);
                 if (currentVersion < settingsVersion) {
                     Linking.openURL(playStoreUrl);
                 }
             } catch (e) {
-                console.warn('No se pudo obtener android_app_version de AppConfig:', e);
+                console.warn('No se pudo obtener android_app_version de AppConfig dinámicamente:', e);
             }
         } else if (Platform.OS === 'ios') {
             const appleStoreVersion = await fetchAppleStoreVersion();

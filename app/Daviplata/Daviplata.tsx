@@ -282,7 +282,7 @@ const DaviplataPayment = (props) => {
                     const Notifications = await import('expo-notifications');
                     notificationId = await Notifications.scheduleNotificationAsync({
                         content: {
-                            title: 'TREASAPP',
+                            title: 'T+Plus',
                             body: `Tu código de verificación es ${otp},!`,
                             ios: {
                                 sound: 'default',

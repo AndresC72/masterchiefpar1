@@ -778,7 +778,7 @@ export const endBooking = createAsyncThunk(
         if (booking.customer_token) {
           await sendNotification({
             token: booking.customer_token,
-            title: "TREASAPP",
+            title: "T+plus",
             body: "PAGO PENDIENTE",
             params: { bookingId: booking.id },
           });
@@ -828,7 +828,7 @@ export const arriveBooking = createAsyncThunk(
         if (booking.customer_token) {
           await sendNotification({
             token: booking.customer_token,
-            title: "TREASAPP",
+            title: "T+plus",
             body: "Tu conductor ha llegado",
             params: { bookingId: bookingId },
           });

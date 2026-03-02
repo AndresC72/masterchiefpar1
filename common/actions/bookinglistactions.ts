@@ -87,7 +87,7 @@ export const fetchBookings = () => async (dispatch) => {
         sendNotification(
           booking.customer_token,
           {
-            title: 'Notificación de TREASAPP',
+            title: 'Notificación de T+Plus',
             msg: 'Conductor cerca de ti',
             screen: 'BookedCab',
             params: { bookingId: booking.id }
@@ -117,7 +117,7 @@ export const fetchBookings = () => async (dispatch) => {
         sendNotification(
           booking.customer_token,
           {
-            title: 'Notificación de TREASAPP',
+            title: 'Notificación de T+Plus',
             msg: 'El conductor comenzó tu viaje. Su identificación de reserva es ' + booking.reference,
             screen: 'BookedCab',
             params: { bookingId: booking.id }
@@ -145,7 +145,7 @@ export const fetchBookings = () => async (dispatch) => {
         sendNotification(
           booking.customer_token,
           {
-            title: 'Notificación de TREASAPP',
+            title: 'Notificación de T+Plus',
             msg: 'Ha llegado a su destino. Por favor, complete el pago.',
             screen: 'BookedCab',
             params: { bookingId: booking.id }
@@ -171,7 +171,7 @@ export const fetchBookings = () => async (dispatch) => {
         sendNotification(
           booking.customer_token,
           {
-            title: 'Notificación de TREASAPP',
+            title: 'Notificación de T+Plus',
             msg: 'Pago realizado con éxito.',
             screen: 'BookedCab',
             params: { bookingId: booking.id }
@@ -183,7 +183,7 @@ export const fetchBookings = () => async (dispatch) => {
         sendNotification(
           booking.driver_token,
           {
-            title: 'Notificación de TREASAPP',
+            title: 'Notificación de T+Plus',
             msg: 'Pago realizado con éxito.',
             screen: 'BookedCab',
             params: { bookingId: booking.id }
@@ -199,7 +199,7 @@ export const fetchBookings = () => async (dispatch) => {
           sendNotification(
             booking.driver_token,
             {
-              title: 'Notificación de TREASAPP',
+              title: 'Notificación de T+Plus',
               msg: 'Has recibido una calificación de X estrellas'.toString().replace("X", booking.rating.toString()),
               screen: 'BookedCab',
               params: { bookingId: booking.id }

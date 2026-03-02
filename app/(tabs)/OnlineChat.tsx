@@ -153,7 +153,7 @@ const ChatScreen = ({ navigation }: Props) => {
                 style={{ width: 20, height: 20, marginRight: 5, borderRadius: 9999 }}
               />
               <Text style={{ color: messageTextColor, fontWeight: 'bold' }}>
-                TREASAPP
+                T+Plus Admin
               </Text>
             </View>
           )}

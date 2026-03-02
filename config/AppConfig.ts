@@ -102,7 +102,7 @@ export const AppConfig: AppConfiguration = {
   
   // Configuración Expo
   expo_owner: getEnv('EXPO_OWNER', 'tmasplus_cto'),
-  expo_slug: getEnv('EXPO_SLUG', 'treasapp'),
+  expo_slug: getEnv('EXPO_SLUG', 'tmasplus-app'),
   expo_project_id: getEnv('EXPO_PROJECT_ID')
 } as const;
 
@@ -137,8 +137,8 @@ export const API_KEY = getGoogleMapsApiKey();
 // ==================== CONFIGURACIÓN DE STORAGE BUCKETS ====================
 export const StorageBuckets: StorageConfiguration = {
   USER_PROFILES: 'user-profiles',    // Fotos de perfil (público)
-  USER_DOCUMENTS: 'user-documents',  // Documentos privados (licencias, cédulas)
-  CAR_IMAGES: 'car-images',          // Fotos de vehículos (público)
+  USER_DOCUMENTS: 'vehicle-documents',  // Documentos privados (licencias, cédulas)
+  CAR_IMAGES: 'vehicle-images',          // Fotos de vehículos (público)  CAR_IMAGES: 'car-images', 
   BOOKING_MEDIA: 'booking-media'     // Media de viajes (privado)
 } as const;
 

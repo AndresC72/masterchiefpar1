@@ -495,11 +495,11 @@ const [inprocess, setInprocess] = useState("");
           break;
         case 5:
           // Abrir Términos y Condiciones en un navegador web
-          Linking.openURL('https://treasapp.com/terminos-y-condiciones');
+          Linking.openURL('https://tmasplus.com/terminos-y-condiciones');
           break;
         case 6:
           // Abrir Términos y Condiciones en un navegador web
-          Linking.openURL('https://treasapp.com/condiciones-recargas');
+          Linking.openURL('https://tmasplus.com/condiciones-recargas');
           break;
         case 7:
           // Navegar a la pantalla de "Contactos de seguridad"
@@ -545,19 +545,19 @@ const [inprocess, setInprocess] = useState("");
       {
         id: 4,
         title: "Verifica y actualiza tu perfil",
-        subtitle: "En TREASAPP, tu seguridad es nuestra prioridad. Realizamos un estudio de seguridad para garantizar que todo esté en orden. ¡Actualiza tu perfil con total tranquilidad!",
+        subtitle: "En T+Plus, tu seguridad es nuestra prioridad. Realizamos un estudio de seguridad para garantizar que todo esté en orden. ¡Actualiza tu perfil con total tranquilidad!",
         image: require("@/assets/images/iconos3d/19.png"),
       },
       {
         id: 5,
         title: "Términos y condiciones",
-        subtitle: "Consulta los términos y condiciones de TREASAPP para conocer nuestras políticas y cómo aseguramos una experiencia segura y transparente para todos nuestros usuarios.",
+        subtitle: "Consulta los términos y condiciones de T+Plus para conocer nuestras políticas y cómo aseguramos una experiencia segura y transparente para todos nuestros usuarios.",
         image: require("@/assets/images/iconos3d/25.png"),
       },
       {
         id: 6,
         title: "Términos y condiciones de Recarga",
-        subtitle: "Consulta los términos y condiciones de TREASAPP para conocer nuestras políticas sobre la recarga de dinero y cómo aseguramos una experiencia segura y transparente para todos nuestros usuarios.",
+        subtitle: "Consulta los términos y condiciones de T+Plus para conocer nuestras políticas sobre la recarga de dinero y cómo aseguramos una experiencia segura y transparente para todos nuestros usuarios.",
 
         image: require("@/assets/images/iconos3d/TerminosApp.png"),
 
@@ -566,7 +566,7 @@ const [inprocess, setInprocess] = useState("");
       {
         id: 7,
         title: "Acceso a contacto de seguridad",
-        subtitle: "Añade contactos de confianza para que podamos notificarles en caso de emergencia. Mantén a tus seres queridos informados y seguros mientras usas TREASAPP.",
+        subtitle: "Añade contactos de confianza para que podamos notificarles en caso de emergencia. Mantén a tus seres queridos informados y seguros mientras usas T+Plus.",
         image: require("@/assets/images/iconos3d/24.png"),
       },
       {
@@ -579,7 +579,7 @@ const [inprocess, setInprocess] = useState("");
 
     return (
       <View style={styles.containerDayli}>
-        <Text style={styles.headerDayli}>TREASAPP</Text>
+        <Text style={styles.headerDayli}>T+Plus</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.scrollContainerDayli}>
           {cards.map((card) => (
             <TouchableOpacity key={card.id} style={styles.cardDayli} onPress={() => handlePress(card.id)}>
@@ -869,7 +869,7 @@ const [inprocess, setInprocess] = useState("");
                 <>
                   <Text style={styles.stepTitle}>Sube tu foto de perfil</Text>
                   <Text style={styles.explanatoryText}>
-                    ¡Gracias por registrarte en TREASAPP!
+                    ¡Gracias por registrarte en T+Plus!
                   </Text>
                   <Text style={styles.explanatoryText}>
                     Por tu seguridad y la de los usuarios que atenderás, es
@@ -1041,7 +1041,7 @@ const [inprocess, setInprocess] = useState("");
                     <Text style={styles.explanatoryText}>
                       Manteniendo nuestro compromiso, tu trabajo no tendrá
                       descuentos, con nuestro aliado Daviplata tus recargas y
-                      los pagos que realizaremos desde TREASAPP, se harán sin
+                      los pagos que realizaremos desde T+Plus, se harán sin
                       descuentos. Si ya cuentas con tu número Daviplata,
                       ingrésalo ahora mismo:
                     </Text>
@@ -1228,12 +1228,12 @@ const [inprocess, setInprocess] = useState("");
                     style={styles.linkButton}
                     onPress={() =>
                       Linking.openURL(
-                        "https://treasapp.com/politica-de-privacidad"
+                        "https://tmasplus.com/politica-de-privacidad"
                       )
                     }
                   >
                     <Text style={styles.linkButton}>
-                      https://treasapp.com/politica-de-privacidad
+                      https://tmasplus.com/politica-de-privacidad
                     </Text>
                   </TouchableOpacity>
                   <Text style={styles.summaryText}>
@@ -1863,11 +1863,11 @@ const [inprocess, setInprocess] = useState("");
     const banners = [
       {
         image: require("@/assets/images/Combuscol.png"),
-        url: "https://treasapp.com/beneficios",
+        url: "https://tmasplus.com/beneficios",
       },
       {
         image: require("@/assets/images/Fitvision.png"),
-        url: "https://treasapp.com/beneficios",
+        url: "https://tmasplus.com/beneficios",
       },
 
     ];
@@ -2109,11 +2109,11 @@ const [inprocess, setInprocess] = useState("");
               ) : currentStep === 5 ? (
                 <Text style={[styles.tourText, { flexShrink: 1 }]}>
                   🎉¡Felicidades!🎉 Estas a un paso de completar tu registro en
-                  TREASAPP.
+                  T+Plus.
                 </Text>
               ) : (
                 <Text style={[styles.tourText, { flexShrink: 1 }]}>
-                  Hola, bienvenido a TREASAPP, asegúrate de completar los
+                  Hola, bienvenido a T+Plus, asegúrate de completar los
                   siguientes campos y podrás empezar a tomar servicios.
                 </Text>
               )}

@@ -69,7 +69,7 @@ export const addBooking = (bookingData: { requestedDrivers: any; }) => async (di
               sendPushNotification(
                 pushToken,
                 {
-                  title: 'TREASAPP',
+                  title: 'T+Plus',
                   msg: 'Nueva solicitud de Reserva',
                   screen: 'Map',
                   channelId: 'bookings-repeat',

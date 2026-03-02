@@ -3,7 +3,6 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { useSelector } from "react-redux";
 import { RootState } from "./../../common/store";
 import LoginScreen from "./../login/LoginScreen";
-import SignUp from "./../login/SignUp";
 import TabNavigator from "@/components/TabNavigator";
 import CustomerSupport from "@/app/(tabs)/CustomerSupport";
 import WalletDetails from "@/app/(tabs)/WalletDetails";
@@ -97,8 +96,6 @@ const Navigation = () => {
         <Stack.Group screenOptions={{ headerShown: false }}>
             <Stack.Screen name="Prelogin" component={Prelogin} />
           <Stack.Screen name="Login" component={LoginScreen} />
-          <Stack.Screen name="SignUp" component={SignUp} />
-          
         </Stack.Group>
       )}
     </Stack.Navigator>

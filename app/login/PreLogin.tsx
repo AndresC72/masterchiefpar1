@@ -10,10 +10,10 @@ const PreLogin = ({ navigation }: Props) => {
     <ImageBackground source={require('./../../assets/images/prelogin.jpg')} style={styles.backgroundImage}>
       <View style={styles.overlay} />
       <Image source={require('@/assets/images/logo1024x1024.png')} style={styles.logo} />
-      <Text style={styles.title}>TREASAPP</Text>
+      <Text style={styles.title}>T+Plus</Text>
       
       <View style={styles.buttonContainer}>
-        <TouchableOpacity style={styles.signupButton}   onPress={() => navigation.navigate("SignUp")}>
+        <TouchableOpacity style={styles.signupButton}   onPress={() => navigation.navigate("Login")}>
           <Text style={styles.signupButtonText} > Registrar </Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.loginButton} onPress={() => navigation.navigate("Login")}>

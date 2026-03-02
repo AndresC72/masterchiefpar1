@@ -44,7 +44,7 @@ const Insurance = () => {
         de tu vehículo, para garantizar la cobertura anteriormente detallada,
         dado que la responsabilidad de la idoneidad y correcta actualización de
         la información recae en el Usuario Conductor que presta los servicios
-        como proveedor independiente con TREASAPP.
+        como proveedor independiente con T+Plus.
       </Text>
     </View>
   );
