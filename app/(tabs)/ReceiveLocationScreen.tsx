@@ -7,9 +7,10 @@ import {
   Alert,
   ActivityIndicator,
   StyleSheet,
-  useColorScheme
+  useColorScheme,
+  Image
 } from "react-native";
-import MapView, { Marker } from "react-native-maps";
+import Mapbox, { MapboxStyles } from '@/config/MapboxConfig';
 import axios from "axios";
 import carIcon from "@/assets/images/track_Car.png";
 import { AntDesign } from "@expo/vector-icons";
@@ -103,21 +104,27 @@ const ReceiveLocationScreen = ({ navigation }) => {
 
       {/* Mapa para mostrar la ubicación recibida */}
       {location && (
-        <MapView
+        <Mapbox.MapView
           style={styles.map}
-          initialRegion={{
-            latitude: location.lat,
-            longitude: location.lng,
-            latitudeDelta: 0.01,
-            longitudeDelta: 0.01,
-          }}
+          styleURL={colorScheme === "dark" ? MapboxStyles.DARK : MapboxStyles.STREET}
+          logoEnabled={false}
+          attributionEnabled={false}
         >
-          <Marker
-            coordinate={{ latitude: location.lat, longitude: location.lng }}
-            title="Ubicación del Conductor"
-            image={carIcon}
+          <Mapbox.Camera
+            zoomLevel={15}
+            centerCoordinate={[location.lng, location.lat]}
+            animationDuration={1000}
           />
-        </MapView>
+          
+          <Mapbox.PointAnnotation
+            id="shared-location"
+            coordinate={[location.lng, location.lat]}
+          >
+            <View>
+              <Image source={carIcon} style={{ width: 40, height: 40 }} />
+            </View>
+          </Mapbox.PointAnnotation>
+        </Mapbox.MapView>
       )}
     </View>
   );

@@ -26,6 +26,14 @@ const useHasNotch = () => {
 
 const TabNavigator: React.FC = () => {
   const user = useSelector((state: RootState) => state.auth.user);
+  const profile = useSelector((state: RootState) => state.auth.profile);
+  const currentUserType =
+    profile?.user_type ||
+    (user as any)?.usertype ||
+    (user as any)?.user_type ||
+    (user as any)?.user_metadata?.usertype ||
+    (user as any)?.user_metadata?.user_type ||
+    'customer';
   const hasNotch = useHasNotch();
   const colorScheme = useColorScheme();
 
@@ -43,7 +51,7 @@ const TabNavigator: React.FC = () => {
   const tabScreens = useMemo(() => {
     const screens = [];
 
-    if (user?.usertype === "driver") {
+    if (currentUserType === "driver") {
       screens.push(
         {
           name: "Map",
@@ -66,7 +74,7 @@ const TabNavigator: React.FC = () => {
       );
     }
 
-    if (user?.usertype === "customer") {
+    if (currentUserType === "customer") {
       screens.push({
         name: "CustMap",
         component: CustomerMap,
@@ -82,7 +90,7 @@ const TabNavigator: React.FC = () => {
         title: "Historial",
         icon: "book",
         badge: true,
-        badgeCount: user?.activeBookings?.length || 0,
+        badgeCount: (user as any)?.activeBookings?.length || 0,
       },
       {
         name: "Profile",
@@ -93,13 +101,13 @@ const TabNavigator: React.FC = () => {
     );
 
     return screens;
-  }, [user]);
+  }, [currentUserType, user]);
 
   const initialRoute = useMemo(() => {
-    if (user?.usertype === "driver") return "Map";
-    if (user?.usertype === "customer") return "CustMap";
+    if (currentUserType === "driver") return "Map";
+    if (currentUserType === "customer") return "CustMap";
     return tabScreens[0]?.name ?? "RideList";
-  }, [user, tabScreens]);
+  }, [currentUserType, tabScreens]);
 
   return (
     <Tab.Navigator

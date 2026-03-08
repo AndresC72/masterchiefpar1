@@ -47,6 +47,10 @@ const Navigation = () => {
   const isAuthenticated = useSelector(
     (state: RootState) => state.auth.isAuthenticated
   );
+  // Temporal: habilita navegación autenticada para pruebas de mapas.
+  // Cambiar a false cuando termines las pruebas.
+  const TEMP_BYPASS_AUTH = true;
+  const effectiveIsAuthenticated = TEMP_BYPASS_AUTH || isAuthenticated;
   
   return (
     <Stack.Navigator
@@ -56,7 +60,7 @@ const Navigation = () => {
         animationEnabled:   Platform.OS == 'android'? false: true,
       }}
     >
-      {isAuthenticated ? (
+      {effectiveIsAuthenticated ? (
         <Stack.Group screenOptions={{ headerShown: false }}>
           <Stack.Screen name="HomeScreen" component={TabNavigator} />
           <Stack.Screen name="Search" component={SearchScreen} />
@@ -95,7 +99,13 @@ const Navigation = () => {
       ) : (
         <Stack.Group screenOptions={{ headerShown: false }}>
             <Stack.Screen name="Prelogin" component={Prelogin} />
-          <Stack.Screen name="Login" component={LoginScreen} />
+          <Stack.Screen 
+            name="Login" 
+            component={LoginScreen}
+            options={{
+              gestureEnabled: false,
+            }}
+          />
         </Stack.Group>
       )}
     </Stack.Navigator>

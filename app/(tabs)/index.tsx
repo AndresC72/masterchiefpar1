@@ -71,7 +71,7 @@ const MapScreen = () => {
   const [isEnabled, setIsEnabled] = useState(false);
   const dispatch = useDispatch();
   const [bookings, setBookings] = useState([]); // Estado local para las reservas
-  const user = useSelector((state: RootState) => state.auth.user);
+  const user = (useSelector((state: RootState) => state.auth.user) || {}) as any;
   const navigation = useNavigation();
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [checks, setChecks] = useState({
@@ -116,7 +116,7 @@ const MapScreen = () => {
   const [modalVisibleImageVerify, setModalVisibleImageVerify] = useState(false);
   const route = useRoute();
  // console.log(route,"aaaaahaaaa")
-  const [isEmailVerified, setIsEmailVerified] = useState(user.emailVerified);
+  const [isEmailVerified, setIsEmailVerified] = useState(Boolean(user?.emailVerified));
 const [inprocess, setInprocess] = useState("");
   const styles = colorScheme === "dark" ? darkStyles : lightStyles; // Estilos dinámicos
   const stepMessages = [
@@ -297,11 +297,14 @@ const [inprocess, setInprocess] = useState("");
     user.addres,
     user
   ]);
-  useEffect(() => {
+  
+  // TEMPORALMENTE DESHABILITADO - Pendiente configurar Supabase email verification
+  /* useEffect(() => {
     if (!isEmailVerified) {
       navigation.navigate("EmailVerificationScreen"); // Navega a una pantalla de verificación de email si lo deseas
     }
-  }, [isEmailVerified]);
+  }, [isEmailVerified]); */
+  
   useEffect(() => {
     if (loading) {
       const messages = [

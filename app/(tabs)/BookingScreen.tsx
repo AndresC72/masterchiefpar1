@@ -22,12 +22,10 @@ import {
   Keyboard,
   Platform,
 } from "react-native";
-import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
-import MapViewDirections from "react-native-maps-directions";
+import Mapbox, { MAPBOX_STYLES, GYROSCOPE_CONFIG } from "@/config/MapboxConfig";
+
 import { useRoute, useNavigation } from "@react-navigation/native";
-/* import markeIcon from "@/assets/images/rsz_2red_pin.png";
-import markeIconO from "@/assets/images/rsz_2red_pin.png"; */
-import { AntDesign, } from "@expo/vector-icons";
+import { AntDesign } from "@expo/vector-icons";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState, AppDispatch } from "@/common/store";
 import {
@@ -55,7 +53,7 @@ const GOOGLE_MAPS_APIKEY_PROD = API_KEY; // Asignar la clave API
 const BookingScreen = () => {
   const route = useRoute();
   const { origin, destination, type } = route.params as { origin: any; destination: any; type: any };
-  const mapRef = useRef<MapView | null>(null);
+  const cameraRef = useRef<Mapbox.Camera | null>(null);
   const [distance, setDistance] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -126,6 +124,29 @@ const colorScheme = useColorScheme();
     dispatch(fetchPromos() as any);
     dispatch(fetchRecentDrivers() as any);
   }, [dispatch]);
+  
+  // Calcular distancia y duración usando Google Maps Directions API
+  useEffect(() => {
+    if (origin && destination) {
+      const fetchDistanceAndDuration = async () => {
+        try {
+          const response = await fetch(
+            `https://maps.googleapis.com/maps/api/directions/json?origin=${origin.latitude},${origin.longitude}&destination=${destination.latitude},${destination.longitude}&key=${GOOGLE_MAPS_APIKEY_PROD}`
+          );
+          const data = await response.json();
+          if (data.routes && data.routes.length > 0) {
+            const route = data.routes[0].legs[0];
+            setDistance(route.distance.value / 1000); // Convertir a kilómetros
+            setDuration(route.duration.value / 60); // Convertir a minutos
+          }
+        } catch (error) {
+          console.error("Error fetching directions:", error);
+        }
+      };
+      fetchDistanceAndDuration();
+    }
+  }, [origin, destination]);
+  
   const styles = colorScheme === "dark" ? darkStyles : lightStyles; // Estilos dinámicos
 
   const handleSelectDriver = (driver: any) => {
@@ -919,50 +940,37 @@ const snapPoints = useMemo(() => ["3%", "50%", "90%"], []); // Ajusta los puntos
           </Animated.View>
         </View>
       </Modal>
-      <MapView
-        ref={mapRef}
-        style={{ flex: 1, marginBottom: isVehicleModalVisible ? 300 : 0 }} // Ajustar el margen inferior según la visibilidad del BottomSheet
-        loadingEnabled
-        provider={PROVIDER_GOOGLE}
-        initialRegion={{
-          latitude: origin.latitude,
-          longitude: origin.longitude,
-          latitudeDelta: 0.0922,
-          longitudeDelta: 0.0421,
-        }}
-        customMapStyle={colorScheme === "dark" ? darkMapStyle : []}
-
+      <Mapbox.MapView
+        style={{ flex: 1, marginBottom: isVehicleModalVisible ? 300 : 0 }}
+        styleURL={colorScheme === "dark" ? MAPBOX_STYLES.DARK : MAPBOX_STYLES.STREET}
+        compassEnabled={true}
+        compassViewPosition={3}
       >
-        <Marker
-          coordinate={{
-            latitude: origin.latitude,
-            longitude: origin.longitude,
-          }}
-          title={origin.title}
-          image={markeIconO}
+        <Mapbox.Camera
+          ref={cameraRef}
+          centerCoordinate={[origin.longitude, origin.latitude]}
+          zoomLevel={12}
+          animationDuration={1000}
         />
-        <Marker
-          coordinate={{
-            latitude: destination.latitude,
-            longitude: destination.longitude,
-          }}
-          title={destination.title}
-          image={markeIcon}
-        />
-        {origin && destination && (
-          <MapViewDirections
-            origin={origin}
-            destination={destination}
-            apikey={GOOGLE_MAPS_APIKEY_PROD}
-            strokeWidth={6}
-            strokeColor="#f20505"
-            onReady={(result) => {
-              setDistance(result.distance);
-              setDuration(result.duration);
-            }}
-          />
-        )}
-      </MapView>
+        
+        <Mapbox.PointAnnotation
+          id="origin"
+          coordinate={[origin.longitude, origin.latitude]}
+        >
+          <View style={styles.markerContainer}>
+            <Ionicons name="location" size={40} color="#00FF00" />
+          </View>
+        </Mapbox.PointAnnotation>
+        
+        <Mapbox.PointAnnotation
+          id="destination"
+          coordinate={[destination.longitude, destination.latitude]}
+        >
+          <View style={styles.markerContainer}>
+            <Ionicons name="location" size={40} color="#FF0000" />
+          </View>
+        </Mapbox.PointAnnotation>
+      </Mapbox.MapView>
 
       {/**  
       <View style={styles.autocompleteContainer}>
@@ -1810,6 +1818,10 @@ const lightStyles = StyleSheet.create({
     padding: 10,
     zIndex: 1000, // Asegúrate de que el botón esté por encima de otros elementos
   },
+  markerContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
 });
 const darkStyles = StyleSheet.create({
   container: {
@@ -2199,6 +2211,11 @@ const darkStyles = StyleSheet.create({
     padding: 10,
     zIndex: 1000, // Asegúrate de que el botón esté por encima de otros elementos
   },
+  markerContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
 });
 
 export default BookingScreen;
+

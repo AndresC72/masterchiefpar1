@@ -15,6 +15,7 @@ import GetPushToken from "@/components/GetPushToken";
 import * as Location from "expo-location";
 import * as TaskManager from "expo-task-manager";
 import * as Sentry from "@sentry/react-native";
+import Constants from 'expo-constants';
 import { login, logout } from "@/common/reducers/authReducer";
 import { checkAppVersion } from "@/hooks/UpdateVersionApp";
 import { Linking } from 'react-native';
@@ -326,6 +327,10 @@ const RootLayout = () => {
 
 
   useEffect(() => {
+    if (Constants.appOwnership === 'expo') {
+      return;
+    }
+
     let foregroundSubscription: any = null;
     let backgroundSubscription: any = null;
     let unsubscribeMessage: (() => void) | null = null;

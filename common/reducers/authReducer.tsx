@@ -46,6 +46,29 @@ const authSlice = createSlice({
     },
     setProfile: (state, action: PayloadAction<UserProfile | null>) => {
       state.profile = action.payload;
+      if (action.payload) {
+        const mergedUser: any = {
+          ...(state.user as any),
+          id: action.payload.id,
+          auth_id: action.payload.auth_id,
+          email: action.payload.email,
+          usertype: action.payload.user_type,
+          user_type: action.payload.user_type,
+          first_name: action.payload.first_name,
+          last_name: action.payload.last_name,
+          mobile: action.payload.mobile,
+          profile_image: action.payload.profile_image,
+          wallet_balance: action.payload.wallet_balance,
+          driver_active_status: action.payload.driver_active_status,
+          verifyIdImage: action.payload.verify_id_image,
+          verify_id_image: action.payload.verify_id_image,
+          verifyId: action.payload.license_number,
+          docType: null,
+          emailVerified: Boolean((state.user as any)?.email_confirmed_at) || Boolean(action.payload.is_verified),
+        };
+
+        state.user = mergedUser;
+      }
     },
     setLoading: (state, action: PayloadAction<boolean>) => {
       state.loading = action.payload;

@@ -6,9 +6,11 @@ import { getAuth } from "firebase/auth"; // Asegúrate de tener Firebase Auth co
 
 const ChecksData = ({ visible, onClose, checks }) => {
   const navigation = useNavigation();
-  const [isEmailVerified, setIsEmailVerified] = useState(false);
+  // TEMPORALMENTE DESHABILITADO - Pendiente configurar Supabase email verification
+  // const [isEmailVerified, setIsEmailVerified] = useState(false);
+  const [isEmailVerified, setIsEmailVerified] = useState(true); // Bypass temporal
   console.log("checks adentro", checks);
-  useEffect(() => {
+  /* useEffect(() => {
     const auth = getAuth();
     const user = auth.currentUser;
 
@@ -22,7 +24,7 @@ const ChecksData = ({ visible, onClose, checks }) => {
       onClose(); // Cierra el modal si el email no está verificado
       navigation.navigate("EmailVerificationScreen"); // Navega a una pantalla de verificación de email si lo deseas
     }
-  }, [isEmailVerified, visible]);
+  }, [isEmailVerified, visible]); */
 
   const handleResolveIssue = (issue) => {
     console.log("issue", issue);
@@ -78,9 +80,10 @@ const ChecksData = ({ visible, onClose, checks }) => {
     </View>
   );
 
-  if (!isEmailVerified) {
+  // TEMPORALMENTE DESHABILITADO
+  /* if (!isEmailVerified) {
     return null; // No renderizar nada si el email no está verificado
-  }
+  } */
 
   return (
     <Modal visible={visible} transparent={true} animationType="slide">

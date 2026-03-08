@@ -14,13 +14,19 @@ import {
   ImageBackground,
   Modal,
   FlatList,
+  BackHandler,
+  Platform,
+  TouchableWithoutFeedback,
+  Vibration,
 } from "react-native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { useDispatch, useSelector } from "react-redux";
-import { fetchAndDispatchUserData } from "./../../common/actions/userActions";
-import { RootState } from "./../../common/store";
+import { useFocusEffect } from "@react-navigation/native";
+import { useDispatch } from "react-redux";
 import { AntDesign, MaterialCommunityIcons, Feather } from "@expo/vector-icons";
 import supabase from '@/config/SupabaseConfig';
+import { validateEmailFormat, validatePhoneFormat, extractPhoneDigits, normalizeEmail } from '@/common/utils/validators';
+import { useEmailValidation } from '@/hooks/useEmailValidation';
+import { usePhoneValidation } from '@/hooks/usePhoneValidation';
 
 type Props = NativeStackScreenProps<any>;
 
@@ -45,7 +51,17 @@ const COUNTRIES = [
   { code: '+34', flag: '🇪🇸', name: 'España', dialCode: '+34' },
 ];
 
+const USER_TYPE_OPTIONS = [
+  { value: 'driver', label: 'Conductor', icon: 'car' },
+  { value: 'customer', label: 'Cliente', icon: 'user' },
+];
+
+const USER_TYPE_ITEM_HEIGHT = 58;
+
 const LoginScreen = ({ navigation }: Props) => {
+  const scrollViewRef = useRef<ScrollView>(null);
+  const userTypeWheelRef = useRef<ScrollView>(null);
+
   // Auth states
   const [isLoginMode, setIsLoginMode] = useState(true);
   const [email, setEmail] = useState("");
@@ -68,6 +84,11 @@ const LoginScreen = ({ navigation }: Props) => {
   const [checkingEmail, setCheckingEmail] = useState(false);
   const [checkingPhone, setCheckingPhone] = useState(false);
   const [phoneFocused, setPhoneFocused] = useState(false);
+  const [userTypeWheelIndex, setUserTypeWheelIndex] = useState(0);
+
+  // Validation format states
+  const [emailFormatValid, setEmailFormatValid] = useState(true);
+  const [phoneFormatValid, setPhoneFormatValid] = useState(true);
 
   // UI states
   const [loading, setLoading] = useState(false);
@@ -82,11 +103,30 @@ const LoginScreen = ({ navigation }: Props) => {
   const [isConfirmPasswordVisible, setIsConfirmPasswordVisible] = useState(false);
 
   const dispatch = useDispatch();
-  const user = useSelector((state: RootState) => state.auth.user);
+
+  // Hooks de validación
+  const emailValidation = useEmailValidation(email, emailFormatValid, !isLoginMode);
+  const phoneValidation = usePhoneValidation(mobile, phoneFormatValid, countryCode, !isLoginMode);
 
   // Animations
   const slideAnim = useRef(new Animated.Value(40)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
+  const keyboardOffsetAnim = useRef(new Animated.Value(0)).current;
+  const passwordLiftAnim = useRef(new Animated.Value(0)).current;
+
+  // Bloquear el gesto de atrás para no volver a PreLogin
+  useFocusEffect(
+    React.useCallback(() => {
+      const onBackPress = () => {
+        // Retornar true previene el comportamiento por defecto de atrás
+        return true;
+      };
+
+      const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+
+      return () => subscription.remove();
+    }, [])
+  );
 
   useEffect(() => {
     Animated.parallel([
@@ -104,33 +144,72 @@ const LoginScreen = ({ navigation }: Props) => {
   }, []);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session?.user) {
-        await fetchAndDispatchUserData(session.user.id, dispatch);
-        navigateBasedOnUserType();
-      }
-    });
-    return () => subscription.unsubscribe();
-  }, []);
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
 
-  const navigateBasedOnUserType = () => {
-    const userType = user?.user_metadata?.usertype;
-    if (userType) {
-      switch (userType) {
-        case "driver":
-          navigation.navigate("Map");
-          break;
-        case "customer":
-          navigation.navigate("CustMap");
-          break;
-        case "company":
-          navigation.navigate("CompanyHome");
-          break;
-        default:
-          console.error("Tipo de usuario desconocido:", userType);
-      }
+    const keyboardShowSub = Keyboard.addListener(showEvent, () => {
+      Animated.timing(keyboardOffsetAnim, {
+        toValue: -18,
+        duration: 220,
+        useNativeDriver: true,
+      }).start();
+    });
+
+    const keyboardHideSub = Keyboard.addListener(hideEvent, () => {
+      Animated.timing(keyboardOffsetAnim, {
+        toValue: 0,
+        duration: 260,
+        useNativeDriver: true,
+      }).start();
+    });
+
+    return () => {
+      keyboardShowSub.remove();
+      keyboardHideSub.remove();
+    };
+  }, [keyboardOffsetAnim]);
+
+  useEffect(() => {
+    let liftValue = 0;
+    if (confirmPasswordFocused) liftValue = -58;
+    else if (passwordFocused) liftValue = -34;
+
+    Animated.timing(passwordLiftAnim, {
+      toValue: liftValue,
+      duration: liftValue === 0 ? 220 : 180,
+      useNativeDriver: true,
+    }).start();
+  }, [passwordFocused, confirmPasswordFocused, passwordLiftAnim]);
+
+  useEffect(() => {
+    if (!showUserTypeModal) return;
+
+    const currentIndex = Math.max(
+      0,
+      USER_TYPE_OPTIONS.findIndex((option) => option.value === usertype)
+    );
+
+    setUserTypeWheelIndex(currentIndex);
+
+    requestAnimationFrame(() => {
+      userTypeWheelRef.current?.scrollTo({
+        y: currentIndex * USER_TYPE_ITEM_HEIGHT,
+        animated: false,
+      });
+    });
+  }, [showUserTypeModal, usertype]);
+
+  useEffect(() => {
+    if (!isLoginMode && email) {
+      setEmailExists(emailValidation.exists);
     }
-  };
+  }, [emailValidation.exists, isLoginMode]);
+
+  useEffect(() => {
+    if (!isLoginMode && mobile) {
+      setPhoneExists(phoneValidation.exists);
+    }
+  }, [phoneValidation.exists, isLoginMode]);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -145,10 +224,7 @@ const LoginScreen = ({ navigation }: Props) => {
         password,
       });
       if (authError) throw authError;
-      if (data.user) {
-        await fetchAndDispatchUserData(data.user.id, dispatch);
-        navigateBasedOnUserType();
-      }
+      if (!data.user) throw new Error('No se pudo iniciar sesión');
     } catch (error: any) {
       let message = "Error de autenticación";
       if (error.message.includes('Invalid login credentials')) {
@@ -161,89 +237,238 @@ const LoginScreen = ({ navigation }: Props) => {
     }
   };
 
+  // Función para sanitizar inputs
+  const sanitizeInput = (input: string, type: 'text' | 'email' | 'phone' = 'text'): string => {
+    if (!input) return '';
+    
+    let sanitized = input.trim();
+    
+    switch (type) {
+      case 'email':
+        // Eliminar espacios y convertir a minúsculas
+        sanitized = sanitized.toLowerCase().replace(/\s+/g, '');
+        break;
+      case 'phone':
+        // Solo dígitos
+        sanitized = sanitized.replace(/\D/g, '');
+        break;
+      case 'text':
+        // Eliminar caracteres especiales peligrosos pero mantener espacios y tildes
+        sanitized = sanitized
+          .replace(/[<>{}[\]\\]/g, '')
+          .replace(/\s+/g, ' ')
+          .trim();
+        break;
+    }
+    
+    return sanitized;
+  };
+
+  // Función para limpiar todos los campos del formulario
+  const clearRegistrationForm = () => {
+    console.log('🧹 [clearRegistrationForm] Limpiando formulario de registro...');
+    setEmail("");
+    setPassword("");
+    setConfirmPassword("");
+    setFirstName("");
+    setLastName("");
+    setMobile("");
+    setUsertype("");
+    setAcceptTerms(false);
+    setError("");
+    setEmailExists(false);
+    setPhoneExists(false);
+    setEmailFormatValid(true);
+    setPhoneFormatValid(true);
+  };
+
   const handleSignUp = async () => {
-    if (!firstName || !lastName || !email || !mobile || !usertype || !password || !confirmPassword) {
+    // Sanitizar campos antes de validar
+    const sanitizedFirstName = sanitizeInput(firstName, 'text');
+    const sanitizedLastName = sanitizeInput(lastName, 'text');
+    const sanitizedEmail = sanitizeInput(email, 'email');
+    const sanitizedMobile = sanitizeInput(mobile, 'phone');
+
+    console.log('🧼 [handleSignUp] Campos sanitizados:', {
+      firstName: sanitizedFirstName,
+      lastName: sanitizedLastName,
+      email: sanitizedEmail,
+      phone: sanitizedMobile,
+    });
+
+    if (!sanitizedFirstName || !sanitizedLastName || !sanitizedEmail || !sanitizedMobile || !usertype || !password || !confirmPassword) {
       setError("Por favor completa todos los campos");
+      Alert.alert("Error", "Por favor completa todos los campos correctamente");
       return;
     }
+
+    if (password.length < 6) {
+      setError("La contraseña debe tener al menos 6 caracteres");
+      Alert.alert("Error", "La contraseña debe tener al menos 6 caracteres");
+      return;
+    }
+
     if (password !== confirmPassword) {
       setError("Las contraseñas no coinciden");
+      Alert.alert("Error", "Las contraseñas no coinciden");
       return;
     }
+
     if (!acceptTerms) {
       setError("Debes aceptar los términos y condiciones");
+      Alert.alert("Error", "Debes aceptar los términos y condiciones para continuar");
+      return;
+    }
+
+    if (emailExists) {
+      setError("Este correo ya está registrado");
+      Alert.alert("Error", "Este correo ya está registrado. Intenta iniciar sesión.");
+      return;
+    }
+
+    if (phoneExists) {
+      setError("Este teléfono ya está registrado");
+      Alert.alert("Error", "Este teléfono ya está registrado. Intenta iniciar sesión.");
       return;
     }
 
     setLoading(true);
     setError("");
+    
     try {
+      console.log('🚀 [handleSignUp] Iniciando registro de usuario...');
+      
       const { data, error: signUpError } = await supabase.auth.signUp({
-        email: email.trim(),
+        email: sanitizedEmail,
         password,
         options: {
           data: {
-            first_name: firstName,
-            last_name: lastName,
-            phone: `${countryCode}${mobile}`,
+            first_name: sanitizedFirstName,
+            last_name: sanitizedLastName,
+            phone: `${countryCode}${sanitizedMobile}`,
             usertype: usertype || 'customer',
           },
         },
       });
 
-      if (signUpError) throw signUpError;
+      if (signUpError) {
+        console.error('❌ [handleSignUp] Error en auth.signUp:', signUpError.message);
+        throw signUpError;
+      }
+
+      if (!data.user) {
+        console.error('❌ [handleSignUp] No se obtuvo user después de signUp');
+        throw new Error('No se pudo crear el usuario');
+      }
+
+      console.log('✅ [handleSignUp] Usuario creado en auth.users:', data.user.id);
       
-      Alert.alert("Éxito", "Verifica tu email para confirmar tu cuenta");
-      setIsLoginMode(true);
-      setEmail("");
-      setPassword("");
-      setConfirmPassword("");
-      setFirstName("");
-      setLastName("");
-      setMobile("");
-      setUsertype("");
-      setAcceptTerms(false);
+      // Insertar en tabla users pública
+      const userRecord = {
+        id: data.user.id,
+        auth_id: data.user.id,
+        email: sanitizedEmail,
+        first_name: sanitizedFirstName,
+        last_name: sanitizedLastName,
+        mobile: `${countryCode}${sanitizedMobile}`,
+        user_type: usertype || 'customer',
+        approved: false,
+        blocked: false,
+        is_verified: false,
+        driver_active_status: usertype === 'driver' ? false : false,
+        wallet_balance: 0,
+        rating: 0,
+        total_rides: 0,
+        user_platform: Platform.OS,
+      };
+
+      console.log('📝 [handleSignUp] Insertando en tabla users:', userRecord);
+
+      const { error: insertError } = await supabase
+        .from('users')
+        .insert([userRecord] as any);
+
+      if (insertError) {
+        console.error('❌ [handleSignUp] Error insertando en tabla users:', insertError.message);
+        console.error('❌ [handleSignUp] Detalles del error:', insertError);
+        console.warn('⚠️ [handleSignUp] Usuario creado en auth pero no en tabla users. Puede ser creado por trigger.');
+      } else {
+        console.log('✅ [handleSignUp] Usuario insertado correctamente en tabla users');
+      }
+      
+      // Limpiar formulario
+      clearRegistrationForm();
+      
+      // Notificar éxito y cambiar a modo login
+      Alert.alert(
+        "¡Registro Exitoso!", 
+        `Bienvenido ${sanitizedFirstName}! Verifica tu email para confirmar tu cuenta. Ahora puedes iniciar sesión.`,
+        [
+          {
+            text: "Iniciar Sesión",
+            onPress: () => {
+              setIsLoginMode(true);
+              setEmail(sanitizedEmail); // Pre-llenar email para facilitar login
+            }
+          }
+        ]
+      );
+      
+      console.log('✅ [handleSignUp] Registro completado. Cambiando a modo login...');
+      
     } catch (error: any) {
-      setError(error.message || "Error al registrarse");
-      Alert.alert("Error", error.message);
+      console.error('❌ [handleSignUp] Error general:', error.message);
+      
+      let errorMessage = "Error al registrarse";
+      if (error.message.includes('already registered')) {
+        errorMessage = "Este correo ya está registrado. Intenta iniciar sesión.";
+      } else if (error.message.includes('Invalid email')) {
+        errorMessage = "El formato del correo no es válido";
+      } else if (error.message.includes('Password')) {
+        errorMessage = "La contraseña no cumple con los requisitos";
+      } else {
+        errorMessage = error.message || "Error al registrarse";
+      }
+      
+      setError(errorMessage);
+      Alert.alert("Error de Registro", errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
-  const verifyEmail = async () => {
-    if (!email) return;
-    setCheckingEmail(true);
-    try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('id')
-        .eq('email', email.trim());
-      if (error) throw error;
-      setEmailExists(data && data.length > 0);
-    } catch (err) {
-      console.warn('email check', err);
-    } finally {
-      setCheckingEmail(false);
+  const handleEmailChange = (text: string) => {
+    const sanitizedEmail = sanitizeInput(text, 'email');
+    const normalizedEmail = normalizeEmail(sanitizedEmail);
+    setEmail(normalizedEmail);
+    
+    if (normalizedEmail) {
+      setEmailFormatValid(validateEmailFormat(normalizedEmail));
+    } else {
+      setEmailFormatValid(true);
     }
   };
 
-  const verifyPhone = async () => {
-    if (!mobile) return;
-    setCheckingPhone(true);
-    try {
-      const full = `${countryCode}${mobile}`;
-      const { data, error } = await supabase
-        .from('users')
-        .select('id')
-        .eq('phone', full);
-      if (error) throw error;
-      setPhoneExists(data && data.length > 0);
-    } catch (err) {
-      console.warn('phone check', err);
-    } finally {
-      setCheckingPhone(false);
+  const handlePhoneChange = (text: string) => {
+    const sanitizedPhone = sanitizeInput(text, 'phone');
+    const phoneNumber = extractPhoneDigits(sanitizedPhone);
+    setMobile(phoneNumber);
+    
+    if (phoneNumber) {
+      setPhoneFormatValid(validatePhoneFormat(phoneNumber));
+    } else {
+      setPhoneFormatValid(true);
     }
+  };
+
+  const handleFirstNameChange = (text: string) => {
+    const sanitized = sanitizeInput(text, 'text');
+    setFirstName(sanitized);
+  };
+
+  const handleLastNameChange = (text: string) => {
+    const sanitized = sanitizeInput(text, 'text');
+    setLastName(sanitized);
   };
 
   const handlePasswordReset = async () => {
@@ -262,19 +487,54 @@ const LoginScreen = ({ navigation }: Props) => {
     }
   };
 
+  const updateUserTypeFromIndex = (index: number, triggerVibration = true) => {
+    const safeIndex = Math.min(Math.max(index, 0), USER_TYPE_OPTIONS.length - 1);
+    const selectedOption = USER_TYPE_OPTIONS[safeIndex];
+
+    setUserTypeWheelIndex(safeIndex);
+
+    if (selectedOption.value !== usertype) {
+      setUsertype(selectedOption.value);
+      if (triggerVibration) {
+        Vibration.vibrate(12);
+      }
+    }
+  };
+
   return (
     <ImageBackground 
       source={require("./../../assets/images/login.jpg")} 
       resizeMode="cover" 
       style={styles.background}
     >
-      <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardDismissMode="on-drag">
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.flexFill}
+        enabled={Platform.OS === 'ios'}
+      >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <ScrollView
+            ref={scrollViewRef}
+            style={styles.flexFill}
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+            bounces={false}
+            overScrollMode="never"
+            showsVerticalScrollIndicator={false}
+          >
           <Animated.View
             style={[
               styles.container,
               {
-                transform: [{ translateY: slideAnim }],
+                transform: [
+                  {
+                    translateY: Animated.add(
+                      Animated.add(slideAnim, keyboardOffsetAnim),
+                      passwordLiftAnim
+                    ),
+                  },
+                ],
                 opacity: opacityAnim,
               },
             ]}
@@ -339,8 +599,8 @@ const LoginScreen = ({ navigation }: Props) => {
                           styles.input,
                           emailFocused && styles.inputFocused,
                         ]}
-                        placeholder="Correo Electrónico"
-                        placeholderTextColor={THEME.textMuted}
+                        placeholder="Email"
+                        placeholderTextColor="rgba(255, 255, 255, 0.5)"
                         keyboardType="email-address"
                         value={email}
                         onChangeText={setEmail}
@@ -368,11 +628,22 @@ const LoginScreen = ({ navigation }: Props) => {
                           passwordFocused && styles.inputFocused,
                         ]}
                         placeholder="Contraseña"
-                        placeholderTextColor={THEME.textMuted}
+                        placeholderTextColor="rgba(255, 255, 255, 0.5)"
+                        keyboardType="default"
                         secureTextEntry={!isPasswordVisible}
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        autoComplete="off"
+                        textContentType="none"
+                        importantForAutofill="no"
                         value={password}
                         onChangeText={setPassword}
-                        onFocus={() => setPasswordFocused(true)}
+                        onFocus={() => {
+                          setPasswordFocused(true);
+                          setTimeout(() => {
+                            scrollViewRef.current?.scrollTo({ y: 520, animated: true });
+                          }, 120);
+                        }}
                         onBlur={() => setPasswordFocused(false)}
                         editable={!loading}
                       />
@@ -391,8 +662,19 @@ const LoginScreen = ({ navigation }: Props) => {
                     </View>
                   </View>
 
-                  {/* Options */}
-                  <View style={styles.optionsContainer}>
+                  {/* Login Button */}
+                  <TouchableOpacity
+                    style={[styles.primaryBtn, loading && styles.primaryBtnDisabled]}
+                    onPress={handleLogin}
+                    disabled={loading}
+                  >
+                    <Text style={styles.primaryBtnText}>
+                      {loading ? "INICIANDO..." : "INICIAR SESIÓN"}
+                    </Text>
+                  </TouchableOpacity>
+
+                  {/* Remember Me - Centered */}
+                  <View style={styles.rememberMeContainer}>
                     <TouchableOpacity
                       style={styles.checkboxRow}
                       onPress={() => setRememberMe(!rememberMe)}
@@ -405,19 +687,26 @@ const LoginScreen = ({ navigation }: Props) => {
                       </View>
                       <Text style={styles.checkboxLabel}>Recordarme</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={handlePasswordReset} disabled={loading}>
-                      <Text style={styles.forgotLink}>¿Olvidaste tu clave?</Text>
-                    </TouchableOpacity>
                   </View>
 
-                  {/* Login Button */}
-                  <TouchableOpacity
-                    style={[styles.primaryBtn, loading && styles.primaryBtnDisabled]}
-                    onPress={handleLogin}
+                  {/* Forgot Password Link - Centered */}
+                  <TouchableOpacity 
+                    onPress={handlePasswordReset} 
                     disabled={loading}
+                    style={styles.forgotPasswordContainer}
                   >
-                    <Text style={styles.primaryBtnText}>
-                      {loading ? "INICIANDO..." : "INICIAR SESIÓN"}
+                    <Text style={styles.forgotLink}>¿Olvidaste tu clave?</Text>
+                  </TouchableOpacity>
+
+                  {/* Sign Up Link */}
+                  <TouchableOpacity 
+                    onPress={() => setIsLoginMode(false)}
+                    disabled={loading}
+                    style={styles.signUpLinkContainer}
+                  >
+                    <Text style={styles.signUpLinkText}>
+                      ¿No tienes cuenta?{' '}
+                      <Text style={styles.signUpLinkHighlight}>Regístrate</Text>
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -441,12 +730,13 @@ const LoginScreen = ({ navigation }: Props) => {
                           firstNameFocused && styles.inputFocused,
                         ]}
                         placeholder="Nombre"
-                        placeholderTextColor={THEME.textMuted}
+                        placeholderTextColor="rgba(255, 255, 255, 0.5)"
                         value={firstName}
-                        onChangeText={setFirstName}
+                        onChangeText={handleFirstNameChange}
                         onFocus={() => setFirstNameFocused(true)}
                         onBlur={() => setFirstNameFocused(false)}
                         editable={!loading}
+                        autoCapitalize="words"
                       />
                       {firstNameFocused && <View style={styles.scanLine} />}
                     </View>
@@ -468,12 +758,13 @@ const LoginScreen = ({ navigation }: Props) => {
                           lastNameFocused && styles.inputFocused,
                         ]}
                         placeholder="Apellido"
-                        placeholderTextColor={THEME.textMuted}
+                        placeholderTextColor="rgba(255, 255, 255, 0.5)"
                         value={lastName}
-                        onChangeText={setLastName}
+                        onChangeText={handleLastNameChange}
                         onFocus={() => setLastNameFocused(true)}
                         onBlur={() => setLastNameFocused(false)}
                         editable={!loading}
+                        autoCapitalize="words"
                       />
                       {lastNameFocused && <View style={styles.scanLine} />}
                     </View>
@@ -494,11 +785,11 @@ const LoginScreen = ({ navigation }: Props) => {
                           styles.input,
                           emailFocused && styles.inputFocused,
                         ]}
-                        placeholder="Correo Electrónico"
-                        placeholderTextColor={THEME.textMuted}
+                        placeholder="Email"
+                        placeholderTextColor="rgba(255, 255, 255, 0.5)"
                         keyboardType="email-address"
                         value={email}
-                        onChangeText={setEmail}
+                        onChangeText={handleEmailChange}
                         onFocus={() => setEmailFocused(true)}
                         onBlur={() => setEmailFocused(false)}
                         editable={!loading}
@@ -511,28 +802,21 @@ const LoginScreen = ({ navigation }: Props) => {
 
                   {/* Phone with Country Code */}
                   <View style={styles.phoneContainer}>
-                    <TouchableOpacity
-                      style={[styles.countryCodeButton, styles.inputGroup]}
-                      onPress={() => setShowCountryModal(true)}
-                    >
-                      <Text style={styles.countryFlag}>{selectedCountry.flag}</Text>
-                      <Text style={styles.countryCode}>{selectedCountry.code}</Text>
-                      <MaterialCommunityIcons name="chevron-down" size={16} color={THEME.textMuted} />
-                    </TouchableOpacity>
-
-                    <View style={[styles.inputGroup, styles.phoneInputFlex, phoneFocused && styles.inputFocused]}>
-                      <MaterialCommunityIcons
-                        name="phone"
-                        size={20}
-                        color={phoneFocused ? THEME.primaryCyan : THEME.textMuted}
-                        style={styles.inputIcon}
-                      />
+                    <View style={[styles.inputWrapper, styles.phoneCombinedWrapper, phoneFocused && styles.inputFocused]}>
+                      <TouchableOpacity
+                        style={styles.phoneCodeInlineButton}
+                        onPress={() => setShowCountryModal(true)}
+                      >
+                        <Text style={styles.countryFlag}>{selectedCountry.flag}</Text>
+                        <Text style={styles.countryCode}>{selectedCountry.code}</Text>
+                        <MaterialCommunityIcons name="chevron-down" size={14} color={THEME.textMuted} style={styles.phoneCodeChevron} />
+                      </TouchableOpacity>
                       <TextInput
-                        style={styles.input}
+                        style={[styles.input, styles.phoneCombinedInput]}
                         placeholder="3005551234"
-                        placeholderTextColor={THEME.textMuted}
+                        placeholderTextColor="rgba(255, 255, 255, 0.5)"
                         value={mobile}
-                        onChangeText={setMobile}
+                        onChangeText={handlePhoneChange}
                         onFocus={() => setPhoneFocused(true)}
                         onBlur={() => setPhoneFocused(false)}
                         keyboardType="phone-pad"
@@ -545,11 +829,11 @@ const LoginScreen = ({ navigation }: Props) => {
 
                   {/* User Type */}
                   <TouchableOpacity
-                    style={[styles.inputGroup, styles.userTypeButton]}
+                    style={[styles.inputGroup, styles.inputWrapper, styles.userTypeButton]}
                     onPress={() => setShowUserTypeModal(true)}
                   >
                     <AntDesign name="idcard" size={20} color={usertype ? THEME.primaryCyan : THEME.textMuted} style={styles.inputIcon} />
-                    <Text style={[styles.input, { color: usertype ? THEME.textMain : THEME.textMuted }]}>       
+                    <Text style={[styles.input, { color: usertype ? THEME.textMain : THEME.textMuted }]}> 
                       {usertype ? (usertype === 'driver' ? 'Conductor' : 'Cliente') : 'Soy...'}
                     </Text>
                   </TouchableOpacity>
@@ -570,8 +854,14 @@ const LoginScreen = ({ navigation }: Props) => {
                           passwordFocused && styles.inputFocused,
                         ]}
                         placeholder="Contraseña"
-                        placeholderTextColor={THEME.textMuted}
+                        placeholderTextColor="rgba(255, 255, 255, 0.5)"
+                        keyboardType="default"
                         secureTextEntry={!isPasswordVisible}
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        autoComplete="off"
+                        textContentType="none"
+                        importantForAutofill="no"
                         value={password}
                         onChangeText={setPassword}
                         onFocus={() => setPasswordFocused(true)}
@@ -609,11 +899,25 @@ const LoginScreen = ({ navigation }: Props) => {
                           confirmPasswordFocused && styles.inputFocused,
                         ]}
                         placeholder="Confirmar Contraseña"
-                        placeholderTextColor={THEME.textMuted}
+                        placeholderTextColor="rgba(255, 255, 255, 0.5)"
+                        keyboardType="default"
                         secureTextEntry={!isConfirmPasswordVisible}
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        autoComplete="off"
+                        textContentType="none"
+                        importantForAutofill="no"
                         value={confirmPassword}
                         onChangeText={setConfirmPassword}
-                        onFocus={() => setConfirmPasswordFocused(true)}
+                        onFocus={() => {
+                          setConfirmPasswordFocused(true);
+                          setTimeout(() => {
+                            scrollViewRef.current?.scrollTo({ y: 760, animated: true });
+                          }, 120);
+                          setTimeout(() => {
+                            scrollViewRef.current?.scrollTo({ y: 920, animated: true });
+                          }, 320);
+                        }}
                         onBlur={() => setConfirmPasswordFocused(false)}
                         editable={!loading}
                       />
@@ -696,7 +1000,7 @@ const LoginScreen = ({ navigation }: Props) => {
 
           {/* User Type Modal */}
           <Modal visible={showUserTypeModal} transparent animationType="fade">
-            <View style={styles.modalOverlay}>
+            <View style={[styles.modalOverlay, styles.userTypeModalOverlay]}>
               <View style={styles.userTypeModal}>
                 <View style={styles.modalHeader}>
                   <Text style={styles.modalTitle}>Soy...</Text>
@@ -704,41 +1008,69 @@ const LoginScreen = ({ navigation }: Props) => {
                     <AntDesign name="close" size={24} color={THEME.textMain} />
                   </TouchableOpacity>
                 </View>
-                <TouchableOpacity
-                  style={styles.userTypeOption}
-                  onPress={() => {
-                    setUsertype('driver');
-                    setShowUserTypeModal(false);
-                  }}
+                <View style={styles.userTypeWheelContainer}
                 >
-                  <AntDesign name="car" size={24} color={THEME.primaryCyan} />
-                  <Text style={styles.userTypeOptionText}>Conductor</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.userTypeOption}
-                  onPress={() => {
-                    setUsertype('customer');
-                    setShowUserTypeModal(false);
-                  }}
-                >
-                  <AntDesign name="user" size={24} color={THEME.primaryCyan} />
-                  <Text style={styles.userTypeOptionText}>Cliente</Text>
-                </TouchableOpacity>
+                  <View pointerEvents="none" style={styles.userTypeWheelFocusRow} />
+                  <ScrollView
+                    ref={userTypeWheelRef}
+                    showsVerticalScrollIndicator={false}
+                    snapToInterval={USER_TYPE_ITEM_HEIGHT}
+                    decelerationRate="fast"
+                    contentContainerStyle={styles.userTypeWheelContent}
+                    onMomentumScrollEnd={(event) => {
+                      const offsetY = event.nativeEvent.contentOffset.y;
+                      const nextIndex = Math.round(offsetY / USER_TYPE_ITEM_HEIGHT);
+                      updateUserTypeFromIndex(nextIndex);
+                    }}
+                  >
+                    {USER_TYPE_OPTIONS.map((option, index) => {
+                      const active = index === userTypeWheelIndex;
+
+                      return (
+                        <TouchableOpacity
+                          key={option.value}
+                          style={[styles.userTypeWheelItem, active && styles.userTypeWheelItemActive]}
+                          onPress={() => {
+                            userTypeWheelRef.current?.scrollTo({
+                              y: index * USER_TYPE_ITEM_HEIGHT,
+                              animated: true,
+                            });
+                            updateUserTypeFromIndex(index);
+                          }}
+                        >
+                          <AntDesign name={option.icon as any} size={22} color={THEME.primaryCyan} />
+                          <Text style={[styles.userTypeWheelText, active && styles.userTypeWheelTextActive]}>
+                            {option.label}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+                </View>
               </View>
             </View>
           </Modal>
 
-        </ScrollView>
+          </ScrollView>
+        </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
     </ImageBackground>
   );
 };
 
 const styles = StyleSheet.create({
+  flexFill: {
+    flex: 1,
+  },
   background: {
     flex: 1,
     width: '100%',
     height: '100%',
+    backgroundColor: THEME.darkBg,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 120,
   },
   container: {
     flex: 1,
@@ -779,12 +1111,13 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
   },
   logoSubtitle: {
-    fontSize: 12,
+    fontSize: 11,
     color: THEME.primaryCyan,
-    fontWeight: '600',
-    letterSpacing: 2,
+    fontWeight: '500',
+    letterSpacing: 1.5,
     marginTop: 5,
     textTransform: 'uppercase',
+    opacity: 0.9,
   },
   toggleContainer: {
     flexDirection: 'row',
@@ -852,17 +1185,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingLeft: 50,
     paddingRight: 40,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
     borderRadius: 14,
-    color: THEME.textMain,
+    color: '#FFFFFF',
     fontSize: 15,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   inputFocused: {
     borderColor: THEME.primaryCyan,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
   },
   eyeIcon: {
     position: 'absolute',
@@ -885,47 +1218,68 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
   },
+  rememberMeContainer: {
+    alignItems: 'center',
+    marginTop: 14,
+    marginBottom: 8,
+  },
   checkboxRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 15,
   },
   checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 6,
+    width: 18,
+    height: 18,
+    borderRadius: 5,
     borderWidth: 1.5,
     borderColor: 'rgba(21, 229, 233, 0.5)',
     backgroundColor: 'transparent',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 10,
+    marginRight: 8,
   },
   checkboxActive: {
     backgroundColor: THEME.primaryCyan,
     borderColor: THEME.primaryCyan,
   },
   checkboxLabel: {
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.75)',
+    fontSize: 12,
     fontWeight: '500',
+  },
+  forgotPasswordContainer: {
+    alignItems: 'center',
+    marginTop: 12,
   },
   forgotLink: {
     color: THEME.primaryCyan,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
   },
+  signUpLinkContainer: {
+    alignItems: 'center',
+    marginTop: 16,
+    marginBottom: 10,
+  },
+  signUpLinkText: {
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 13,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  signUpLinkHighlight: {
+    color: THEME.primaryCyan,
+    fontWeight: '700',
+  },
   primaryBtn: {
-    paddingVertical: 16,
-    backgroundColor: 'rgba(21, 229, 233, 0.2)',
-    borderWidth: 1.5,
-    borderColor: THEME.primaryCyan,
+    paddingVertical: 15,
+    backgroundColor: THEME.primaryCyan,
     borderRadius: 14,
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: 18,
     shadowColor: THEME.primaryCyan,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.4,
     shadowRadius: 8,
     elevation: 5,
   },
@@ -933,37 +1287,64 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   primaryBtnText: {
-    color: THEME.textMain,
+    color: '#000',
     fontWeight: '700',
-    fontSize: 14,
-    letterSpacing: 2,
+    fontSize: 13,
+    letterSpacing: 1.8,
   },
   // additional styles for country/user modals and phone input
   phoneContainer: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 16,
+    width: '100%',
+    marginBottom: 20,
   },
-  countryCodeButton: {
-    flex: 0,
-    width: 100,
+  phoneCombinedWrapper: {
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: 14,
+    height: 56,
+    justifyContent: 'center',
+  },
+  phoneCodeInlineButton: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
     flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: 12,
+    paddingRight: 12,
+    zIndex: 3,
+    minWidth: 100,
+  },
+  phoneCodeChevron: {
+    marginLeft: 4,
+    opacity: 0.7,
   },
   countryFlag: {
-    fontSize: 18,
-    marginRight: 6,
+    fontSize: 22,
+    marginRight: 7,
   },
   countryCode: {
-    color: THEME.textMuted,
-    fontSize: 13,
+    color: THEME.textMain,
+    fontSize: 15,
     fontWeight: '600',
+    letterSpacing: 0.5,
+    marginRight: 2,
   },
-  phoneInputFlex: {
-    flex: 1,
+  phoneCombinedInput: {
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    paddingLeft: 110,
+    paddingRight: 16,
+    paddingVertical: 16,
+    fontSize: 15,
+    fontWeight: '600',
+    height: '100%',
   },
   userTypeButton: {
-    justifyContent: 'space-between',
+    position: 'relative',
   },
   errorSmall: {
     color: THEME.errorColor,
@@ -989,6 +1370,9 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     marginHorizontal: 20,
     padding: 20,
+  },
+  userTypeModalOverlay: {
+    justifyContent: 'center',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -1031,6 +1415,45 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     marginLeft: 12,
+  },
+  userTypeWheelContainer: {
+    marginTop: 12,
+    height: USER_TYPE_ITEM_HEIGHT * 3,
+    justifyContent: 'center',
+  },
+  userTypeWheelFocusRow: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: USER_TYPE_ITEM_HEIGHT,
+    height: USER_TYPE_ITEM_HEIGHT,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: THEME.primaryCyan,
+    backgroundColor: 'rgba(21, 229, 233, 0.1)',
+    zIndex: 1,
+  },
+  userTypeWheelContent: {
+    paddingVertical: USER_TYPE_ITEM_HEIGHT,
+  },
+  userTypeWheelItem: {
+    height: USER_TYPE_ITEM_HEIGHT,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    opacity: 0.65,
+  },
+  userTypeWheelItemActive: {
+    opacity: 1,
+  },
+  userTypeWheelText: {
+    color: THEME.textMuted,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  userTypeWheelTextActive: {
+    color: THEME.textMain,
   },
 });
 

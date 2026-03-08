@@ -9,7 +9,8 @@ import {
   Text,
   Image,
 } from "react-native";
-import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
+import Mapbox, { MAPBOX_STYLES, GYROSCOPE_CONFIG } from "@/config/MapboxConfig";
+
 import * as Location from 'expo-location';
 import { fonts } from "@/scripts/font";
 import { useSelector } from "react-redux";
@@ -223,11 +224,8 @@ interface MapSensorProps {
 const MapSensor: React.FC<MapSensorProps> = ({ children }) => {
   const user = useSelector((state: RootState) => state.auth.user);
   const [heading, setHeading] = useState(0); // Estado para el ángulo de rotación
-  const mapRef = useRef<MapView>(null); // Referencia al mapa
-  const [currentLocation, setCurrentLocation] = useState<{
-    latitude: number;
-    longitude: number;
-  } | null>(null);
+  const cameraRef = useRef<Mapbox.Camera>(null); // Referencia a la cámara
+  const [currentLocation, setCurrentLocation] = useState<[number, number] | null>(null);
   const colorScheme = useColorScheme(); // Hook para detectar si es modo oscuro o claro
 
   const [lastPosition, setLastPosition] = useState<{
@@ -258,7 +256,7 @@ const MapSensor: React.FC<MapSensorProps> = ({ children }) => {
         },
         (location) => {
           const { latitude, longitude, heading: gpsHeading } = location.coords;
-          setCurrentLocation({ latitude, longitude });
+          setCurrentLocation([longitude, latitude]);
 
           const positionChanged = () => {
             if (!lastPosition) return true;
@@ -292,57 +290,53 @@ const MapSensor: React.FC<MapSensorProps> = ({ children }) => {
     location: { coords: { latitude: number; longitude: number } },
     currentHeading: number | null
   ) => {
-    if (mapRef.current) {
-      const camera = {
-        center: {
-          latitude: location.coords.latitude,
-          longitude: location.coords.longitude,
-        },
+    if (cameraRef.current && currentLocation) {
+      cameraRef.current.setCamera({
+        centerCoordinate: currentLocation,
         heading: currentHeading || heading,
         pitch: 45,
-        zoom: 17, // Nivel de zoom para Android
-      };
-      // console.log("Actualizando cámara con heading:", currentHeading || heading);
-      mapRef.current.animateCamera(camera, { duration: 1000 });
+        zoomLevel: 17,
+        animationDuration: 1000,
+      });
     }
   };
 
   return (
     <View style={{ flex: 1 }}>
-      <MapView
-        ref={mapRef}
+      <Mapbox.MapView
         style={{ width: screen.width, height: screen.height }}
-        provider={Platform.OS === "android" ? PROVIDER_GOOGLE : undefined}
-        rotateEnabled={true}
-        pitchEnabled={true}
-        showsUserLocation={false}
-        followsUserLocation={false}
-        showsCompass={true}
-        customMapStyle={
-          colorScheme === "dark" ? darkMapStyle : mapStyleLight
-        }
+        styleURL={colorScheme === "dark" ? MAPBOX_STYLES.DARK : MAPBOX_STYLES.STREET}
+        compassEnabled={true}
+        compassViewPosition={3}
       >
+        <Mapbox.Camera
+          ref={cameraRef}
+          followUserLocation={GYROSCOPE_CONFIG.trackUserCourse}
+          followPitch={GYROSCOPE_CONFIG.followPitch}
+          followZoomLevel={17}
+        />
+        
+        <Mapbox.UserLocation
+          visible={true}
+          showsUserHeadingIndicator={GYROSCOPE_CONFIG.showsUserHeadingIndicator}
+          androidRenderMode="compass"
+        />
+        
         {currentLocation && (
-          <Marker
-            coordinate={{
-              latitude: currentLocation.latitude,
-              longitude: currentLocation.longitude,
-            }}
-            title={"Ubicación actual"}
-            description={"Estás aquí"}
-            anchor={{ x: 0.5, y: 0.5 }}
-            rotation={heading}
-            flat={true}
+          <Mapbox.PointAnnotation
+            id="currentLocationMarker"
+            coordinate={currentLocation}
           >
             <View style={{ alignItems: "center" }}>
               <Image source={markerIcon} style={{ width: 66, height: 60 }} />
             </View>
-          </Marker>
+          </Mapbox.PointAnnotation>
         )}
         {children}
-      </MapView>
+      </Mapbox.MapView>
     </View>
   );
 };
 
 export default React.memo(MapSensor);
+

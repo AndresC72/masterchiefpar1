@@ -26,6 +26,9 @@ interface SupabaseConfiguration {
 interface StorageConfiguration {
   readonly USER_PROFILES: string;
   readonly USER_DOCUMENTS: string;
+  readonly VEHICLE_DOCUMENTS: string;
+  readonly DRIVER_DOCUMENTS: string;
+  readonly VEHICLE_IMAGES: string;
   readonly CAR_IMAGES: string;
   readonly BOOKING_MEDIA: string;
 }
@@ -33,7 +36,13 @@ interface StorageConfiguration {
 interface GoogleMapsConfiguration {
   readonly development: string;
   readonly production: string;
-} 
+}
+
+interface MapboxConfiguration {
+  readonly accessToken: string;
+  readonly downloadToken: string;
+}
+
 
 // ==================== VALIDACIÓN DE VARIABLES DE ENTORNO ====================
 // Helper para leer variables de entorno desde process.env o desde Constants.expoConfig.extra
@@ -134,12 +143,29 @@ export const getGoogleMapsApiKey = (): string => {
 // Mantener compatibilidad con código existente
 export const API_KEY = getGoogleMapsApiKey();
 
+// ==================== CONFIGURACIÓN MAPBOX SEGURA ====================
+export const MapboxConfig: MapboxConfiguration = {
+  accessToken: getEnv('MAPBOX_ACCESS_TOKEN', ''),
+  downloadToken: getEnv('MAPBOX_DOWNLOAD_TOKEN', '')
+} as const;
+
+export const getMapboxAccessToken = (): string => {
+  if (!MapboxConfig.accessToken) {
+    console.warn('Mapbox Access Token no configurado');
+  }
+  return MapboxConfig.accessToken;
+};
+
+
 // ==================== CONFIGURACIÓN DE STORAGE BUCKETS ====================
 export const StorageBuckets: StorageConfiguration = {
   USER_PROFILES: 'user-profiles',    // Fotos de perfil (público)
-  USER_DOCUMENTS: 'vehicle-documents',  // Documentos privados (licencias, cédulas)
-  CAR_IMAGES: 'vehicle-images',          // Fotos de vehículos (público)  CAR_IMAGES: 'car-images', 
-  BOOKING_MEDIA: 'booking-media'     // Media de viajes (privado)
+  USER_DOCUMENTS: 'user-documents',      // Documentos de usuario
+  VEHICLE_DOCUMENTS: 'vehicle-documents', // Documentos de vehículo
+  DRIVER_DOCUMENTS: 'driver-documents',  // Documentos de conductor
+  VEHICLE_IMAGES: 'vehicle-images',       // Alias explícito de imágenes de vehículo
+  CAR_IMAGES: 'vehicle-images',           // Fotos de vehículos (público)
+  BOOKING_MEDIA: 'booking-media'          // Media de viajes (privado)
 } as const;
 
 // ==================== SISTEMA DE VALIDACIÓN AVANZADO ====================

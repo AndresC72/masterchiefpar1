@@ -12,8 +12,11 @@ export interface StorageUploadResult {
 // ==================== CONSTANTES DE BUCKETS ====================
 export const STORAGE_BUCKETS = {
   USER_PROFILES: 'user-profiles',
-  USER_DOCUMENTS: 'user-documents', 
-  CAR_IMAGES: 'car-images',
+  USER_DOCUMENTS: 'user-documents',
+  VEHICLE_DOCUMENTS: 'vehicle-documents',
+  DRIVER_DOCUMENTS: 'driver-documents',
+  VEHICLE_IMAGES: 'vehicle-images',
+  CAR_IMAGES: 'vehicle-images',
   BOOKING_MEDIA: 'booking-media'
 } as const;
 
@@ -112,7 +115,7 @@ export const uploadUserDocument = async (userId: string, documentName: string, i
 
 /**
  * MIGRAR: cars/{carId} (Firebase)
- * → car-images/{carId}/car_image.jpg (Supabase)
+ * → vehicle-images/{carId}/car_image.jpg (Supabase)
  */
 export const uploadCarImage = async (
   carId: string,
@@ -219,7 +222,7 @@ export const convertFirebasePathToSupabase = (
     };
   }
   
-  // users/{uid}/{documentName} → user-documents bucket  
+  // users/{uid}/{documentName} → user-documents bucket
   if (firebasePath.startsWith('users/')) {
     const parts = firebasePath.split('/');
     const uid = parts[1];
@@ -230,7 +233,7 @@ export const convertFirebasePathToSupabase = (
     };
   }
   
-  // cars/{carId} → car-images bucket
+  // cars/{carId} → vehicle-images bucket
   if (firebasePath.startsWith('cars/')) {
     const carId = firebasePath.split('/')[1];
     return {

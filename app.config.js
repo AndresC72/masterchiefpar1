@@ -22,6 +22,7 @@ const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || '';
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 const API_KEY = process.env.GOOGLE_MAPS_API_KEY_ANDROID || process.env.GOOGLE_MAPS_API_KEY_IOS || '';
+const MAPBOX_ACCESS_TOKEN = process.env.MAPBOX_ACCESS_TOKEN || '';
 
 module.exports = {
     name: AppConfig.app_name,
@@ -66,7 +67,8 @@ module.exports = {
         SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY || '',
         SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
         GOOGLE_MAPS_API_KEY_ANDROID: process.env.GOOGLE_MAPS_API_KEY_ANDROID || '',
-        GOOGLE_MAPS_API_KEY_IOS: process.env.GOOGLE_MAPS_API_KEY_IOS || ''
+        GOOGLE_MAPS_API_KEY_IOS: process.env.GOOGLE_MAPS_API_KEY_IOS || '',
+        MAPBOX_ACCESS_TOKEN: MAPBOX_ACCESS_TOKEN
     },
     assetBundlePatterns: [
         "**/*"
@@ -139,7 +141,8 @@ module.exports = {
             "FOREGROUND_SERVICE_LOCATION",
             "ACCESS_BACKGROUND_LOCATION",
             "SCHEDULE_EXACT_ALARM",
-            "BODY_SENSORS"
+            "BODY_SENSORS",
+            "ACTIVITY_RECOGNITION"
         ],
         blockedPermissions: ["com.google.android.gms.permission.AD_ID"],
         config: {
@@ -194,6 +197,13 @@ module.exports = {
             "expo-tracking-transparency",
             {
                 "userTrackingPermission": "This identifier will be used to deliver personalized ads to you."
+            }
+        ],
+        [
+            "@rnmapbox/maps",
+            {
+                "RNMapboxMapsVersion": "11.0.0",
+                "RNMapboxMapsImpl": "mapbox"
             }
         ],
         "expo-router"

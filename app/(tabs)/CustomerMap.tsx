@@ -16,7 +16,7 @@ import {
   Linking,  // Importamos useColorScheme para detectar el modo
 
 } from "react-native";
-import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
+import Mapbox, { MapboxStyles, GYROSCOPE_CONFIG } from '@/config/MapboxConfig';
 import * as Location from "expo-location";
 import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -30,10 +30,9 @@ import {
 import { useDispatch } from "react-redux";
 import { debounce } from "lodash"; // Importa debounce
 import { useFocusEffect } from "@react-navigation/native"; // Importa useFocusEffect
-import { API_KEY } from '@/config/AppConfig'; // Asegúrate de importar la clave API
+import { API_KEY, getMapboxAccessToken } from '@/config/AppConfig'; // Asegúrate de importar la clave API
 import { Ionicons } from "@expo/vector-icons";
-import { ref, get, query, orderByChild, equalTo } from 'firebase/database';
-import { database } from '../../config/SupabaseConfig'; // Asegúrate de que la ruta sea correcta
+import supabase from '@/config/SupabaseConfig';
 
 import tourImage from "@/assets/images/icon.png"; // Importa la imagen del tour
 import RNPickerSelect from "react-native-picker-select";
@@ -55,8 +54,9 @@ const CustomerMap = ({ navigation }: Props) => {
   const [origin, setOrigin] = useState<any>(null);
   const [destination, setDestination] = useState<any>(null);
  // console.log(destination, "destination")
-  const mapRef = useRef<MapView>(null);
-  const user = useSelector((state: RootState) => state.auth.user);
+  const mapRef = useRef<Mapbox.MapView>(null);
+  const cameraRef = useRef<Mapbox.Camera>(null);
+  const user = (useSelector((state: RootState) => state.auth.user) || {}) as any;
   const savedAddresses = useSelector(
     (state: RootState) => state.savedAddresses
   );
@@ -68,7 +68,7 @@ const CustomerMap = ({ navigation }: Props) => {
   const dispatch = useDispatch();
 
   const colorScheme = useColorScheme(); // Hook para detectar si es modo oscuro o claro
-  const [isEmailVerified, setIsEmailVerified] = useState(user.emailVerified);
+  const [isEmailVerified, setIsEmailVerified] = useState(Boolean(user?.emailVerified));
 
   const [requestCount, setRequestCount] = useState(0); // Contador de peticiones
   const [searchText, setSearchText] = useState(""); // Estado para el texto de búsqueda
@@ -124,11 +124,13 @@ const CustomerMap = ({ navigation }: Props) => {
   ];
   const [loading, setLoading] = useState(false); // Estado para controlar el loader
   const [loadingMessage, setLoadingMessage] = useState("Estamos verificando tu cuenta para asegurarnos de que todo esté en orden y así protegerte a ti y a los demás usuarios. Este proceso solo tomará unos 5 minutos. Es muy importante para nosotros garantizar la seguridad tanto de nuestros usuarios como de nuestros conductores. Agradecemos tu paciencia");
-  useEffect(() => {
+  
+  // TEMPORALMENTE DESHABILITADO - Pendiente configurar Supabase email verification
+  /* useEffect(() => {
     if (!isEmailVerified) {
       navigation.navigate("EmailVerificationScreen"); // Navega a una pantalla de verificación de email si lo deseas
     }
-  }, [isEmailVerified]);
+  }, [isEmailVerified]); */
   useEffect(() => {
     if (loading) {
       const messages = [
@@ -185,6 +187,7 @@ const CustomerMap = ({ navigation }: Props) => {
   const [buttonsVisible, setButtonsVisible] = useState(true);
   const [activeBookingsCount, setActiveBookingsCount] = useState(0);
   const [type, setType] = useState(null);
+  const [routeGeometry, setRouteGeometry] = useState<any>(null);
   const suggestions = [
     { id: 1, image: require("@/assets/images/TREAS-E.png"), label: "TREAS-E", description: "Servicio Especial" },
     { id: 2, image: require("@/assets/images/TREAS-X.png"), label: "TREAS-X", description: "Vehículo Particular" },
@@ -220,12 +223,11 @@ const CustomerMap = ({ navigation }: Props) => {
                 title: "Mi ubicación actual",
               });
     */
-          if (mapRef.current) {
-            mapRef.current.animateToRegion({
-              latitude: location.coords.latitude,
-              longitude: location.coords.longitude,
-              latitudeDelta: 0.005,
-              longitudeDelta: 0.005,
+          if (cameraRef.current) {
+            cameraRef.current.setCamera({
+              centerCoordinate: [location.coords.longitude, location.coords.latitude],
+              zoomLevel: 15,
+              animationDuration: 1000,
             });
           }
         }
@@ -241,32 +243,35 @@ const CustomerMap = ({ navigation }: Props) => {
   useEffect(() => {
     const fetchActiveBookings = async () => {
       try {
-        //  const user = useSelector((state: RootState) => state.auth.user);
-        const bookingsRef = ref(database, 'bookings');
-        const statuses = ['ACCEPTED', 'REACHED', 'NEW', 'STARTED', 'ARRIVED'];
-        let count = 0;
-
-        for (const status of statuses) {
-          const bookingsQuery = query(
-            bookingsRef,
-            orderByChild('customer_status'),
-            equalTo(`${user.id}_${status}`)
-          );
-
-          const snapshot = await get(bookingsQuery);
-          if (snapshot.exists()) {
-            count += Object.keys(snapshot.val()).length;
-          }
+        if (!user?.id) {
+          setActiveBookingsCount(0);
+          return;
         }
 
-        setActiveBookingsCount(count);
+        const statuses = ['ACCEPTED', 'REACHED', 'NEW', 'STARTED', 'ARRIVED'];
+
+        const compositeStatuses = statuses.map((status) => `${user.id}_${status}`);
+
+        const { count, error } = await supabase
+          .from('bookings')
+          .select('id', { count: 'exact', head: true })
+          .eq('customer', user.id)
+          .in('customer_status', compositeStatuses);
+
+        if (error) {
+          console.error('Error fetching active bookings from Supabase:', error.message);
+          setActiveBookingsCount(0);
+          return;
+        }
+
+        setActiveBookingsCount(count ?? 0);
       } catch (error) {
         console.error('Error fetching active bookings:', error);
       }
     };
 
     fetchActiveBookings();
-  }, []);
+  }, [user?.id]);
   const handleLocationSelect = (
     data: any,
     details: any = null,
@@ -302,6 +307,45 @@ const CustomerMap = ({ navigation }: Props) => {
     if (origin && destination) {
       handleBookNowPress(); // Navega automáticamente cuando ambas ubicaciones están seleccionadas
     }
+  }, [origin, destination]);
+
+  useEffect(() => {
+    const fetchRoute = async () => {
+      if (!origin || !destination) {
+        setRouteGeometry(null);
+        return;
+      }
+
+      try {
+        const token = getMapboxAccessToken();
+        const coordinates = `${origin.longitude},${origin.latitude};${destination.longitude},${destination.latitude}`;
+        const directionsUrl = `https://api.mapbox.com/directions/v5/mapbox/driving/${coordinates}`;
+
+        const response = await axios.get(directionsUrl, {
+          params: {
+            geometries: 'geojson',
+            overview: 'full',
+            access_token: token,
+          },
+        });
+
+        const geometry = response?.data?.routes?.[0]?.geometry;
+        if (geometry?.coordinates?.length) {
+          setRouteGeometry({
+            type: 'Feature',
+            geometry,
+            properties: {},
+          });
+        } else {
+          setRouteGeometry(null);
+        }
+      } catch (error) {
+        console.error('Error fetching Mapbox route:', error);
+        setRouteGeometry(null);
+      }
+    };
+
+    fetchRoute();
   }, [origin, destination]);
 
   const renderFavoriteButtons = () => {
@@ -463,12 +507,11 @@ const CustomerMap = ({ navigation }: Props) => {
 
 
   const centerMap = () => {
-    if (mapRef.current && latitude && longitude) {
-      mapRef.current.animateToRegion({
-        latitude,
-        longitude,
-        latitudeDelta: 0.005,
-        longitudeDelta: 0.005,
+    if (cameraRef.current && latitude && longitude) {
+      cameraRef.current.setCamera({
+        centerCoordinate: [longitude, latitude],
+        zoomLevel: 15,
+        animationDuration: 1000,
       });
     }
   };
@@ -1469,29 +1512,64 @@ const CustomerMap = ({ navigation }: Props) => {
 
 
 
-            <MapView
+            <Mapbox.MapView
               ref={mapRef}
               style={styles.map}
-              loadingEnabled
-              provider={PROVIDER_GOOGLE}
-              showsUserLocation={true}
-              initialRegion={{
-                latitude: latitude || 37.78825,
-                longitude: longitude || -122.4324,
-                latitudeDelta: 0.005,
-                longitudeDelta: 0.005,
-              }}
-              customMapStyle={colorScheme === 'dark' ? darkMapStyle : []}
+              styleURL={colorScheme === 'dark' ? MapboxStyles.DARK : MapboxStyles.STREET}
+              logoEnabled={false}
+              attributionEnabled={false}
+              compassEnabled={true}
+              scaleBarEnabled={false}
             >
+              <Mapbox.Camera
+                ref={cameraRef}
+                zoomLevel={15}
+                centerCoordinate={[longitude || -122.4324, latitude || 37.78825]}
+                animationDuration={1000}
+              />
+              
+              <Mapbox.UserLocation
+                visible={true}
+                showsUserHeadingIndicator={true}
+                androidRenderMode="compass"
+              />
+              
               {origin && (
-                <Marker coordinate={origin} title={origin.title}>
-                  <Image
-                    source={markerIcon}
-                    style={{ width: 26, height: 50 }}
-                  />
-                </Marker>
+                <Mapbox.PointAnnotation
+                  id="origin-marker"
+                  coordinate={[origin.longitude, origin.latitude]}
+                  title={origin.title}
+                >
+                  <View style={styles.markerContainer}>
+                    <Image
+                      source={markerIcon}
+                      style={{ width: 26, height: 50 }}
+                    />
+                  </View>
+                </Mapbox.PointAnnotation>
               )}
-            </MapView>
+
+              {destination && (
+                <Mapbox.PointAnnotation
+                  id="destination-marker"
+                  coordinate={[destination.longitude, destination.latitude]}
+                  title={destination.title}
+                >
+                  <View style={styles.markerContainer}>
+                    <Ionicons name="location" size={36} color="#F20505" />
+                  </View>
+                </Mapbox.PointAnnotation>
+              )}
+
+              {routeGeometry && (
+                <Mapbox.ShapeSource id="route-source" shape={routeGeometry}>
+                  <Mapbox.LineLayer
+                    id="route-line"
+                    style={styles.routeLine}
+                  />
+                </Mapbox.ShapeSource>
+              )}
+            </Mapbox.MapView>
           </View>
         )}
 
@@ -1651,7 +1729,7 @@ const CustomerMap = ({ navigation }: Props) => {
           <View style={styles.centerButton} onPress={centerMap}>
             <Text style={styles.centerButtonText}>
               Centra aquí{" "}
-              <AntDesign name="doubleright" size={18} color="red" />
+              <AntDesign name="right" size={18} color="red" />
             </Text>
           </View>
         )}
@@ -1761,6 +1839,16 @@ const lightStyles = StyleSheet.create({
   },
   map: {
     flex: 1,
+  },
+  markerContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  routeLine: {
+    lineColor: '#F20505',
+    lineWidth: 5,
+    lineCap: 'round',
+    lineJoin: 'round',
   },
   autocompleteContainer: {
     position: "absolute",
@@ -2238,6 +2326,16 @@ const darkStyles = StyleSheet.create({
   },
   map: {
     flex: 1,
+  },
+  markerContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  routeLine: {
+    lineColor: '#FFFFFF',
+    lineWidth: 5,
+    lineCap: 'round',
+    lineJoin: 'round',
   },
   autocompleteContainer: {
     position: "absolute",

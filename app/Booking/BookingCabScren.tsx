@@ -19,8 +19,7 @@ import {
   useColorScheme,
   Animated,
 } from "react-native";
-import MapView, { Marker, PROVIDER_GOOGLE, Camera } from "react-native-maps";
-import MapViewDirections from "react-native-maps-directions";
+import Mapbox, { MapboxStyles } from '@/config/MapboxConfig';
 import {
   Entypo,
   FontAwesome,
@@ -66,12 +65,13 @@ import {
 } from "@/common/reducers/settingsSlice";
 import RadioForm from "react-native-simple-radio-button";
 
-import { API_KEY } from '@/config/AppConfig'; // Asegúrate de importar la clave API
+import { API_KEY, getMapboxAccessToken } from '@/config/AppConfig'; // Asegúrate de importar la clave API
 import MapSensor from "../(tabs)/mapaSensors";
 import AntDesign from "@expo/vector-icons/AntDesign";
 
 const { width, height } = Dimensions.get("window");
 const GOOGLE_MAPS_APIKEY_PROD = API_KEY; // Reemplaza con tu API Key de Google Maps
+const MAPBOX_ACCESS_TOKEN = getMapboxAccessToken();
 
 const BookingCabScreen = () => {
   const route = useRoute();
@@ -81,7 +81,8 @@ const BookingCabScreen = () => {
   );
 
   const user = useSelector((state: RootState) => state.auth.user);
-  const mapRef = useRef<MapView>(null);
+  const mapRef = useRef<Mapbox.MapView>(null);
+  const cameraRef = useRef<Mapbox.Camera>(null);
   const [searchModalVisible, setSearchModalVisible] = useState(false);
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
   const snapPoints = useMemo(() => ["60%", "70%"], []);
@@ -283,16 +284,13 @@ const BookingCabScreen = () => {
   }, [currentBooking]);
 
   useEffect(() => {
-    if (mapRef.current && driverLocation) {
-      mapRef.current.animateCamera(
-        {
-          center: driverLocation,
-          pitch: 70,
-          altitude: 1500,
-          zoom: 17,
-        },
-        { duration: 1000 }
-      );
+    if (cameraRef.current && driverLocation) {
+      cameraRef.current.setCamera({
+        centerCoordinate: [driverLocation.longitude, driverLocation.latitude],
+        pitch: 70,
+        zoomLevel: 17,
+        animationDuration: 1000,
+      });
     }
   }, [driverLocation]);
 
@@ -665,15 +663,14 @@ const BookingCabScreen = () => {
   useEffect(() => {
     if (Platform.OS !== "android") return; // Solo para Android
 
-    if (mapRef.current && userLocation) {
-      const camera: Camera = {
-        center: userLocation,
+    if (cameraRef.current && userLocation) {
+      cameraRef.current.setCamera({
+        centerCoordinate: [userLocation.longitude, userLocation.latitude],
         pitch: 40,
         heading: heading, // Utilizar el ángulo calculado
-        zoom: 18, // Ajusta el zoom según tus necesidades
-        altitude: 1500, // Puedes ajustar la altitud si es necesario
-      };
-      mapRef.current.animateCamera(camera, { duration: 500 });
+        zoomLevel: 18,
+        animationDuration: 500,
+      });
       console.log("Camera updated with heading:", heading);
     }
   }, [heading, userLocation]);
@@ -1083,145 +1080,74 @@ const BookingCabScreen = () => {
           {user?.usertype === "driver" ? (
             <>
               <MapSensor routeCoordinates={currentBooking?.status === "STARTED" ? result?.coordinates : []}>
-                <Marker
-                  coordinate={{
-                    latitude: currentBooking.drop.lat,
-                    longitude: currentBooking.drop.lng,
-                  }}
+                <Mapbox.PointAnnotation
+                  id="destination-marker"
+                  coordinate={[currentBooking.drop.lng, currentBooking.drop.lat]}
                   title="Punto de Destino"
-                  image={destinationIcon}
-                />
-                {currentBooking?.status === "STARTED" && (
-                  <MapViewDirections
-                    origin={{
-                      latitude: user?.location.lat,
-                      longitude: user?.location.lng,
-                    }}
-                    destination={{
-                      latitude: currentBooking.drop.lat,
-                      longitude: currentBooking.drop.lng,
-                    }}
-                    apikey={GOOGLE_MAPS_APIKEY_PROD}
-                    strokeWidth={5}
-                    strokeColor={colorScheme === "dark" ? "#FFF" : "#000"}
-                    onReady={(result) => {
-                      if (mapRef.current) {
-                        mapRef.current.fitToCoordinates(result.coordinates, {
-                          edgePadding: {
-                            right: 20,
-                            bottom: 20,
-                            left: 20,
-                            top: 20,
-                          },
-                        });
-                        const heading = calculateBearing(
-                          result.coordinates[0],
-                          result.coordinates[1]
-                        );
-                        mapRef.current.animateCamera({
-                          heading,
-                        });
-                      }
-                    }}
-                    onError={(errorMessage) => {
-                      console.error("GMaps Error:", errorMessage);
-                      //  Alert.alert("Error de Ruta", errorMessage);
-                    }}
-                  />
-                )}
+                >
+                  <View>
+                    <Image source={destinationIcon} style={{ width: 26, height: 50 }} />
+                  </View>
+                </Mapbox.PointAnnotation>
 
                 {currentBooking.status === "ACCEPTED" && (
                   <>
-                    <Marker
-                      coordinate={{
-                        latitude: currentBooking.pickup.lat,
-                        longitude: currentBooking.pickup.lng,
-                      }}
+                    <Mapbox.PointAnnotation
+                      id="origin-marker"
+                      coordinate={[currentBooking.pickup.lng, currentBooking.pickup.lat]}
                       title="Punto de Origen"
-                      image={originIcon}
-                    />
-                    <MapViewDirections
-                      origin={
-                        driverLocation
-                          ? {
-                              latitude: driverLocation.latitude,
-                              longitude: driverLocation.longitude,
-                            }
-                          : {
-                              latitude: user?.location.lat,
-                              longitude: user?.location.lng,
-                            }
-                      }
-                      destination={{
-                        latitude: currentBooking.pickup.lat,
-                        longitude: currentBooking.pickup.lng,
-                      }}
-                      apikey={GOOGLE_MAPS_APIKEY_PROD}
-                      strokeWidth={7}
-                      strokeColor={colorScheme === "dark" ? 'white' : 'red'}
-                      onError={(errorMessage) =>
-                        console.error("GMaps Error:", errorMessage)
-                      }
-                     
-                    />
+                    >
+                      <View>
+                        <Image source={originIcon} style={{ width: 26, height: 50 }} />
+                      </View>
+                    </Mapbox.PointAnnotation>
                   </>
                 )}
               </MapSensor>
             </>
           ) : (
             <>
-              <MapView
+              <Mapbox.MapView
                 ref={mapRef}
-                provider={PROVIDER_GOOGLE}
                 style={styles.map}
-                scrollEnabled={true}
-                rotateEnabled={true} // Evita la rotación del mapa
-                zoomEnabled={false}
-                pitchEnabled={true}
-                initialRegion={{
-                  latitude: user?.location.lat || 0,
-                  longitude: user?.location.lng || 0,
-                  latitudeDelta: 0.015,
-                  longitudeDelta: 0.0121,
-                }}
-                followsUserLocation={true}
-                customMapStyle={colorScheme === "dark" ? darkMapStyle : []}
+                styleURL={colorScheme === "dark" ? MapboxStyles.DARK : MapboxStyles.STREET}
+                logoEnabled={false}
+                attributionEnabled={false}
               >
-                <>
-                  <Marker
-                    coordinate={{
-                      latitude: currentBooking.pickup.lat,
-                      longitude: currentBooking.pickup.lng,
-                    }}
-                    title="Punto de Origen"
-                    image={originIcon}
-                  />
-                  <Marker
-                    coordinate={{
-                      latitude: currentBooking.drop.lat,
-                      longitude: currentBooking.drop.lng,
-                    }}
-                    title="Punto de Destino"
-                    image={destinationIcon}
-                  />
-                  <MapViewDirections
-                    origin={{
-                      latitude: currentBooking.pickup.lat,
-                      longitude: currentBooking.pickup.lng,
-                    }}
-                    destination={{
-                      latitude: currentBooking.drop.lat,
-                      longitude: currentBooking.drop.lng,
-                    }}
-                    apikey={GOOGLE_MAPS_APIKEY_PROD}
-                    strokeWidth={3}
-                    strokeColor={MAIN_COLOR}
-                    onError={(errorMessage) =>
-                      console.error("GMaps Error:", errorMessage)
-                    }
-                  />
-                </>
-              </MapView>
+                <Mapbox.Camera
+                  ref={cameraRef}
+                  zoomLevel={15}
+                  centerCoordinate={[user?.location.lng || 0, user?.location.lat || 0]}
+                  pitch={40}
+                  animationDuration={1000}
+                />
+                
+                <Mapbox.UserLocation
+                  visible={true}
+                  showsUserHeadingIndicator={true}
+                  androidRenderMode="compass"
+                />
+                
+                <Mapbox.PointAnnotation
+                  id="pickup-marker-customer"
+                  coordinate={[currentBooking.pickup.lng, currentBooking.pickup.lat]}
+                  title="Punto de Origen"
+                >
+                  <View>
+                    <Image source={originIcon} style={{ width: 26, height: 50 }} />
+                  </View>
+                </Mapbox.PointAnnotation>
+                
+                <Mapbox.PointAnnotation
+                  id="drop-marker-customer"
+                  coordinate={[currentBooking.drop.lng, currentBooking.drop.lat]}
+                  title="Punto de Destino"
+                >
+                  <View>
+                    <Image source={destinationIcon} style={{ width: 26, height: 50 }} />
+                  </View>
+                </Mapbox.PointAnnotation>
+              </Mapbox.MapView>
             </>
           )}
 

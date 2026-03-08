@@ -20,6 +20,7 @@ import {
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
 } from "firebase/auth";
+import supabase from "@/config/SupabaseConfig";
 import base64 from "react-native-base64";
  
 import AccessKey from "@/common/other/AccessKey";
@@ -281,27 +282,33 @@ export const updateProfileImage = (imageBlob) => {
 export const updatePushToken = (token: string, platform: string) => {
   return async (dispatch: Dispatch) => {
     try {
-      ////console.log("Dispatching updatePushToken with token:", token, "and platform:", platform);
-      const auth = getSafeAuth();
-      const user = auth?.currentUser;
-      if (user) {
-        //  //console.log("User is authenticated, proceeding to update token.");
-        const db = getDatabase();
-        const userRef = ref(db, `users/${user.uid}`);
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const authUser = session?.user;
 
-        await update(userRef, { pushToken: token, userPlatform: platform });
-        // //console.log("Push token updated in database for user:", user.uid);
-
-        dispatch({
-          type: "UPDATE_PUSH_TOKEN",
-          payload: token,
-        });
-        //  //console.log("Dispatch action for updating push token executed");
-      } else {
-        // No auth available: skip silently
-        console.warn('updatePushToken: no firebase auth available — skipping');
+      if (!authUser) {
+        console.warn('updatePushToken: no Supabase session available — skipping');
         return;
       }
+
+      const { error } = await supabase
+        .from('users')
+        .update({
+          push_token: token,
+          user_platform: platform,
+        })
+        .eq('auth_id', authUser.id);
+
+      if (error) {
+        console.warn('updatePushToken: Supabase update failed:', error.message);
+        return;
+      }
+
+      dispatch({
+        type: "UPDATE_PUSH_TOKEN",
+        payload: token,
+      });
     } catch (error) {
       console.error("Failed to update push token:", error);
     }
@@ -311,11 +318,13 @@ export const updatePushToken = (token: string, platform: string) => {
 export const updateUserLocation = (latitude: number | undefined, longitude: number | undefined) => {
   return async (dispatch: Dispatch) => {
     try {
-      const auth = getSafeAuth();
-      const user = auth?.currentUser;
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const authUser = session?.user;
 
-      if (!user) {
-        console.log("No user is signed in or Firebase Auth unavailable, stopping location update");
+      if (!authUser) {
+        console.log("No user is signed in (Supabase), stopping location update");
         return;
       }
 
@@ -324,10 +333,18 @@ export const updateUserLocation = (latitude: number | undefined, longitude: numb
         return;
       }
 
-      const db = getDatabase();
-      const userRef = ref(db, `users/${user.uid}`);
+      const { error } = await supabase
+        .from('users')
+        .update({
+          location: { lat: latitude, lng: longitude },
+        })
+        .eq('auth_id', authUser.id);
 
-      await update(userRef, { location: { lat: latitude, lng: longitude } });
+      if (error) {
+        console.warn('Failed to update location in Supabase:', error.message);
+        return;
+      }
+
       dispatch({
         type: "UPDATE_USER_LOCATION",
         payload: { lat: latitude, lng: longitude },

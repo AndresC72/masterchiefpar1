@@ -21,8 +21,7 @@ import StarRating from "react-native-star-rating-widget";
 import { RootState } from "@/common/store";
 import supabase from "@/config/SupabaseConfig";
 import { colors } from "@/scripts/theme";
-import MapView, { Marker } from "react-native-maps";
-import MapViewDirections from "react-native-maps-directions";
+import Mapbox, { MapboxStyles } from '@/config/MapboxConfig';
 import { roundPrice } from "@/hooks/roundPrice";
 const { width, height } = Dimensions.get("window");
 const GOOGLE_MAPS_APIKEY_PROD = "AIzaSyDdkvNeB_M3yf_elrPagGAb8kKMARn4oIU";
@@ -873,46 +872,53 @@ const ActiveBookingScreen = () => {
             {selectedBooking && (
               <>
                 <Text style={styles.modalTitle}>Detalles de la Reserva</Text>
-                <MapView
+                <Mapbox.MapView
                   style={styles.map}
-                  initialRegion={{
-                    latitude: selectedBooking?.coords[0]?.latitude || 0,
-                    longitude: selectedBooking?.coords[0]?.longitude || 0,
-                    latitudeDelta: 0.01,
-                    longitudeDelta: 0.01,
-                  }}
+                  styleURL={colorScheme === "dark" ? MapboxStyles.DARK : MapboxStyles.STREET}
+                  logoEnabled={false}
+                  attributionEnabled={false}
                 >
-                  <Marker coordinate={selectedBooking.coords[0]}>
-                    <Ionicons
-                      name="location-outline"
-                      size={32}
-                      color={colors.BALANCE_GREEN} // Color for the start icon
-                    />
-                  </Marker>
-
-                  {/* Marker for End */}
-                  <Marker
-                    coordinate={
-                      selectedBooking.coords[selectedBooking.coords.length - 1]
-                    }
-                  >
-                    <Ionicons
-                      name="location-outline"
-                      size={32}
-                      color={colors.BUTTON_ORANGE} // Color for the end icon
-                    />
-                  </Marker>
-
-                  <MapViewDirections
-                    origin={selectedBooking.coords[0]}
-                    destination={
-                      selectedBooking.coords[selectedBooking.coords.length - 1]
-                    }
-                    apikey={GOOGLE_MAPS_APIKEY_PROD}
-                    strokeWidth={4}
-                    strokeColor="#F20505"
+                  <Mapbox.Camera
+                    zoomLevel={14}
+                    centerCoordinate={[
+                      selectedBooking?.coords[0]?.longitude || 0,
+                      selectedBooking?.coords[0]?.latitude || 0
+                    ]}
+                    animationDuration={1000}
                   />
-                </MapView>
+                  
+                  <Mapbox.PointAnnotation
+                    id="start-marker"
+                    coordinate={[
+                      selectedBooking.coords[0].longitude,
+                      selectedBooking.coords[0].latitude
+                    ]}
+                  >
+                    <View>
+                      <Ionicons
+                        name="location-outline"
+                        size={32}
+                        color={colors.BALANCE_GREEN}
+                      />
+                    </View>
+                  </Mapbox.PointAnnotation>
+
+                  <Mapbox.PointAnnotation
+                    id="end-marker"
+                    coordinate={[
+                      selectedBooking.coords[selectedBooking.coords.length - 1].longitude,
+                      selectedBooking.coords[selectedBooking.coords.length - 1].latitude
+                    ]}
+                  >
+                    <View>
+                      <Ionicons
+                        name="location-outline"
+                        size={32}
+                        color={colors.BUTTON_ORANGE}
+                      />
+                    </View>
+                  </Mapbox.PointAnnotation>
+                </Mapbox.MapView>
 
                 <View style={styles.detailsContainer}>
                   <Text style={styles.detailText}>
