@@ -3,16 +3,8 @@ import { Link, Stack } from 'expo-router';
 import { StyleSheet, ImageBackground, TouchableOpacity } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
-import { NativeStackScreenProps } from "@react-navigation/native-stack";
 
-type Props = NativeStackScreenProps<any>;
-
-const NotFoundScreen = ({ navigation }: Props) => {
-
-  const navigateHome = () => { // Corregir aquí: usar () => para definir la función
-  
-      navigation.navigate("Map");
-  };
+const NotFoundScreen = () => {
 
   return (
     <ImageBackground
@@ -24,11 +16,13 @@ const NotFoundScreen = ({ navigation }: Props) => {
         <ThemedText type="title" style={styles.title}>
          Estamos solucionando tu problema vuelve pronto 
         </ThemedText>
-        <TouchableOpacity onPress={navigateHome}>
-          <ThemedText type="link" style={styles.link}>
-            Go to home screen!
-          </ThemedText>
-        </TouchableOpacity>
+        <Link href="/" asChild>
+          <TouchableOpacity>
+            <ThemedText type="link" style={styles.link}>
+              Go to home screen!
+            </ThemedText>
+          </TouchableOpacity>
+        </Link>
       </ThemedView>
     </ImageBackground>
   );

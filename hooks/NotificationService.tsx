@@ -63,22 +63,22 @@ export const handleNotificationEvents = () => {
   }
 
   m.onNotificationOpenedApp((remoteMessage: any) => {
-    //console.log(
-      'Notification caused app to open from background state:',
-      remoteMessage.notification
-    );
+    // console.log(
+    //   'Notification caused app to open from background state:',
+    //   remoteMessage.notification
+    // );
   });
 
   m.getInitialNotification().then((initialNotification: any) => {
     if (initialNotification) {
-      //console.log(
-        'Notification caused app to open from quit state:',
-        initialNotification.notification
-      );
+      // console.log(
+      //   'Notification caused app to open from quit state:',
+      //   initialNotification.notification
+      // );
     }
   });
 
   m.onMessage(async (remoteMessage: any) => {
-    //console.log('A new FCM message arrived!', remoteMessage);
+    // console.log('A new FCM message arrived!', remoteMessage);
   });
 };

@@ -10,7 +10,7 @@ export default function RootRedirect() {
     const tryReplace = async () => {
       for (let i = 0; i < 10 && !cancelled; i++) {
         try {
-          router.replace('/explore');
+          router.replace('/HomeScreen');
           return;
         } catch (e) {
           // esperar un poco y reintentar

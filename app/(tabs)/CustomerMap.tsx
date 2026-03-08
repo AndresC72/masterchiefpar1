@@ -17,6 +17,7 @@ import {
 
 } from "react-native";
 import Mapbox, { MapboxStyles, GYROSCOPE_CONFIG } from '@/config/MapboxConfig';
+import MapView, { Marker } from 'react-native-maps';
 import * as Location from "expo-location";
 import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -28,6 +29,7 @@ import {
   selectSettings,
 } from "@/common/reducers/settingsSlice";
 import { useDispatch } from "react-redux";
+import { fetchPromos } from "@/common/actions/promoactions";
 import { debounce } from "lodash"; // Importa debounce
 import { useFocusEffect } from "@react-navigation/native"; // Importa useFocusEffect
 import { API_KEY, getMapboxAccessToken } from '@/config/AppConfig'; // Asegúrate de importar la clave API
@@ -54,8 +56,7 @@ const CustomerMap = ({ navigation }: Props) => {
   const [origin, setOrigin] = useState<any>(null);
   const [destination, setDestination] = useState<any>(null);
  // console.log(destination, "destination")
-  const mapRef = useRef<Mapbox.MapView>(null);
-  const cameraRef = useRef<Mapbox.Camera>(null);
+  const mapRef = useRef<MapView>(null);
   const user = (useSelector((state: RootState) => state.auth.user) || {}) as any;
   const savedAddresses = useSelector(
     (state: RootState) => state.savedAddresses
@@ -65,6 +66,7 @@ const CustomerMap = ({ navigation }: Props) => {
   const [addresses, setAddresses] = useState([]);
   const [newAddress, setNewAddress] = useState("");
   const settings = useSelector(selectSettings);
+  const promos = useSelector((state: RootState) => state.promodata?.promos || []);
   const dispatch = useDispatch();
 
   const colorScheme = useColorScheme(); // Hook para detectar si es modo oscuro o claro
@@ -202,12 +204,41 @@ const CustomerMap = ({ navigation }: Props) => {
   }, [dispatch]);
 
   useEffect(() => {
+    dispatch(fetchPromos());
+  }, [dispatch]);
+
+  useEffect(() => {
     (async () => {
       let { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
         console.log("Permission to access location was denied");
         return;
       }
+
+      // Get initial position
+      try {
+        const initialLocation = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.High,
+        });
+        setLatitude(initialLocation.coords.latitude);
+        setLongitude(initialLocation.coords.longitude);
+        setOrigin({
+          latitude: initialLocation.coords.latitude,
+          longitude: initialLocation.coords.longitude,
+          title: "Mi ubicación actual",
+        });
+        if (mapRef.current) {
+          mapRef.current.animateToRegion({
+            latitude: initialLocation.coords.latitude,
+            longitude: initialLocation.coords.longitude,
+            latitudeDelta: 0.0922,
+            longitudeDelta: 0.0421,
+          }, 1000);
+        }
+      } catch (error) {
+        console.log("Error getting initial location:", error);
+      }
+
       const subscription = await Location.watchPositionAsync(
         {
           accuracy: Location.Accuracy.High,
@@ -215,20 +246,20 @@ const CustomerMap = ({ navigation }: Props) => {
           distanceInterval: 50,
         },
         (location) => {
-          /*    setLatitude(location.coords.latitude);
-              setLongitude(location.coords.longitude);
-              setOrigin({
-                latitude: location.coords.latitude,
-                longitude: location.coords.longitude,
-                title: "Mi ubicación actual",
-              });
-    */
-          if (cameraRef.current) {
-            cameraRef.current.setCamera({
-              centerCoordinate: [location.coords.longitude, location.coords.latitude],
-              zoomLevel: 15,
-              animationDuration: 1000,
-            });
+          setLatitude(location.coords.latitude);
+          setLongitude(location.coords.longitude);
+          setOrigin({
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+            title: "Mi ubicación actual",
+          });
+          if (mapRef.current) {
+            mapRef.current.animateToRegion({
+              latitude: location.coords.latitude,
+              longitude: location.coords.longitude,
+              latitudeDelta: 0.0922,
+              longitudeDelta: 0.0421,
+            }, 1000);
           }
         }
       );
@@ -507,12 +538,13 @@ const CustomerMap = ({ navigation }: Props) => {
 
 
   const centerMap = () => {
-    if (cameraRef.current && latitude && longitude) {
-      cameraRef.current.setCamera({
-        centerCoordinate: [longitude, latitude],
-        zoomLevel: 15,
-        animationDuration: 1000,
-      });
+    if (mapRef.current && latitude && longitude) {
+      mapRef.current.animateToRegion({
+        latitude,
+        longitude,
+        latitudeDelta: 0.0922,
+        longitudeDelta: 0.0421,
+      }, 1000);
     }
   };
 
@@ -1512,32 +1544,28 @@ const CustomerMap = ({ navigation }: Props) => {
 
 
 
-            <Mapbox.MapView
+            <MapView
               ref={mapRef}
               style={styles.map}
-              styleURL={colorScheme === 'dark' ? MapboxStyles.DARK : MapboxStyles.STREET}
-              logoEnabled={false}
-              attributionEnabled={false}
-              compassEnabled={true}
-              scaleBarEnabled={false}
+              provider="google"
+              showsUserLocation={true}
+              showsMyLocationButton={false}
+              initialRegion={{
+                latitude: latitude || 37.78825,
+                longitude: longitude || -122.4324,
+                latitudeDelta: 0.0922,
+                longitudeDelta: 0.0421,
+              }}
+              region={{
+                latitude: latitude || 37.78825,
+                longitude: longitude || -122.4324,
+                latitudeDelta: 0.0922,
+                longitudeDelta: 0.0421,
+              }}
             >
-              <Mapbox.Camera
-                ref={cameraRef}
-                zoomLevel={15}
-                centerCoordinate={[longitude || -122.4324, latitude || 37.78825]}
-                animationDuration={1000}
-              />
-              
-              <Mapbox.UserLocation
-                visible={true}
-                showsUserHeadingIndicator={true}
-                androidRenderMode="compass"
-              />
-              
               {origin && (
-                <Mapbox.PointAnnotation
-                  id="origin-marker"
-                  coordinate={[origin.longitude, origin.latitude]}
+                <Marker
+                  coordinate={{ latitude: origin.latitude, longitude: origin.longitude }}
                   title={origin.title}
                 >
                   <View style={styles.markerContainer}>
@@ -1546,30 +1574,28 @@ const CustomerMap = ({ navigation }: Props) => {
                       style={{ width: 26, height: 50 }}
                     />
                   </View>
-                </Mapbox.PointAnnotation>
+                </Marker>
               )}
 
               {destination && (
-                <Mapbox.PointAnnotation
-                  id="destination-marker"
-                  coordinate={[destination.longitude, destination.latitude]}
+                <Marker
+                  coordinate={{ latitude: destination.latitude, longitude: destination.longitude }}
                   title={destination.title}
                 >
                   <View style={styles.markerContainer}>
                     <Ionicons name="location" size={36} color="#F20505" />
                   </View>
-                </Mapbox.PointAnnotation>
+                </Marker>
               )}
 
               {routeGeometry && (
-                <Mapbox.ShapeSource id="route-source" shape={routeGeometry}>
-                  <Mapbox.LineLayer
-                    id="route-line"
-                    style={styles.routeLine}
-                  />
-                </Mapbox.ShapeSource>
+                <MapView.Polyline
+                  coordinates={routeGeometry.coordinates.map(coord => ({ latitude: coord[1], longitude: coord[0] }))}
+                  strokeColor="#F20505"
+                  strokeWidth={3}
+                />
               )}
-            </Mapbox.MapView>
+            </MapView>
           </View>
         )}
 
@@ -1700,6 +1726,21 @@ const CustomerMap = ({ navigation }: Props) => {
                     <>
                       <Text style={styles.headerDayli}>BENEFICIOS</Text>
                       {HorizontalImageBanner()}
+                    </>
+                  )}
+
+                  {!isMapVisible && promos.length > 0 && (
+                    <>
+                      <Text style={styles.headerDayli}>PROMOCIONES</Text>
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }}>
+                        {promos.map((promo, index) => (
+                          <View key={index} style={styles.promoCard}>
+                            <Text style={styles.promoTitle}>{promo.promo_name}</Text>
+                            <Text style={styles.promoDescription}>{promo.description}</Text>
+                            <Text style={styles.promoCode}>Código: {promo.promo_code}</Text>
+                          </View>
+                        ))}
+                      </ScrollView>
                     </>
                   )}
                 </View>
@@ -2835,6 +2876,33 @@ const darkStyles = StyleSheet.create({
     fontSize: 12,
     color: "#fff",
     marginBottom: 10,
+  },
+  promoCard: {
+    backgroundColor: '#fff',
+    padding: 10,
+    marginRight: 10,
+    borderRadius: 8,
+    width: 200,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  promoTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#F20505',
+  },
+  promoDescription: {
+    fontSize: 14,
+    color: '#333',
+    marginVertical: 5,
+  },
+  promoCode: {
+    fontSize: 12,
+    color: '#666',
+    fontStyle: 'italic',
   }
 });
 

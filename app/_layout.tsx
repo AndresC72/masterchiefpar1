@@ -1,6 +1,9 @@
 import { Slot } from 'expo-router';
 import { useEffect } from 'react';
 import Constants from 'expo-constants';
+import Navigation from './Navigation/Navigation';
+import { Provider } from 'react-redux';
+import store from '@/common/store';
 
 /**
  * Layout raíz requerido por Expo Router.
@@ -38,5 +41,5 @@ export default function RootLayout() {
     })();
   }, []);
 
-  return <Slot />;
+  return <Provider store={store}><Navigation /></Provider>;
 }

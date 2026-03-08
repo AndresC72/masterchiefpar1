@@ -43,7 +43,7 @@ const ProfileScreen = ({ navigation }: Props) => {
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!session) {
-        navigation.navigate("Login");
+        // navigation.navigate("Login"); // Removed to avoid navigation error
       }
     });
     checkAppVersion();
@@ -77,10 +77,10 @@ const ProfileScreen = ({ navigation }: Props) => {
       
       // Navegar directamente a Login
       setLoading(false);
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'Login' }],
-      });
+      // navigation.reset({
+      //   index: 0,
+      //   routes: [{ name: 'Login' }],
+      // });
       
     } catch (error) {
       console.error("Error al cerrar sesión:", error);

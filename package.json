@@ -36,7 +36,7 @@
     "@react-navigation/bottom-tabs": "^7.4.0",
     "@react-navigation/native": "^7.1.8",
     "@reduxjs/toolkit": "^2.2.6",
-    "@rnmapbox/maps": "^10.2.10",
+    "@rnmapbox/maps": "^10.3.0-rc.0",
     "@sentry/react-native": "~7.2.0",
     "@supabase/supabase-js": "^2.95.3",
     "axios": "^1.7.2",
