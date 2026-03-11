@@ -46,13 +46,14 @@ import {
 } from "@/common/store/bookingsSlice"; // Asegúrate de que esta acción esté importada
 import { API_KEY } from '@/config/AppConfig'; // Asegúrate de importar la clave API
 import { useColorScheme } from "react-native"; 
+import * as Animatable from "react-native-animatable";
 const { width, height } = Dimensions.get("window");
 
 const GOOGLE_MAPS_APIKEY_PROD = API_KEY; // Asignar la clave API
 
 const BookingScreen = () => {
   const route = useRoute();
-  const { origin, destination, type } = route.params as { origin: any; destination: any; type: any };
+  const { origin, destination, type, stops } = route.params as { origin: any; destination: any; type: any; stops?: any[] };
   const cameraRef = useRef<Mapbox.Camera | null>(null);
   const [distance, setDistance] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -172,13 +173,21 @@ const colorScheme = useColorScheme();
     });
 
     return filteredDrivers.map((driver, index) => (
-      <TouchableOpacity
-        key={index}
-        style={styles.driverItem}
-        onPress={() => handleSelectDriver(driver)}
+      <Animatable.View
+        key={`${driver.driver_name}-${index}`}
+        animation="fadeInUp"
+        duration={450}
+        delay={index * 70}
+        useNativeDriver
       >
-        <Text style={styles.driverName}>{driver.driver_name}</Text>
-      </TouchableOpacity>
+        <TouchableOpacity
+          activeOpacity={0.84}
+          style={styles.driverItem}
+          onPress={() => handleSelectDriver(driver)}
+        >
+          <Text style={styles.driverName}>{driver.driver_name}</Text>
+        </TouchableOpacity>
+      </Animatable.View>
     ));
   };
 
@@ -328,9 +337,16 @@ const colorScheme = useColorScheme();
   
 
   const renderTaxiOptions = () => {
-    return taxiOptions.map((option) => (
-      <TouchableOpacity
+    return taxiOptions.map((option, index) => (
+      <Animatable.View
         key={option.value}
+        animation="fadeInUp"
+        duration={500}
+        delay={index * 70}
+        useNativeDriver
+      >
+      <TouchableOpacity
+        activeOpacity={0.86}
         style={[
           styles.taxiOption,
           selectedVehicle?.value === option.value && styles.selectedTaxiOption,
@@ -371,6 +387,7 @@ const colorScheme = useColorScheme();
           </Text>
         </View>
       </TouchableOpacity>
+      </Animatable.View>
     ));
   };
 
@@ -422,13 +439,16 @@ const colorScheme = useColorScheme();
     setShowPaymentModal(false);
   };
 
-  const renderPaymentOption = ({ item }: { item: { label: string; value: string } }) => (
-    <TouchableOpacity
-      style={styles.paymentOption}
-      onPress={() => handleSelectPaymentType(item.value)}
-    >
-      <Text style={styles.paymentOptionText}>{item.label}</Text>
-    </TouchableOpacity>
+  const renderPaymentOption = ({ item, index }: { item: { label: string; value: string }; index: number }) => (
+    <Animatable.View animation="fadeInUp" duration={420} delay={index * 60} useNativeDriver>
+      <TouchableOpacity
+        activeOpacity={0.84}
+        style={styles.paymentOption}
+        onPress={() => handleSelectPaymentType(item.value)}
+      >
+        <Text style={styles.paymentOptionText}>{item.label}</Text>
+      </TouchableOpacity>
+    </Animatable.View>
   );
 
   const getPrice = (bookingData: any, tolls: any, isScheduled: boolean) => {
@@ -516,13 +536,7 @@ const snapPoints = useMemo(() => ["3%", "50%", "90%"], []); // Ajusta los puntos
 // ... código existente ...
   useEffect(() => {
     handlePayment();
-    if (mapRef.current && origin && destination) {
-      mapRef.current.fitToCoordinates([origin, destination], {
-        edgePadding: { top: 50, right: 50, bottom: 50, left: 50 },
-        animated: true,
-      });
-    }
-  }, [origin, destination, snapPoints]); // Añadido snapPoints para que se ajuste al abrir el BottomSheet
+  }, [origin, destination, snapPoints]); // Mantiene actualización de pago sin depender de mapRef inexistente
 
   const handleMissingFields = () => {
     let missingFields = [];
@@ -917,8 +931,11 @@ const snapPoints = useMemo(() => ["3%", "50%", "90%"], []); // Ajusta los puntos
   >
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
     <View style={styles.container}>
+      <View pointerEvents="none" style={styles.glassOrbTop} />
+      <View pointerEvents="none" style={styles.glassOrbBottom} />
       {/* Botón de Volver */}
       <TouchableOpacity
+        activeOpacity={0.84}
         style={styles.backButton}
         onPress={() => navigation.goBack()}
       >
@@ -935,7 +952,7 @@ const snapPoints = useMemo(() => ["3%", "50%", "90%"], []); // Ajusta los puntos
           <Animated.View
             style={[styles.successModalView, { opacity: fadeAnim }]}
           >
-            <Ionicons name="close-circle" size={48} color="#F20505" />
+            <Ionicons name="close-circle" size={48} color="#00f4f5" />
             <Text style={styles.successModalText}>{errorMessage}</Text>
           </Animated.View>
         </View>
@@ -1005,7 +1022,7 @@ const snapPoints = useMemo(() => ["3%", "50%", "90%"], []); // Ajusta los puntos
             <Text style={styles.modalTitle}>Detalles del viaje</Text>
           </View>
             {/* Opción de selección de vehículo */}
-            <TouchableOpacity onPress={handleCarDetails} style={styles.option}>
+            <TouchableOpacity activeOpacity={0.84} onPress={handleCarDetails} style={styles.option}>
               <Image
                 source={
                   selectedVehicle?.carImage
@@ -1019,7 +1036,7 @@ const snapPoints = useMemo(() => ["3%", "50%", "90%"], []); // Ajusta los puntos
                   style={{
                     fontSize: 16,
                     fontWeight: "bold",
-                    color: "#f20505",
+                    color: "#00f4f5",
                     left: -60,
                     marginBottom: 10,
                   }}
@@ -1075,6 +1092,7 @@ const snapPoints = useMemo(() => ["3%", "50%", "90%"], []); // Ajusta los puntos
                 <View style={styles.modalContainer}>
                   {renderTaxiOptions()}
                   <TouchableOpacity
+                    activeOpacity={0.84}
                     style={styles.closeButton}
                     onPress={() => setIsVehicleModalVisible(false)}
                   >
@@ -1090,7 +1108,7 @@ const snapPoints = useMemo(() => ["3%", "50%", "90%"], []); // Ajusta los puntos
                 style={{
                   fontSize: 16,
                   fontWeight: "bold",
-                  color: "#f20505",
+                  color: "#00f4f5",
                   left: 10,
                   marginBottom: 10,
                 }}
@@ -1212,13 +1230,14 @@ const snapPoints = useMemo(() => ["3%", "50%", "90%"], []); // Ajusta los puntos
 
             {/* Tipo de pago */}
             <TouchableOpacity
+              activeOpacity={0.84}
               style={[styles.option, { marginVertical: 16 }]}
               onPress={() => setShowPaymentModal(true)}
             >
               <Text
                 style={[
                   styles.optionText,
-                  { marginBottom: 12, color: "#F20505" },
+                  { marginBottom: 12, color: "#00f4f5" },
                 ]}
               >
                 Tipo de Pago
@@ -1265,6 +1284,7 @@ const snapPoints = useMemo(() => ["3%", "50%", "90%"], []); // Ajusta los puntos
                 <Text style={{color: colorScheme === "dark" ? "#fff" : "#000"}}>No hay promo seleccionada</Text>
 
                 <TouchableOpacity
+                  activeOpacity={0.84}
                   style={[
                     styles.bookNow,
                     { backgroundColor: "#EEE", marginHorizontal: 10 },
@@ -1302,10 +1322,11 @@ const snapPoints = useMemo(() => ["3%", "50%", "90%"], []); // Ajusta los puntos
             <View style={[styles.buttonContainer, { bottom: 80 }]}>
               {immediatePickup ? (
                 <TouchableOpacity
+                  activeOpacity={0.84}
                   style={[
                     styles.bookNow,
                     {
-                      backgroundColor: "#f20505",
+                      backgroundColor: "#00f4f5",
                       marginHorizontal: 10,
                       width: "40%",
                     },
@@ -1318,6 +1339,7 @@ const snapPoints = useMemo(() => ["3%", "50%", "90%"], []); // Ajusta los puntos
                 </TouchableOpacity>
               ) : (
                 <TouchableOpacity
+                  activeOpacity={0.84}
                   style={styles.bookNow}
                   onPress={() => setIsDriverModalVisible(true)} // Abrir modal de conductores
                 >
@@ -1433,8 +1455,29 @@ const snapPoints = useMemo(() => ["3%", "50%", "90%"], []); // Ajusta los puntos
 };
 
 const lightStyles = StyleSheet.create({
+  glassOrbTop: {
+    position: "absolute",
+    top: -100,
+    right: -50,
+    width: 240,
+    height: 240,
+    borderRadius: 120,
+    backgroundColor: "rgba(0, 244, 245, 0.16)",
+    zIndex: 0,
+  },
+  glassOrbBottom: {
+    position: "absolute",
+    bottom: 120,
+    left: -70,
+    width: 280,
+    height: 280,
+    borderRadius: 140,
+    backgroundColor: "rgba(0, 32, 74, 0.10)",
+    zIndex: 0,
+  },
   container: {
     flex: 1,
+    backgroundColor: "#e9f1f5",
   },
   map: {
     flex: 1,
@@ -1467,7 +1510,7 @@ const lightStyles = StyleSheet.create({
   separator: {
     width: "100%",
     borderWidth: 1,
-    borderColor: "#F20505",
+    borderColor: "#00f4f5",
   },
   modalHeader: {
     width: "100%",
@@ -1477,7 +1520,7 @@ const lightStyles = StyleSheet.create({
   modalTitle: {
     fontSize: 16,
     fontWeight: "bold",
-    color: "#F20505",
+    color: "#00f4f5",
 
   },
   modalContent: {
@@ -1485,6 +1528,7 @@ const lightStyles = StyleSheet.create({
     alignItems: "center",
     padding: 20,
     top: -30,
+    backgroundColor: "rgba(233, 241, 245, 0.94)",
   },
   option: {
     flexDirection: "row",
@@ -1493,7 +1537,11 @@ const lightStyles = StyleSheet.create({
     width: "100%",
     padding: 10,
     borderBottomWidth: 1,
-    borderBottomColor: "#ddd",
+    borderBottomColor: "rgba(0, 244, 245, 0.20)",
+    borderRadius: 12,
+    backgroundColor: "rgba(255, 255, 255, 0.70)",
+    borderWidth: 1,
+    borderColor: "rgba(0, 244, 245, 0.20)",
   },
   optionText: {
     fontSize: 18,
@@ -1515,7 +1563,7 @@ const lightStyles = StyleSheet.create({
     elevation: 10,
   },
   successModalText: {
-    color: "#f20505",
+    color: "#00f4f5",
     fontSize: 18,
     fontWeight: "bold",
     marginTop: 10,
@@ -1530,7 +1578,7 @@ const lightStyles = StyleSheet.create({
     fontSize: 16,
   },
   bookNow: {
-    backgroundColor: "#f20505",
+    backgroundColor: "#00f4f5",
     borderRadius: 10,
     padding: 15,
     alignItems: "center",
@@ -1572,7 +1620,7 @@ const lightStyles = StyleSheet.create({
   activeButton: {
     backgroundColor: "#ffff",
     borderWidth: 1,
-    borderColor: "#F20505",
+    borderColor: "#00f4f5",
   },
   inactiveButton: {
     backgroundColor: "#fff",
@@ -1584,7 +1632,7 @@ const lightStyles = StyleSheet.create({
     fontWeight: "bold",
   },
   activeButtonText: {
-    color: "#F20505",
+    color: "#00f4f5",
   },
   inactiveButtonText: {
     color: "#ddd",
@@ -1599,7 +1647,7 @@ const lightStyles = StyleSheet.create({
     marginTop: 20,
     paddingVertical: 10,
     paddingHorizontal: 20,
-    backgroundColor: "#f20505",
+    backgroundColor: "#00f4f5",
     borderRadius: 5,
   },
   closeButtonText: {
@@ -1616,7 +1664,7 @@ const lightStyles = StyleSheet.create({
   paymentOption: {
     paddingVertical: 15,
     paddingHorizontal: 20,
-    borderBottomColor: "#ddd",
+    borderBottomColor: "rgba(0, 244, 245, 0.20)",
     borderBottomWidth: 1,
     flexDirection: "row",
     alignItems: "center",
@@ -1632,7 +1680,7 @@ const lightStyles = StyleSheet.create({
     bottom: 50,
     left: 20,
     right: 20,
-    backgroundColor: "#F20505",
+    backgroundColor: "#00f4f5",
     padding: 15,
     borderRadius: 10,
     alignItems: "center",
@@ -1698,7 +1746,7 @@ const lightStyles = StyleSheet.create({
     backgroundColor: "rgba(0, 0, 0, 0.5)",
   },
   modalContainer: {
-    backgroundColor: "#fff",
+    backgroundColor: "rgba(255, 255, 255, 0.90)",
     borderRadius: 20,
     padding: 25,
     width: "85%",
@@ -1716,16 +1764,16 @@ const lightStyles = StyleSheet.create({
     justifyContent: "flex-start",
     padding: 15,
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: "rgba(0, 244, 245, 0.22)",
     borderRadius: 10,
     marginBottom: 10,
     height: 100,
-    backgroundColor: "#fff",
+    backgroundColor: "rgba(255, 255, 255, 0.74)",
   },
   selectedTaxiOption: {
-    borderColor: "#F20505",
+    borderColor: "#00f4f5",
     borderWidth: 2,
-    shadowColor: "#F20505",
+    shadowColor: "#00f4f5",
     shadowOpacity: 0.8,
     shadowRadius: 5,
   },
@@ -1762,7 +1810,7 @@ const lightStyles = StyleSheet.create({
     marginTop: 20,
     paddingVertical: 10,
     paddingHorizontal: 20,
-    backgroundColor: "#f20505",
+    backgroundColor: "#00f4f5",
     borderRadius: 5,
   },
   closeButtonText: {
@@ -1773,8 +1821,10 @@ const lightStyles = StyleSheet.create({
   driverItem: {
     padding: 15,
     marginVertical: 5,
-    backgroundColor: "#f0f0f0",
+    backgroundColor: "rgba(255, 255, 255, 0.76)",
     borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(0, 244, 245, 0.22)",
   },
   driverName: {
     fontSize: 16,
@@ -1785,7 +1835,7 @@ const lightStyles = StyleSheet.create({
     marginTop: 20,
     paddingVertical: 10,
     paddingHorizontal: 20,
-    backgroundColor: "#f20505",
+    backgroundColor: "#00f4f5",
     borderRadius: 5,
   },
   closeButtonText: {
@@ -1794,7 +1844,7 @@ const lightStyles = StyleSheet.create({
     fontWeight: "bold",
   },
   selectDriverButton: {
-    backgroundColor: "#f20505",
+    backgroundColor: "#00f4f5",
     borderRadius: 10,
     padding: 15,
     alignItems: "center",
@@ -1810,7 +1860,7 @@ const lightStyles = StyleSheet.create({
     fontWeight: "bold",
   },
   backButton: {
-    backgroundColor: "#f20505",
+    backgroundColor: "#00f4f5",
     borderRadius: 60,
     position: "absolute",
     top: 40,
@@ -1824,8 +1874,29 @@ const lightStyles = StyleSheet.create({
   },
 });
 const darkStyles = StyleSheet.create({
+  glassOrbTop: {
+    position: "absolute",
+    top: -100,
+    right: -40,
+    width: 250,
+    height: 250,
+    borderRadius: 125,
+    backgroundColor: "rgba(21, 229, 233, 0.14)",
+    zIndex: 0,
+  },
+  glassOrbBottom: {
+    position: "absolute",
+    bottom: 110,
+    left: -80,
+    width: 290,
+    height: 290,
+    borderRadius: 145,
+    backgroundColor: "rgba(0, 32, 74, 0.30)",
+    zIndex: 0,
+  },
   container: {
     flex: 1,
+    backgroundColor: "#01060a",
   },
   map: {
     flex: 1,
@@ -1858,7 +1929,7 @@ const darkStyles = StyleSheet.create({
   separator: {
     width: "100%",
     borderWidth: 1,
-    borderColor: "#F20505",
+    borderColor: "#00f4f5",
   },
   modalHeader: {
     width: "100%",
@@ -1869,14 +1940,14 @@ const darkStyles = StyleSheet.create({
   modalTitle: {
     fontSize: 16,
     fontWeight: "bold",
-    color: "#F20505",
+    color: "#00f4f5",
   },
   modalContent: {
     flex: 1,
     alignItems: "center",
     padding: 20,
     top: -30,
-    backgroundColor: "#000",
+    backgroundColor: "rgba(1, 6, 10, 0.94)",
   },
   option: {
     flexDirection: "row",
@@ -1885,7 +1956,11 @@ const darkStyles = StyleSheet.create({
     width: "100%",
     padding: 10,
     borderBottomWidth: 1,
-    borderBottomColor: "#ddd",
+    borderBottomColor: "rgba(21, 229, 233, 0.25)",
+    borderRadius: 12,
+    backgroundColor: "rgba(4, 39, 58, 0.45)",
+    borderWidth: 1,
+    borderColor: "rgba(21, 229, 233, 0.30)",
   },
   optionText: {
     fontSize: 18,
@@ -1907,7 +1982,7 @@ const darkStyles = StyleSheet.create({
     elevation: 10,
   },
   successModalText: {
-    color: "#f20505",
+    color: "#00f4f5",
     fontSize: 18,
     fontWeight: "bold",
     marginTop: 10,
@@ -1923,7 +1998,7 @@ const darkStyles = StyleSheet.create({
     color: "#fff",
   },
   bookNow: {
-    backgroundColor: "#f20505",
+    backgroundColor: "#00f4f5",
     borderRadius: 10,
     padding: 15,
     alignItems: "center",
@@ -1965,7 +2040,7 @@ const darkStyles = StyleSheet.create({
   activeButton: {
     backgroundColor: "#ffff",
     borderWidth: 1,
-    borderColor: "#F20505",
+    borderColor: "#00f4f5",
   },
   inactiveButton: {
     backgroundColor: "#fff",
@@ -1977,7 +2052,7 @@ const darkStyles = StyleSheet.create({
     fontWeight: "bold",
   },
   activeButtonText: {
-    color: "#F20505",
+    color: "#00f4f5",
   },
   inactiveButtonText: {
     color: "#ddd",
@@ -1992,7 +2067,7 @@ const darkStyles = StyleSheet.create({
     marginTop: 20,
     paddingVertical: 10,
     paddingHorizontal: 20,
-    backgroundColor: "#f20505",
+    backgroundColor: "#00f4f5",
     borderRadius: 5,
   },
   closeButtonText: {
@@ -2009,7 +2084,7 @@ const darkStyles = StyleSheet.create({
   paymentOption: {
     paddingVertical: 15,
     paddingHorizontal: 20,
-    borderBottomColor: "#ddd",
+    borderBottomColor: "rgba(21, 229, 233, 0.28)",
     borderBottomWidth: 1,
     flexDirection: "row",
     alignItems: "center",
@@ -2017,7 +2092,7 @@ const darkStyles = StyleSheet.create({
   },
   paymentOptionText: {
     fontSize: 18,
-    color: "#333",
+    color: "#fff",
   },
 
   promoButton: {
@@ -2025,7 +2100,7 @@ const darkStyles = StyleSheet.create({
     bottom: 50,
     left: 20,
     right: 20,
-    backgroundColor: "#F20505",
+    backgroundColor: "#00f4f5",
     padding: 15,
     borderRadius: 10,
     alignItems: "center",
@@ -2091,7 +2166,7 @@ const darkStyles = StyleSheet.create({
     backgroundColor: "rgba(0, 0, 0, 0.5)",
   },
   modalContainer: {
-    backgroundColor: "#474747",
+    backgroundColor: "rgba(4, 39, 58, 0.88)",
     borderRadius: 20,
     padding: 25,
     width: "85%",
@@ -2109,16 +2184,16 @@ const darkStyles = StyleSheet.create({
     justifyContent: "flex-start",
     padding: 15,
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: "rgba(21, 229, 233, 0.30)",
     borderRadius: 10,
     marginBottom: 10,
     height: 100,
-    backgroundColor: "#000",
+    backgroundColor: "rgba(4, 39, 58, 0.50)",
   },
   selectedTaxiOption: {
-    borderColor: "#F20505",
+    borderColor: "#00f4f5",
     borderWidth: 2,
-    shadowColor: "#F20505",
+    shadowColor: "#00f4f5",
     shadowOpacity: 0.8,
     shadowRadius: 5,
   },
@@ -2155,7 +2230,7 @@ const darkStyles = StyleSheet.create({
     marginTop: 20,
     paddingVertical: 10,
     paddingHorizontal: 20,
-    backgroundColor: "#f20505",
+    backgroundColor: "#00f4f5",
     borderRadius: 5,
   },
   closeButtonText: {
@@ -2166,11 +2241,14 @@ const darkStyles = StyleSheet.create({
   driverItem: {
     padding: 15,
     marginVertical: 5,
-    backgroundColor: "#f0f0f0",
+    backgroundColor: "rgba(4, 39, 58, 0.52)",
     borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(21, 229, 233, 0.30)",
   },
   driverName: {
     fontSize: 16,
+    color: "#fff",
   },
 
 
@@ -2178,7 +2256,7 @@ const darkStyles = StyleSheet.create({
     marginTop: 20,
     paddingVertical: 10,
     paddingHorizontal: 20,
-    backgroundColor: "#f20505",
+    backgroundColor: "#00f4f5",
     borderRadius: 5,
   },
   closeButtonText: {
@@ -2187,7 +2265,7 @@ const darkStyles = StyleSheet.create({
     fontWeight: "bold",
   },
   selectDriverButton: {
-    backgroundColor: "#f20505",
+    backgroundColor: "#00f4f5",
     borderRadius: 10,
     padding: 15,
     alignItems: "center",
@@ -2203,7 +2281,7 @@ const darkStyles = StyleSheet.create({
     fontWeight: "bold",
   },
   backButton: {
-    backgroundColor: "#f20505",
+    backgroundColor: "#00f4f5",
     borderRadius: 60,
     position: "absolute",
     top: 40,

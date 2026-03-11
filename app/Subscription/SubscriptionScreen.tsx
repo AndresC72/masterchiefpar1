@@ -40,7 +40,7 @@ const SubscriptionScreen = () => {
     console.log('Mostrando indicador de carga...');
     return (
       <View style={styles.loaderContainer}>
-        <ActivityIndicator size="large" color="#F20505" />
+        <ActivityIndicator size="large" color="#00f4f5" />
       </View>
     );
   }

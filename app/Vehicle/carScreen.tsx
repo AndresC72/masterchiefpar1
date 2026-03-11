@@ -239,7 +239,7 @@ const CarsScreen = ({ navigation }: Props) => {
                 onPress={() => onDelete(selectedCar)} // Llama a onDelete cuando se presiona la basura
                 style={styles.deleteIconContainer}
               >
-                <FontAwesome name="trash" size={24} color="#f20505" />
+                <FontAwesome name="trash" size={24} color="#00f4f5" />
               </TouchableOpacity>
             </View>
             {selectedCar && (
@@ -260,7 +260,7 @@ const CarsScreen = ({ navigation }: Props) => {
                   <View style={styles.textRow}>
                     <Text style={styles.label}>Activar Vehículo:</Text>
                     <Switch
-                      trackColor={{ false: "#EE0000", true: "#F20505" }}
+                      trackColor={{ false: "#ccc", true: "#00f4f5" }}
                       thumbColor={isVehicleActive ? "#0E0D0D" : "#494949"}
                       ios_backgroundColor="#3e3e3e"
                       onValueChange={toggleSwitch}
@@ -383,7 +383,7 @@ const lightStyles = StyleSheet.create({
     justifyContent: "center",
   },
   addButton: {
-    backgroundColor: "#F20505",
+    backgroundColor: "#00f4f5",
     borderRadius: 23,
     paddingVertical: 10, // Añade padding vertical para asegurar espacio suficiente
     paddingHorizontal: 20,
@@ -476,7 +476,7 @@ const lightStyles = StyleSheet.create({
     textAlign: "right",
   },
   buttonClose: {
-    backgroundColor: "#F20505",
+    backgroundColor: "#00f4f5",
     borderRadius: 20,
     padding: 10,
     elevation: 2,
@@ -508,7 +508,7 @@ const darkStyles = StyleSheet.create({
     justifyContent: "center",
   },
   addButton: {
-    backgroundColor: "#F20505",
+    backgroundColor: "#00f4f5",
     borderRadius: 23,
     paddingVertical: 10, // Añade padding vertical para asegurar espacio suficiente
     paddingHorizontal: 20,
@@ -604,7 +604,7 @@ const darkStyles = StyleSheet.create({
     color: "#CACACA",
   },
   buttonClose: {
-    backgroundColor: "#F20505",
+    backgroundColor: "#00f4f5",
     borderRadius: 20,
     padding: 10,
     elevation: 2,

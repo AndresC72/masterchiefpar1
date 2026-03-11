@@ -1,9 +1,20 @@
-import { Slot } from 'expo-router';
 import { useEffect } from 'react';
+import { Text, TextInput } from 'react-native';
 import Constants from 'expo-constants';
 import Navigation from './Navigation/Navigation';
 import { Provider } from 'react-redux';
 import store from '@/common/store';
+import supabase from '@/config/SupabaseConfig';
+import { login, logout } from '@/common/reducers/authReducer';
+
+// Desactivar el escalado de fuente del sistema — la app usa su propio tamaño fijo
+if ((Text as any).defaultProps == null) (Text as any).defaultProps = {};
+(Text as any).defaultProps.allowFontScaling = false;
+(Text as any).defaultProps.maxFontSizeMultiplier = 1;
+
+if ((TextInput as any).defaultProps == null) (TextInput as any).defaultProps = {};
+(TextInput as any).defaultProps.allowFontScaling = false;
+(TextInput as any).defaultProps.maxFontSizeMultiplier = 1;
 
 /**
  * Layout raíz requerido por Expo Router.
@@ -39,6 +50,49 @@ export default function RootLayout() {
         console.warn('Error generating redirect URIs:', e);
       }
     })();
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const syncInitialSession = async () => {
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        if (!isMounted) return;
+
+        if (session?.user) {
+          store.dispatch(login(session.user));
+        } else {
+          store.dispatch(logout());
+        }
+      } catch (e) {
+        console.warn('Error syncing initial auth session:', e);
+        if (isMounted) {
+          store.dispatch(logout());
+        }
+      }
+    };
+
+    syncInitialSession();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!isMounted) return;
+      if (session?.user) {
+        store.dispatch(login(session.user));
+      } else {
+        store.dispatch(logout());
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      subscription?.unsubscribe();
+    };
   }, []);
 
   return <Provider store={store}><Navigation /></Provider>;

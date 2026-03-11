@@ -204,7 +204,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
   },
   button: {
-    backgroundColor: "#F20505",
+    backgroundColor: "#00f4f5",
     paddingVertical: 15,
     borderRadius: 8,
     alignItems: "center",
@@ -234,7 +234,7 @@ const styles = StyleSheet.create({
     color: "#333",
   },
   backupButton: {
-    backgroundColor: "#F20505",
+    backgroundColor: "#00f4f5",
     paddingVertical: 12,
     borderRadius: 8,
     alignItems: "center",

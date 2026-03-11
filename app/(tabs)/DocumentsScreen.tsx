@@ -506,7 +506,7 @@ const DocumentsScreen = ({ navigation }: Props) => {
               style={styles.cancelButton}
               onPress={() => setModalVisible(false)}
             >
-              <MaterialIcons name="cancel" size={24} color="#f20505" />
+              <MaterialIcons name="cancel" size={24} color="#00f4f5" />
               <Text style={styles.cancelButtonText}>Cancelar</Text>
             </TouchableOpacity>
           </View>
@@ -584,7 +584,7 @@ const createStyles = (isDarkMode: boolean) =>
       marginVertical: 20,
     },
     updateButton: {
-      backgroundColor: "#f20505",
+      backgroundColor: "#00f4f5",
       padding: 15,
       borderRadius: 23,
       alignItems: "center",
@@ -606,7 +606,7 @@ const createStyles = (isDarkMode: boolean) =>
       marginHorizontal: 5,
       elevation: 5,
       borderWidth: 1,
-      borderColor: "#f20505",
+      borderColor: "#00f4f5",
     },
     buttonText: {
       color: "red",
@@ -640,7 +640,7 @@ const createStyles = (isDarkMode: boolean) =>
     botonCamera: {
       flexDirection: "row",
       alignItems: "center",
-      backgroundColor: "#b90000",
+      backgroundColor: "#00204a",
       padding: 15,
       borderRadius: 10,
       marginBottom: 15,
@@ -651,7 +651,7 @@ const createStyles = (isDarkMode: boolean) =>
     botonGallery: {
       flexDirection: "row",
       alignItems: "center",
-      backgroundColor: "#f20505",
+      backgroundColor: "#00f4f5",
       padding: 15,
       borderRadius: 10,
       marginBottom: 15,
@@ -675,10 +675,10 @@ const createStyles = (isDarkMode: boolean) =>
       justifyContent: "center",
       elevation: 5,
       borderWidth: 1,
-      borderColor: "#f20505",
+      borderColor: "#00f4f5",
     },
     cancelButtonText: {
-      color: "#f20505",
+      color: "#00f4f5",
       fontSize: 16,
       fontWeight: "bold",
     },
@@ -691,7 +691,7 @@ const createStyles = (isDarkMode: boolean) =>
     successModalView: {
       width: 250,
       padding: 20,
-      backgroundColor: "#f20505",
+      backgroundColor: "#00f4f5",
       borderRadius: 10,
       alignItems: "center",
       elevation: 10,
@@ -703,7 +703,7 @@ const createStyles = (isDarkMode: boolean) =>
       marginTop: 10,
     },
     openGalleryButton: {
-      backgroundColor: "#f20505",
+      backgroundColor: "#00f4f5",
       padding: 10,
       borderRadius: 10,
       marginTop: 10,

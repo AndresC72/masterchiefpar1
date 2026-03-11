@@ -131,7 +131,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   resolveButton: {
-    backgroundColor: "#F20505",
+    backgroundColor: "#00f4f5",
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 5,

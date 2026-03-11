@@ -157,7 +157,7 @@ const ImageGalleryComponent = ({ navigation, route }: Props) => {
                                     <Image source={{ uri: item.uri }} style={styles.galleryImage} />
                                 ) : (
                                     <View style={styles.noImageContainer}>
-                                        <Text style={styles.noImageText}> 🖼️Tocar para subir la imagen </Text>
+                                        <Text style={styles.noImageText}> 📷️Tocar para subir la imagen </Text>
                                     </View>
                                 )}
                             </View>
@@ -311,7 +311,7 @@ const styles = StyleSheet.create({
     button: {
         flexDirection: "row",
         alignItems: "center",
-        backgroundColor: "#f20505",
+        backgroundColor: "#00f4f5",
         padding: 15,
         borderRadius: 10,
         marginBottom: 15,
@@ -322,7 +322,7 @@ const styles = StyleSheet.create({
     buttonLoad: {
         flexDirection: "row",
         alignItems: "center",
-        backgroundColor: "#b90000",
+        backgroundColor: "#00204a",
         padding: 15,
         borderRadius: 10,
         marginBottom: 15,
@@ -354,7 +354,7 @@ const styles = StyleSheet.create({
         fontWeight: "bold",
     },
     updateButton: {
-        backgroundColor: '#f20505',
+        backgroundColor: '#00f4f5',
         padding: 15,
         borderRadius: 23,
         alignItems: 'center',

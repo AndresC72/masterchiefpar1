@@ -118,7 +118,7 @@ const ChatScreen = ({ navigation }: Props) => {
     const messageBackgroundColor = isCurrentUser
       ? '#FF6464'
       : isAdminMessage
-      ? '#F20505'
+      ? '#00f4f5'
       : '#E5E5EA';
 
     const messageTextColor = isCurrentUser || isAdminMessage ? '#fff' : '#000';
@@ -285,7 +285,7 @@ const ChatScreen = ({ navigation }: Props) => {
             onChangeText={setNewMessage}
           />
           <TouchableOpacity onPress={sendMessage}>
-            <FontAwesome name="send" size={24} color="#F20505" />
+            <FontAwesome name="send" size={24} color="#00f4f5" />
           </TouchableOpacity>
         </View>
       </View>

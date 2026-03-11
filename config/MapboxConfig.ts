@@ -60,6 +60,13 @@ export const MapboxStyles = {
 
 export const MAPBOX_STYLES = MapboxStyles;
 
+// Colores corporativos
+export const CORP_COLORS = {
+  WHITE: '#ffffff',
+  CYAN: '#00f4f5',
+  NAVY: '#00204a',
+} as const;
+
 // Configuración de la cámara por defecto
 export const DEFAULT_CAMERA_CONFIG = {
   zoomLevel: 15,

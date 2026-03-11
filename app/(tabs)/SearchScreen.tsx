@@ -314,7 +314,7 @@ export default function FavoritesScreen({ navigation }: Props ) {
         onLongPress={() => handleLongPress(item)}
       >
         <View style={stylesFavorite.iconLabelContainer}>
-          <Entypo name="location-pin" size={24} color="#F20505" />
+          <Entypo name="location-pin" size={24} color="#00f4f5" />
           {editingAddressId === item.id ? (
             <TextInput
               style={[
@@ -356,7 +356,7 @@ export default function FavoritesScreen({ navigation }: Props ) {
         style={stylesFavorite.deleteButton}
         onPress={() => handleDeleteAddress(item.id)}
       >
-        <Entypo name="trash" size={24} color="#F20505" />
+        <Entypo name="trash" size={24} color="#00f4f5" />
       </TouchableOpacity>
     </Animatable.View>
   );
@@ -552,7 +552,7 @@ const stylesLight = StyleSheet.create({
     color: "#000",
   },
   addButton: {
-    backgroundColor: "#F20505",
+    backgroundColor: "#00f4f5",
     padding: 10,
     borderRadius: 50,
     elevation: 5,
@@ -562,7 +562,7 @@ const stylesLight = StyleSheet.create({
     marginBottom: 10,
     fontSize: 22,
     fontWeight: "bold",
-    color: "#F20505",
+    color: "#00f4f5",
   },
   addressItem: {
     paddingVertical: 15,
@@ -606,7 +606,7 @@ const stylesLight = StyleSheet.create({
     fontSize: 24,
     fontWeight: "bold",
     marginBottom: 20,
-    color: "#F20505",
+    color: "#00f4f5",
     textAlign: "center",
   },
   input: {
@@ -633,7 +633,7 @@ const stylesLight = StyleSheet.create({
     elevation: 5,
   },
   saveButton: {
-    backgroundColor: "#F20505",
+    backgroundColor: "#00f4f5",
     paddingVertical: 15,
     borderRadius: 10,
     alignItems: "center",
@@ -649,7 +649,7 @@ const stylesLight = StyleSheet.create({
     paddingVertical: 10,
   },
   cancelButtonText: {
-    color: "#F20505",
+    color: "#00f4f5",
     fontWeight: "bold",
     fontSize: 16,
   },
@@ -665,7 +665,7 @@ const stylesLight = StyleSheet.create({
     marginBottom: 20,
   },
   closeButton: {
-    backgroundColor: "#F20505",
+    backgroundColor: "#00f4f5",
     paddingVertical: 15,
     borderRadius: 10,
     alignItems: "center",
@@ -693,7 +693,7 @@ const stylesLight = StyleSheet.create({
     alignItems: "center",
   },
   selectedFavoriteTypeButton: {
-    backgroundColor: "#F20505",
+    backgroundColor: "#00f4f5",
   },
   favoriteTypeButtonText: {
     color: "#555",
@@ -719,7 +719,7 @@ const stylesDark = StyleSheet.create({
     color: "#fff",
   },
   sectionTitle: {
-    color: "#F20505",
+    color: "#00f4f5",
   },
   addressItem: {
     borderBottomColor: "#555",
@@ -737,7 +737,7 @@ const stylesDark = StyleSheet.create({
     backgroundColor: "#1c1c1c",
   },
   modalTitle: {
-    color: "#F20505",
+    color: "#00f4f5",
   },
   input: {
     borderColor: "#555",
@@ -751,7 +751,7 @@ const stylesDark = StyleSheet.create({
     color: "#ccc",
   },
   closeButton: {
-    backgroundColor: "#F20505",
+    backgroundColor: "#00f4f5",
   },
   closeButtonText: {
     color: "#fff",

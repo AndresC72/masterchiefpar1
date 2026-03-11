@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { View, Text, FlatList, TouchableOpacity, Modal, StyleSheet } from "react-native";
 
 const SelectBackupContact = ({ contacts, onSelect, visible, onClose }) => {
@@ -51,7 +51,7 @@ const styles = StyleSheet.create({
   closeButton: {
     marginTop: 20,
     padding: 15,
-    backgroundColor: "#F20505",
+    backgroundColor: "#00f4f5",
     alignItems: "center",
     borderRadius: 5,
   },

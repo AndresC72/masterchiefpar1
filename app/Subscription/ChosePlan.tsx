@@ -109,7 +109,7 @@ const NoMembershipScreen = () => {
   if (isLoading) {
     return (
       <View style={styles.loaderContainer}>
-        <ActivityIndicator size="large" color="#F20505" />
+        <ActivityIndicator size="large" color="#00f4f5" />
       </View>
     );
   }
@@ -406,7 +406,7 @@ const lightStyles = StyleSheet.create({
     marginLeft: 10,
   },
   saveBadge: {
-    color: "#F20505",
+    color: "#00f4f5",
     fontWeight: "bold",
   },
   planTitle: {
@@ -432,19 +432,19 @@ const lightStyles = StyleSheet.create({
     alignItems: "center",
   },
   selectedPlan: {
-    borderColor: "#F20505",
+    borderColor: "#00f4f5",
     backgroundColor: "#FFEAEA",
-    shadowColor: "#F20505",
+    shadowColor: "#00f4f5",
     shadowOpacity: 0.3,
     shadowRadius: 5,
     elevation: 5,
   },
   radioSelected: {
-    backgroundColor: "#F20505",
-    borderColor: "#F20505",
+    backgroundColor: "#00f4f5",
+    borderColor: "#00f4f5",
   },
   trialButton: {
-    backgroundColor: "#F20505",
+    backgroundColor: "#00f4f5",
     paddingVertical: 15,
     paddingHorizontal: 40,
     borderRadius: 10,
@@ -487,7 +487,7 @@ const lightStyles = StyleSheet.create({
     textAlign: "center",
   },
   modalButton: {
-    backgroundColor: "#F20505",
+    backgroundColor: "#00f4f5",
     padding: 10,
     borderRadius: 5,
     marginVertical: 5,
@@ -508,7 +508,7 @@ const lightStyles = StyleSheet.create({
   linkText: {
     fontSize: 14,
     textAlign: "center",
-    color: "#F20505",
+    color: "#00f4f5",
     textDecorationLine: "underline",
   },
 });
@@ -557,7 +557,7 @@ const darkStyles = StyleSheet.create({
     
   },
   saveBadge: {
-    color: "#F20505",
+    color: "#00f4f5",
     fontWeight: "bold",
   },
   planTitle: {
@@ -583,19 +583,19 @@ const darkStyles = StyleSheet.create({
     alignItems: "center",
   },
   selectedPlan: {
-    borderColor: "#F20505",
+    borderColor: "#00f4f5",
     backgroundColor: "#FFEAEA",
-    shadowColor: "#F20505",
+    shadowColor: "#00f4f5",
     shadowOpacity: 0.3,
     shadowRadius: 5,
     elevation: 5,
   },
   radioSelected: {
-    backgroundColor: "#F20505",
-    borderColor: "#F20505",
+    backgroundColor: "#00f4f5",
+    borderColor: "#00f4f5",
   },
   trialButton: {
-    backgroundColor: "#F20505",
+    backgroundColor: "#00f4f5",
     paddingVertical: 15,
     paddingHorizontal: 40,
     borderRadius: 10,
@@ -638,7 +638,7 @@ const darkStyles = StyleSheet.create({
     textAlign: "center",
   },
   modalButton: {
-    backgroundColor: "#F20505",
+    backgroundColor: "#00f4f5",
     padding: 10,
     borderRadius: 5,
     marginVertical: 5,
@@ -659,7 +659,7 @@ const darkStyles = StyleSheet.create({
   linkText: {
     fontSize: 14,
     textAlign: "center",
-    color: "#F20505",
+    color: "#00f4f5",
     textDecorationLine: "underline",
   },
   backButton: {

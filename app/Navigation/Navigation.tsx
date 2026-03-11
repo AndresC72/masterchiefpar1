@@ -1,7 +1,6 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { useSelector } from "react-redux";
-import { useNavigation } from "@react-navigation/native";
 import { RootState } from "./../../common/store";
 import LoginScreen from "./../login/LoginScreen";
 import TabNavigator from "@/components/TabNavigator";
@@ -48,20 +47,10 @@ const Navigation = () => {
   const isAuthenticated = useSelector(
     (state: RootState) => state.auth.isAuthenticated
   );
-  const navigation = useNavigation();
   // Temporal: habilita navegación autenticada para pruebas de mapas.
   // Cambiar a false cuando termines las pruebas.
   const TEMP_BYPASS_AUTH = false;
   const effectiveIsAuthenticated = TEMP_BYPASS_AUTH || isAuthenticated;
-
-  useEffect(() => {
-    if (!effectiveIsAuthenticated) {
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'Login' }],
-      });
-    }
-  }, [effectiveIsAuthenticated, navigation]);
   
   return (
     <Stack.Navigator

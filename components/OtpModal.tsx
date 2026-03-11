@@ -105,7 +105,7 @@ const lightStyles = StyleSheet.create({
     textAlign: "center",
   },
   confirmButton: {
-    backgroundColor: "#F20505",
+    backgroundColor: "#00f4f5",
     borderRadius: 8,
     padding: 10,
     marginTop: 10,
@@ -159,7 +159,7 @@ const darkStyles = StyleSheet.create({
     tintColor: "#fff",
   },
   confirmButton: {
-    backgroundColor: "#F20505",
+    backgroundColor: "#00f4f5",
     borderRadius: 8,
     padding: 10,
     marginTop: 10,

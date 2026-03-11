@@ -1,4 +1,4 @@
-import { RootState } from '@/common/store';
+﻿import { RootState } from '@/common/store';
 import React from 'react';
 import { Modal, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useSelector } from 'react-redux';
@@ -97,7 +97,7 @@ const styles = StyleSheet.create({
   },
   closeButton: {
     marginTop: 20,
-    backgroundColor: "#F20505",
+    backgroundColor: "#00f4f5",
     borderRadius: 5,
     padding: 10,
     elevation: 5,

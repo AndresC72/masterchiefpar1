@@ -1029,7 +1029,7 @@ const ActiveBookingScreen = () => {
                 radio_props={incidentOptions}
                 initial={null}
                 onPress={(value) => setSelectedIncident(value)}
-                buttonColor={"#F20505"}
+                buttonColor={"#00f4f5"}
                 selectedButtonColor={colors.BUTTON_ORANGE}
                 labelStyle={{ fontSize: 16, color: colorScheme === 'dark' ? '#FFF' : '#000' }}
                 radioStyle={{ marginBottom: 15 }}
@@ -1043,7 +1043,7 @@ const ActiveBookingScreen = () => {
                 <TouchableOpacity
                   style={[
                     styles.modalConfirmButton,
-                    { backgroundColor: "#F20505", marginHorizontal: 10 },
+                    { backgroundColor: "#00f4f5", marginHorizontal: 10 },
                   ]}
                   onPress={handleReportIncident}
                 >
@@ -1083,11 +1083,11 @@ const lightStyles = StyleSheet.create({
   },
   activeTab: {
     borderBottomWidth: 2,
-    borderBottomColor: "#F20505",
+    borderBottomColor: "#00f4f5",
   },
   tabText: {
     fontSize: 16,
-    color: "#F20505",
+    color: "#00f4f5",
   },
 
   activeTabText: {
@@ -1109,7 +1109,7 @@ const lightStyles = StyleSheet.create({
   },
   reportText: {
     fontSize: 14,
-    color: "#F20505", // Color rojo para resaltar
+    color: "#00f4f5", // Color rojo para resaltar
     textAlign: "right",
     marginTop: 10,
   },
@@ -1139,7 +1139,7 @@ const lightStyles = StyleSheet.create({
   driverName: {
     fontSize: 16,
     fontWeight: "bold",
-    color: "#F20505",
+    color: "#00f4f5",
   },
   finalCost: {
     fontSize: 16,
@@ -1153,7 +1153,7 @@ const lightStyles = StyleSheet.create({
   },
   loadMoreButton: {
     padding: 15,
-    backgroundColor: "#F20505",
+    backgroundColor: "#00f4f5",
     marginHorizontal: 20,
     borderRadius: 10,
     alignItems: "center",
@@ -1348,7 +1348,7 @@ const lightStyles = StyleSheet.create({
   },
   buttonClose: {
     marginTop: 20,
-    backgroundColor: "#F20505",
+    backgroundColor: "#00f4f5",
     borderRadius: 10,
     padding: 10,
     elevation: 2,
@@ -1361,7 +1361,7 @@ const lightStyles = StyleSheet.create({
     width: "120%",
   },
   modalConfirmButton: {
-    backgroundColor: "#F20505",
+    backgroundColor: "#00f4f5",
     borderRadius: 5,
     padding: 10,
     marginTop: 10,
@@ -1406,11 +1406,11 @@ const darkStyles = StyleSheet.create({
   },
   activeTab: {
     borderBottomWidth: 2,
-    borderBottomColor: "#F20505",
+    borderBottomColor: "#00f4f5",
   },
   tabText: {
     fontSize: 16,
-    color: "#F20505",
+    color: "#00f4f5",
   },
 
   activeTabText: {
@@ -1456,7 +1456,7 @@ const darkStyles = StyleSheet.create({
   driverName: {
     fontSize: 16,
     fontWeight: "bold",
-    color: "#F20505",
+    color: "#00f4f5",
   },
   finalCost: {
     fontSize: 16,
@@ -1470,7 +1470,7 @@ const darkStyles = StyleSheet.create({
   },
   loadMoreButton: {
     padding: 15,
-    backgroundColor: "#F20505",
+    backgroundColor: "#00f4f5",
     marginHorizontal: 20,
     borderRadius: 10,
     alignItems: "center",
@@ -1669,14 +1669,14 @@ const darkStyles = StyleSheet.create({
   },
   buttonClose: {
     marginTop: 20,
-    backgroundColor: "#F20505",
+    backgroundColor: "#00f4f5",
     borderRadius: 10,
     padding: 10,
     elevation: 2,
   },
   reportText: {
     fontSize: 14,
-    color: "#F20505", // Color rojo para resaltar
+    color: "#00f4f5", // Color rojo para resaltar
     textAlign: "right",
     marginTop: 10,
   },
@@ -1688,7 +1688,7 @@ const darkStyles = StyleSheet.create({
     width: "120%",
   },
   modalConfirmButton: {
-    backgroundColor: "#F20505",
+    backgroundColor: "#00f4f5",
     borderRadius: 5,
     padding: 10,
     marginTop: 10,

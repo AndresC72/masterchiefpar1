@@ -435,7 +435,7 @@ const lightStyles = StyleSheet.create({
     width: "100%",
   },
   cardStatus: {
-    color: "#F20505",
+    color: "#00f4f5",
     fontWeight: "bold",
     marginBottom: 10,
     left: 140,
@@ -462,7 +462,7 @@ const lightStyles = StyleSheet.create({
     position: "absolute",
     right: 20,
     bottom: 5,
-    color: "#F20505",
+    color: "#00f4f5",
     alignItems: "center",
   },
   infoContainer: {
@@ -490,11 +490,11 @@ const lightStyles = StyleSheet.create({
     fontWeight: "bold",
   },
   closeText: {
-    color: "#F20505",
+    color: "#00f4f5",
     fontWeight: "bold",
   },
   showMoreText: {
-    color: "#f20505",
+    color: "#00f4f5",
     textAlign: "center",
     marginTop: 10,
   },
@@ -560,7 +560,7 @@ const lightStyles = StyleSheet.create({
   },
   separator: {
     height: 1,
-    backgroundColor: "#f20505",
+    backgroundColor: "#00f4f5",
     marginVertical: 10,
   },
   modalBackdrop: {
@@ -624,7 +624,7 @@ const lightStyles = StyleSheet.create({
   },
 
   membershipButton: {
-    backgroundColor: "#F20505",
+    backgroundColor: "#00f4f5",
     alignItems: "center",
     justifyContent: "center",
     elevation: 5, // Elevación para Android
@@ -670,7 +670,7 @@ const darkStyles = StyleSheet.create({
     width: "100%",
   },
   cardStatus: {
-    color: "#F20505",
+    color: "#00f4f5",
     fontWeight: "bold",
     marginBottom: 10,
     left: 140,
@@ -697,7 +697,7 @@ const darkStyles = StyleSheet.create({
     position: "absolute",
     right: 20,
     bottom: 5,
-    color: "#F20505",
+    color: "#00f4f5",
     alignItems: "center",
   },
   infoContainer: {
@@ -726,11 +726,11 @@ const darkStyles = StyleSheet.create({
     color: "#FFF",    
   },
   closeText: {
-    color: "#F20505",
+    color: "#00f4f5",
     fontWeight: "bold",
   },
   showMoreText: {
-    color: "#f20505",
+    color: "#00f4f5",
     textAlign: "center",
     marginTop: 10,
   },
@@ -796,7 +796,7 @@ const darkStyles = StyleSheet.create({
   },
   separator: {
     height: 1,
-    backgroundColor: "#f20505",
+    backgroundColor: "#00f4f5",
     marginVertical: 10,
   },
   modalBackdrop: {
@@ -860,7 +860,7 @@ const darkStyles = StyleSheet.create({
   },
 
   membershipButton: {
-    backgroundColor: "#F20505",
+    backgroundColor: "#00f4f5",
     alignItems: "center",
     justifyContent: "center",
     elevation: 5, // Elevación para Android

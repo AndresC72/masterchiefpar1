@@ -175,7 +175,7 @@ const styles = StyleSheet.create({
   headerText: {
     fontSize: 24,
     fontWeight: "bold",
-    color: "#F20505",
+    color: "#00f4f5",
     marginBottom: 10,
     textAlign: "center",
   },
@@ -215,7 +215,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   checkUpdatesButton: {
-    backgroundColor: "#F20505",
+    backgroundColor: "#00f4f5",
     borderRadius: 20,
     paddingVertical: 12,
     paddingHorizontal: 25,
@@ -228,7 +228,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   downloadButton: {
-    backgroundColor: "#f20505",
+    backgroundColor: "#00f4f5",
     paddingVertical: 12,
     paddingHorizontal: 25,
     borderRadius: 20,
@@ -253,7 +253,7 @@ const styles = StyleSheet.create({
   successModalView: {
     width: 250,
     padding: 20,
-    backgroundColor: "#f20505",
+    backgroundColor: "#00f4f5",
     borderRadius: 10,
     alignItems: "center",
     elevation: 10,

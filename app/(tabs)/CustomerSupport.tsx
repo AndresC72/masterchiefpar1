@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import {
   StyleSheet,
   View,
@@ -77,7 +77,7 @@ const CustomerSupport = ({ navigation }: Props) => {
             <Ionicons
               name="chatbox-ellipses"
               size={53}
-              color={isDarkMode ? "#f20505" : "#f20505"}
+              color={isDarkMode ? "#00f4f5" : "#00f4f5"}
               style={{ marginHorizontal: 100, marginVertical: 8 }}
             />
           </TouchableOpacity>

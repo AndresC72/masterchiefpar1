@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+﻿import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   TouchableOpacity,
@@ -17,12 +17,11 @@ import {
 
 } from "react-native";
 import Mapbox, { MapboxStyles, GYROSCOPE_CONFIG } from '@/config/MapboxConfig';
-import MapView, { Marker } from 'react-native-maps';
+import MapView, { Marker, Polyline } from 'react-native-maps';
 import * as Location from "expo-location";
 import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import markerIcon from "@/assets/images/green_pin.png";
-import { RootState } from "@/common/store";
+import { RootState, AppDispatch } from "@/common/store";
 import { useSelector } from "react-redux";
 import {
   listenToSettingsChanges, 
@@ -31,12 +30,11 @@ import {
 import { useDispatch } from "react-redux";
 import { fetchPromos } from "@/common/actions/promoactions";
 import { debounce } from "lodash"; // Importa debounce
-import { useFocusEffect } from "@react-navigation/native"; // Importa useFocusEffect
+import { useFocusEffect, useNavigation } from "@react-navigation/native"; // Importa useFocusEffect y useNavigation
 import { API_KEY, getMapboxAccessToken } from '@/config/AppConfig'; // Asegúrate de importar la clave API
 import { Ionicons } from "@expo/vector-icons";
 import supabase from '@/config/SupabaseConfig';
 
-import tourImage from "@/assets/images/icon.png"; // Importa la imagen del tour
 import RNPickerSelect from "react-native-picker-select";
 
 import * as Animatable from "react-native-animatable";
@@ -49,25 +47,25 @@ import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "fire
 import { getUserVerification } from "@/common/topus-integration";
 import { ActivityIndicator } from "react-native"; // Asegúrate de importar ActivityIndicator
 import axios from "axios";
+const markerIcon = require("../../assets/images/green_pin.png");
+const tourImage = require("../../assets/images/icon.png");
 const GOOGLE_MAPS_APIKEY_PROD = API_KEY; // Asignar la clave API
-const CustomerMap = ({ navigation }: Props) => {
-  const [latitude, setLatitude] = useState(null);
-  const [longitude, setLongitude] = useState(null);
+const CustomerMap = ({ navigation: propsNavigation }: Props) => {
+  const navigation = useNavigation<any>();
+  const [latitude, setLatitude] = useState<number | null>(null);
+  const [longitude, setLongitude] = useState<number | null>(null);
   const [origin, setOrigin] = useState<any>(null);
   const [destination, setDestination] = useState<any>(null);
  // console.log(destination, "destination")
   const mapRef = useRef<MapView>(null);
   const user = (useSelector((state: RootState) => state.auth.user) || {}) as any;
-  const savedAddresses = useSelector(
-    (state: RootState) => state.savedAddresses
-  );
   const [modalVisible, setModalVisible] = useState(false);
   const [modalMessage, setModalMessage] = useState("");
   const [addresses, setAddresses] = useState([]);
   const [newAddress, setNewAddress] = useState("");
   const settings = useSelector(selectSettings);
   const promos = useSelector((state: RootState) => state.promodata?.promos || []);
-  const dispatch = useDispatch();
+  const dispatch = useDispatch<AppDispatch>();
 
   const colorScheme = useColorScheme(); // Hook para detectar si es modo oscuro o claro
   const [isEmailVerified, setIsEmailVerified] = useState(Boolean(user?.emailVerified));
@@ -75,9 +73,10 @@ const CustomerMap = ({ navigation }: Props) => {
   const [requestCount, setRequestCount] = useState(0); // Contador de peticiones
   const [searchText, setSearchText] = useState(""); // Estado para el texto de búsqueda
   const [focus, setFocus] = useState("origin"); // Estado para controlar el foco
-  const originAutocompleteRef = useRef(null);
-  const destinationAutocompleteRef = useRef(null);
+  const originAutocompleteRef = useRef<any>(null);
+  const destinationAutocompleteRef = useRef<any>(null);
   const [tourVisible, setTourVisible] = useState(false);
+  const [dbFirstName, setDbFirstName] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState(0);
   const [modalVisibleImage, setModalVisibleImage] = useState(false);
  // console.log(modalVisibleImage, "status")
@@ -87,6 +86,8 @@ const CustomerMap = ({ navigation }: Props) => {
     docType: user?.docType || "",
     verifyId: user?.verifyId || "",
     verifyIdImage: user?.verifyIdImage || "",
+    firstName: user?.firstName || user?.first_name || "",
+    lastName: user?.lastName || user?.last_name || "",
   });
   const [docTypes] = useState(["CC", "Pasaporte", "CE"]);
   const customStyles = {
@@ -94,23 +95,23 @@ const CustomerMap = ({ navigation }: Props) => {
     currentStepIndicatorSize: 40,
     separatorStrokeWidth: 2,
     currentStepStrokeWidth: 3,
-    stepStrokeCurrentColor: "#f20505",
+    stepStrokeCurrentColor: "#00f4f5",
     stepStrokeWidth: 3,
-    stepStrokeFinishedColor: "#f20505",
+    stepStrokeFinishedColor: "#00f4f5",
     stepStrokeUnFinishedColor: "#aaaaaa",
-    separatorFinishedColor: "#f20505",
+    separatorFinishedColor: "#00f4f5",
     separatorUnFinishedColor: "#aaaaaa",
-    stepIndicatorFinishedColor: "#f20505",
+    stepIndicatorFinishedColor: "#00f4f5",
     stepIndicatorUnFinishedColor: "#ffffff",
     stepIndicatorCurrentColor: "#ffffff",
     stepIndicatorLabelFontSize: 15,
     currentStepIndicatorLabelFontSize: 15,
-    stepIndicatorLabelCurrentColor: "#f20505",
+    stepIndicatorLabelCurrentColor: "#00f4f5",
     stepIndicatorLabelFinishedColor: "#ffffff",
     stepIndicatorLabelUnFinishedColor: "#aaaaaa",
     labelColor: "#999999",
     labelSize: 13,
-    currentStepLabelColor: "#f20505",
+    currentStepLabelColor: "#00f4f5",
   };
   const [modalVisibleImageVerify, setModalVisibleImageVerify] = useState(false);
   const totalSteps = 6; // Total de pasos en el tour
@@ -154,6 +155,53 @@ const CustomerMap = ({ navigation }: Props) => {
   }, [loading]);
 
   useEffect(() => {
+    let isMounted = true;
+
+    const fetchFirstName = async () => {
+      try {
+        const {
+          data: { user: authUser },
+        } = await supabase.auth.getUser();
+
+        const authUserId = authUser?.id || user?.auth_id || user?.id;
+        if (!authUserId) {
+          if (isMounted) setDbFirstName(null);
+          return;
+        }
+
+        const { data: byAuthId } = await supabase
+          .from("users")
+          .select("first_name")
+          .eq("auth_id", authUserId)
+          .maybeSingle();
+
+        if ((byAuthId as any)?.first_name) {
+          if (isMounted) setDbFirstName((byAuthId as any).first_name);
+          return;
+        }
+
+        const { data: byId } = await supabase
+          .from("users")
+          .select("first_name")
+          .eq("id", authUserId)
+          .maybeSingle();
+
+        if (isMounted) {
+          setDbFirstName((byId as any)?.first_name || null);
+        }
+      } catch (error) {
+        if (isMounted) setDbFirstName(null);
+      }
+    };
+
+    fetchFirstName();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.id]);
+
+  useEffect(() => {
     const fields = [
       { value: user.profile_image, step: 0 },
       { value: user.mobile, step: 1 },
@@ -181,14 +229,14 @@ const CustomerMap = ({ navigation }: Props) => {
 
 
 
-  const sessionTokenOriginRef = useRef(null);
-  const sessionTokenDestinationRef = useRef(null);
+  const sessionTokenOriginRef = useRef<string | null>(null);
+  const sessionTokenDestinationRef = useRef<string | null>(null);
 
 
   const [isMapVisible, setIsMapVisible] = useState(false); // Nuevo estado para controlar la visibilidad del mapa
   const [buttonsVisible, setButtonsVisible] = useState(true);
   const [activeBookingsCount, setActiveBookingsCount] = useState(0);
-  const [type, setType] = useState(null);
+  const [type, setType] = useState<number | null>(null);
   const [routeGeometry, setRouteGeometry] = useState<any>(null);
   const suggestions = [
     { id: 1, image: require("@/assets/images/TREAS-E.png"), label: "TREAS-E", description: "Servicio Especial" },
@@ -334,11 +382,7 @@ const CustomerMap = ({ navigation }: Props) => {
     }
   };
 
-  useEffect(() => {
-    if (origin && destination) {
-      handleBookNowPress(); // Navega automáticamente cuando ambas ubicaciones están seleccionadas
-    }
-  }, [origin, destination]);
+  // Removed auto-navigation to BookingScreen - now goes through TripPreviewScreen first
 
   useEffect(() => {
     const fetchRoute = async () => {
@@ -381,17 +425,18 @@ const CustomerMap = ({ navigation }: Props) => {
 
   const renderFavoriteButtons = () => {
     const favoriteAddresses = user?.savedAddresses
-      ? Object.values(user.savedAddresses).filter(
-        (address) => address.isFavorite
+      ? (Object.values(user.savedAddresses) as any[]).filter(
+        (address: any) => address.isFavorite
       )
       : [];
+
     return (
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
         style={styles.favoriteScroll}
       >
-        {favoriteAddresses.map((address) => (
+        {favoriteAddresses.map((address: any) => (
           <TouchableOpacity
             key={address.id} // Asegúrate de que 'address.id' sea único
             style={styles.favoriteButton}
@@ -413,7 +458,8 @@ const CustomerMap = ({ navigation }: Props) => {
       </ScrollView>
     );
   };
-  const verifyUserInTopus = async (data) => {
+
+  const verifyUserInTopus = async (data: any) => {
 
     return await getUserVerification({
       doc_type: data.docType,
@@ -442,7 +488,6 @@ const CustomerMap = ({ navigation }: Props) => {
   
         // Subir la imagen a Firebase Storage
         await uploadBytes(imageRef, blob);
-        blob.close && blob.close(); // Liberar el blob después de usarlo
   
         const downloadURL = await getDownloadURL(imageRef);
         setUserData({ ...userData, verifyIdImage: downloadURL });
@@ -468,9 +513,9 @@ const CustomerMap = ({ navigation }: Props) => {
   
         const results = response.data;
         let blockedTopus = false;
-        let blockedReasonTopus = [];
+          let blockedReasonTopus: string[] = [];
   
-        results.forEach((item) => {
+          results.forEach((item: any) => {
           if (item.entidad !== "simit" && item.paso === "2") {
             blockedTopus = true;
             blockedReasonTopus.push(item.entidad);
@@ -492,11 +537,9 @@ const CustomerMap = ({ navigation }: Props) => {
           ],
         };
   
-        const success = dispatch(updateProfile(filteredData));
-        if (success) {
-          setLoading(false);
-          setTourVisible(false);
-        }
+        await dispatch(updateProfile(filteredData));
+        setLoading(false);
+        setTourVisible(false);
   
       } catch (error) {
         console.error("Error en la verificación:", error);
@@ -522,7 +565,7 @@ const CustomerMap = ({ navigation }: Props) => {
           title: origin.title,
         };
 
-        navigation.navigate("BookingS", {
+        navigation.getParent()?.navigate("BookingS", {
           origin,
           destination,
           type
@@ -569,10 +612,11 @@ const CustomerMap = ({ navigation }: Props) => {
       quality: 1,
     });
 
-    if (!pickerResult.cancelled) {
-      setUserData({ ...userData, profile_image: pickerResult.uri });
+    if (!pickerResult.canceled && pickerResult.assets.length > 0) {
+      setUserData({ ...userData, profile_image: pickerResult.assets[0].uri });
     }
   };
+
   const pickVerifyIdImage = async () => {
     let permissionResult =
       await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -589,10 +633,11 @@ const CustomerMap = ({ navigation }: Props) => {
       quality: 1,
     });
 
-    if (!pickerResult.cancelled) {
-      setUserData({ ...userData, verifyIdImage: pickerResult.uri });
+    if (!pickerResult.canceled && pickerResult.assets.length > 0) {
+      setUserData({ ...userData, verifyIdImage: pickerResult.assets[0].uri });
     }
   };
+
   // Función debounced para manejar la selección de ubicación
   const debouncedHandleLocationSelect = debounce(
     (data: any, details: any, type: string) => {
@@ -600,7 +645,8 @@ const CustomerMap = ({ navigation }: Props) => {
     },
     1000
   ); // Ajusta el tiempo de debounce según sea necesario
-  const takePhoto = async (variable) => {
+
+  const takePhoto = async (variable: "profile" | "verifyId") => {
     const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
 
     if (permissionResult.granted === false) {
@@ -636,7 +682,7 @@ const CustomerMap = ({ navigation }: Props) => {
     }
   };
 
-  const pickImage = async (variable) => {
+  const pickImage = async (variable: "profile" | "verifyId") => {
     let result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
@@ -690,7 +736,7 @@ const CustomerMap = ({ navigation }: Props) => {
                       />
                     ) : (
                       <View style={styles.imagePlaceholder}>
-                        <AntDesign name="camerao" size={50} color="#ccc" />
+                        <AntDesign name="camera" size={50} color="#ccc" />
                         <Text>Subir imagen</Text>
                       </View>
                     )}
@@ -733,7 +779,7 @@ const CustomerMap = ({ navigation }: Props) => {
                     value={userData.mobile}
                     onChangeText={(text) => setUserData({ ...userData, mobile: text })}
                     keyboardType="phone-pad"
-                    leftIcon={{ type: "antdesign", name: "phone", color: "#f20505" }}
+                    leftIcon={{ type: "antdesign", name: "phone", color: "#00f4f5" }}
                     inputStyle={styles.input}
                   />
                 </>
@@ -770,7 +816,7 @@ const CustomerMap = ({ navigation }: Props) => {
               );
             case 3:
               return (
-                <TouchableWithoutFeedback onPress={Platform.OS === "ios" ? Keyboard.dismiss : null}>
+                <TouchableWithoutFeedback onPress={Platform.OS === "ios" ? Keyboard.dismiss : undefined}>
                   <>
                     <Text style={styles.stepTitle}>Ingresa tu número de documento</Text>
                     <Text style={styles.explanatoryText}>
@@ -781,7 +827,7 @@ const CustomerMap = ({ navigation }: Props) => {
                       value={userData.verifyId}
                       onChangeText={(text) => setUserData({ ...userData, verifyId: text })}
                       keyboardType="number-pad"
-                      leftIcon={{ type: "antdesign", name: "idcard", color: "#f20505" }}
+                      leftIcon={{ type: "antdesign", name: "idcard", color: "#00f4f5" }}
                       inputStyle={styles.input}
                     />
                   </>
@@ -867,7 +913,7 @@ const CustomerMap = ({ navigation }: Props) => {
     );
   };
 
-  const styles = colorScheme === "dark" ? darkStyles : lightStyles; // Estilos dinámicos
+  const styles: any = colorScheme === "dark" ? darkStyles : lightStyles; // Estilos dinámicos
 
   // Limpia los campos de autocompletado al navegar a otra pantalla
   useFocusEffect(
@@ -916,24 +962,31 @@ const CustomerMap = ({ navigation }: Props) => {
           showsHorizontalScrollIndicator={false}
           style={styles.suggestionsScroll}
         >
-          {suggestions.map((suggestion) => (
-            <TouchableOpacity
+          {suggestions.map((suggestion, index) => (
+            <Animatable.View
               key={suggestion.id}
-              style={styles.suggestionButton}
-              onPress={() => {
-                setType(suggestion.id);
-                console.log(`Seleccionado: ${suggestion.label}`);
-                setIsMapVisible(true)
-              }}
+              animation="fadeInUp"
+              duration={500}
+              delay={index * 70}
+              useNativeDriver
             >
-              <Image
-                source={suggestion.image}
-                style={{ width: 50, height: 50 }}
-                resizeMode="contain"
-              />
-              <Text style={styles.suggestionButtonText}>{suggestion.label}</Text>
-              <Text style={styles.suggestionDescription}>{suggestion.description}</Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.suggestionButton}
+                onPress={() => {
+                  setType(suggestion.id);
+                  console.log(`Seleccionado: ${suggestion.label}`);
+                  navigation.navigate('TripPreviewScreen', { vehicleType: suggestion.id });
+                }}
+              >
+                <Image
+                  source={suggestion.image}
+                  style={{ width: 50, height: 50 }}
+                  resizeMode="contain"
+                />
+                <Text style={styles.suggestionButtonText}>{suggestion.label}</Text>
+                <Text style={styles.suggestionDescription}>{suggestion.description}</Text>
+              </TouchableOpacity>
+            </Animatable.View>
           ))}
         </ScrollView>
       </>
@@ -945,15 +998,15 @@ const CustomerMap = ({ navigation }: Props) => {
 
 
 
-    const handlePress = (id) => {
+    const handlePress = (id: number) => {
       switch (id) {
         case 1:
           // Navegar a la pantalla de "Carnet"
-          navigation.navigate('Carnet');
+          navigation.getParent()?.navigate('Carnet');
           break;
         case 2:
           // Navegar a la pantalla de "Reservas"
-          navigation.navigate('RideList');
+          navigation.getParent()?.navigate('RideList');
           break;
         case 3:
           // Abrir WhatsApp
@@ -961,7 +1014,7 @@ const CustomerMap = ({ navigation }: Props) => {
           break;
         case 4:
           // Navegar a la pantalla de "Perfil"
-          navigation.navigate('Docs');
+          navigation.getParent()?.navigate('Docs');
           break;
         case 5:
           // Abrir Términos y Condiciones en un navegador web
@@ -969,7 +1022,7 @@ const CustomerMap = ({ navigation }: Props) => {
           break;
         case 6:
           // Navegar a la pantalla de "Contactos de seguridad"
-          navigation.navigate('SecurityContact');
+          navigation.getParent()?.navigate('SecurityContact');
           break;
         case 7:
           // Realizar una llamada telefónica
@@ -995,7 +1048,7 @@ const CustomerMap = ({ navigation }: Props) => {
         image: require("@/assets/images/iconos3d/45.png"),
         badge: activeBookingsCount > 0 ? {
           value: activeBookingsCount,
-          color: '#FF4500'
+          color: '#00f4f5'
         } : null,
         animation: 'pulse',
       },
@@ -1035,12 +1088,20 @@ const CustomerMap = ({ navigation }: Props) => {
       <View style={styles.containerDayli}>
         <Text style={styles.headerDayli}>T+plus</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.scrollContainerDayli}>
-          {cards.map((card) => (
-            <TouchableOpacity key={card.id} style={styles.cardDayli} onPress={() => handlePress(card.id)}>
-              <Image source={card.image} style={styles.cardImageDayli} />
-              <Text style={styles.cardTitleDayli}>{card.title}</Text>
-              <Text style={styles.cardSubtitleDayli}>{card.subtitle}</Text>
-            </TouchableOpacity>
+          {cards.map((card, index) => (
+            <Animatable.View
+              key={card.id}
+              animation="fadeInUp"
+              duration={550}
+              delay={index * 80}
+              useNativeDriver
+            >
+              <TouchableOpacity style={styles.cardDayli} onPress={() => handlePress(card.id)}>
+                <Image source={card.image} style={styles.cardImageDayli} />
+                <Text style={styles.cardTitleDayli}>{card.title}</Text>
+                <Text style={styles.cardSubtitleDayli}>{card.subtitle}</Text>
+              </TouchableOpacity>
+            </Animatable.View>
           ))}
         </ScrollView>
       </View>
@@ -1065,16 +1126,13 @@ const CustomerMap = ({ navigation }: Props) => {
                   key={index}
                   style={styles.addressCard}
                   onPress={() => {
-                    handleLocationSelect(
-                      { description: address.description },
-                      {
-                        geometry: {
-                          location: { lat: address.lat, lng: address.lng },
-                        },
-                      },
-                      "destination"
-                    );
-                    setIsMapVisible(true);
+                    navigation.navigate('TripPreviewScreen', {
+                      preselectedDestination: {
+                        latitude: address.lat,
+                        longitude: address.lng,
+                        title: address.description
+                      }
+                    });
                   }}
                 >
                   <Ionicons name="star-outline" size={24} color="#fff" style={styles.icon} />
@@ -1132,7 +1190,7 @@ const CustomerMap = ({ navigation }: Props) => {
   
     ];
 
-    const handlePress = (url) => {
+    const handlePress = (url: string) => {
       Linking.openURL(url);
     };
 
@@ -1140,9 +1198,17 @@ const CustomerMap = ({ navigation }: Props) => {
       <View style={styles.containerHorizontal}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           {banners.map((banner, index) => (
-            <TouchableOpacity key={index} onPress={() => handlePress(banner.url)}>
-              <Image source={banner.image} style={styles.bannerImage} />
-            </TouchableOpacity>
+            <Animatable.View
+              key={`${banner.url}-${index}`}
+              animation="fadeInRight"
+              duration={500}
+              delay={index * 90}
+              useNativeDriver
+            >
+              <TouchableOpacity onPress={() => handlePress(banner.url)}>
+                <Image source={banner.image} style={styles.bannerImage} />
+              </TouchableOpacity>
+            </Animatable.View>
           ))}
         </ScrollView>
       </View>
@@ -1345,7 +1411,7 @@ const CustomerMap = ({ navigation }: Props) => {
             {/* Botón de Back */}
             <View style={{ position: 'absolute', top: 0, left: 0, zIndex: 2, padding: 30 }}>
               <TouchableOpacity style={{
-                backgroundColor: '#ffaeae',
+                backgroundColor: '#b3fcfc',
                 borderRadius: 100,
                 width: 40,  // Aumenta el ancho
                 height: 40,  // Aumenta la altura
@@ -1382,7 +1448,7 @@ const CustomerMap = ({ navigation }: Props) => {
                     backgroundColor: colorScheme === 'dark'
                       ? Platform.OS === 'ios'
                         ? '#333'
-                        : '#ffc1c1'
+                        : '#b3fcfc'
                       : '#fff',
                     color: colorScheme === 'dark' ? '#fff' : '#000',
                     paddingVertical: 10,
@@ -1443,7 +1509,7 @@ const CustomerMap = ({ navigation }: Props) => {
                     backgroundColor: colorScheme === 'dark'
                       ? Platform.OS === 'ios'
                         ? '#333'
-                        : '#ffc1c1'
+                        : '#b3fcfc'
                       : '#fff',
                     color: colorScheme === 'dark' ? '#fff' : '#000',
                     paddingVertical: 10,
@@ -1508,7 +1574,7 @@ const CustomerMap = ({ navigation }: Props) => {
           <Text style={[styles.tourText, { flexShrink: 1 }]}>{loadingMessage}</Text>
         ) : currentStep === 5 ? (
           <Text style={[styles.tourText, { flexShrink: 1 }]}>
-            🎉¡Felicidades!🎉 Estas a un paso de completar tu registro en T+Plus.
+            ¡Felicidades! Estás a un paso de completar tu registro en T+Plus.
           </Text>
         ) : (
           <Text style={[styles.tourText, { flexShrink: 1 }]}>
@@ -1583,15 +1649,15 @@ const CustomerMap = ({ navigation }: Props) => {
                   title={destination.title}
                 >
                   <View style={styles.markerContainer}>
-                    <Ionicons name="location" size={36} color="#F20505" />
+                    <Ionicons name="location" size={36} color="#00f4f5" />
                   </View>
                 </Marker>
               )}
 
               {routeGeometry && (
-                <MapView.Polyline
-                  coordinates={routeGeometry.coordinates.map(coord => ({ latitude: coord[1], longitude: coord[0] }))}
-                  strokeColor="#F20505"
+                <Polyline
+                  coordinates={routeGeometry.coordinates.map((coord: [number, number]) => ({ latitude: coord[1], longitude: coord[0] }))}
+                  strokeColor="#00f4f5"
                   strokeWidth={3}
                 />
               )}
@@ -1603,15 +1669,15 @@ const CustomerMap = ({ navigation }: Props) => {
         {!isMapVisible && ( // Mostrar el mapa solo si isMapVisible es verdadero
 
           <View style={{ flex: 1 }}>
-            <ScrollView style={{
-              width: "auto", margin: 10
-            }}>
+            <View pointerEvents="none" style={styles.glassOrbTop} />
+            <View pointerEvents="none" style={styles.glassOrbBottom} />
+            <ScrollView style={styles.homeScroll} contentContainerStyle={styles.homeScrollContent}>
 
               <StatusBar hidden={true} />
               <View style={styles.notificationCard}>
                 <TouchableOpacity
                   style={[styles.menuButton, { backgroundColor: colorScheme === 'dark' ? '#fff' : '#000', marginBottom: 10 }]}
-                  onPress={() => navigation.navigate("Carnet")}
+                  onPress={() => navigation.getParent()?.navigate("Carnet")}
                 >
                   <Image
                     source={user?.profile_image ? { uri: user?.profile_image } : require("@/assets/images/Avatar/1.png")}
@@ -1619,96 +1685,45 @@ const CustomerMap = ({ navigation }: Props) => {
                   />
                 </TouchableOpacity>
                 <Text style={styles.notificationText}>
-                  👋🏻 {' '}
                   {(() => {
                     const currentHour = new Date().getHours();
-                    let greeting;
-                    if (currentHour < 12) {
-                      greeting = "Buenos días";
-                    } else if (currentHour < 18) {
-                      greeting = "Buenas tardes";
-                    } else {
-                      greeting = "Buenas noches";
-                    }
-                    return `${greeting}, ${user?.firstName} ${user?.lastName}`;
+                    const greeting = currentHour < 12
+                      ? "Buenos días"
+                      : currentHour < 18
+                        ? "Buenas tardes"
+                        : "Buenas noches";
+                    const firstName = dbFirstName || user?.first_name || "Usuario";
+                    return `${greeting}, ${firstName}`;
                   })()}
                 </Text>
 
               </View>
 
+              {/* Main CTA Button - A donde vamos */}
+              <Animatable.View animation="fadeInUp" duration={400} delay={100} style={{ marginVertical: 16, paddingHorizontal: 16 }}>
+                <TouchableOpacity
+                  style={{
+                    backgroundColor: '#00f4f5',
+                    borderRadius: 12,
+                    paddingVertical: 16,
+                    paddingHorizontal: 20,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  }}
+                  onPress={() => {
+                    navigation.navigate('TripPreviewScreen', {});
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                    <AntDesign name="environment" size={20} color="#000" style={{ marginRight: 12 }} />
+                    <Text style={{ fontSize: 16, fontWeight: '600', color: '#000' }}>¿A dónde vamos?</Text>
+                  </View>
+                  <AntDesign name="right" size={16} color="#000" />
+                </TouchableOpacity>
+              </Animatable.View>
 
               <View >
-                <GooglePlacesAutocomplete
-                  ref={originAutocompleteRef}
-                  enablePoweredByContainer={false}
-                  placeholder="¿A dónde vas?"
-                  minLength={4}
-                  debounce={2000}
-                  fetchDetails
-                  onPress={(data, details = null) =>
-                    handleLocationSelect(data, details, 'origin')
-                  }
-                  query={{
-                    key: GOOGLE_MAPS_APIKEY_PROD,
-                    language: 'es',
-                    components: 'country:co',
-                    sessiontoken: sessionTokenOriginRef.current,
-                  }}
-                  styles={{
-                    textInput: {
-                      ...styles.input,
-                      backgroundColor:
-                        colorScheme === 'dark'
-                          ? Platform.OS === 'ios'
-                            ? '#333'
-                            : '#ffc1c1'
-                          : '#fff',
-                      color: colorScheme === 'dark' ? '#fff' : '#000',
-                      paddingVertical: 10,
-                    },
-                    listView: {
-                      ...styles.listView,
-                      backgroundColor: colorScheme === 'dark' ? '#333' : '#fff',
-                    },
-                    description: {
-                      color: colorScheme === 'dark' ? '#000' : '#000',
-                    },
-                  }}
-                  textInputProps={{
-                    onFocus: () => {
-                      setFocus('origin');
-                      console.log(user.emailVerified, "user.emailVerified");
-                      console.log(tourVisible, "tourVisible");
-
-                      console.log(user.emailVerified, "user.emailVerified");
-                      console.log(tourVisible, "tourVisible");
-                      console.log(user.profile_image, "user.profile_image");
-                      console.log(user.mobile, "user.mobile");
-                      console.log(user.docType, "user.docType");
-                      console.log(user.verifyId, "user.verifyId");
-                      console.log(user.verifyIdImage, "user.verifyIdImage");
-                      if (user.emailVerified && !tourVisible && (!user.profile_image || !user.mobile || !user.docType || !user.verifyId || !user.verifyIdImage)) {
-                        setTourVisible(true);
-                      }
-                      setIsMapVisible(true); // Mostrar el mapa cuando el campo de "Origen" gana el foco
-                      setButtonsVisible(false);
-                      if (!sessionTokenOriginRef.current) {
-                        const generateUID = () => {
-                          return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-                            const r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
-                            return v.toString(16);
-                          });
-                        }
-                        sessionTokenOriginRef.current = generateUID();
-                      }
-                    },
-                    onBlur: () => {
-                      if (!origin) {
-                        sessionTokenOriginRef.current = null;
-                      }
-                    },
-                  }}
-                />
                 {SavedAddresses()}
 
 
@@ -1719,7 +1734,7 @@ const CustomerMap = ({ navigation }: Props) => {
 
 
                 <View style={{ marginBottom: 100 }}>
-                  {!isMapVisible && renderSuggestions()}
+                  {/* Tipos de vehículos movidos a TripPreviewScreen */}
                   {!isMapVisible && DailySavings()}
 
                   {!isMapVisible && (
@@ -1733,12 +1748,20 @@ const CustomerMap = ({ navigation }: Props) => {
                     <>
                       <Text style={styles.headerDayli}>PROMOCIONES</Text>
                       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }}>
-                        {promos.map((promo, index) => (
-                          <View key={index} style={styles.promoCard}>
-                            <Text style={styles.promoTitle}>{promo.promo_name}</Text>
-                            <Text style={styles.promoDescription}>{promo.description}</Text>
-                            <Text style={styles.promoCode}>Código: {promo.promo_code}</Text>
-                          </View>
+                        {promos.map((promo: any, index: number) => (
+                          <Animatable.View
+                            key={`${promo.promo_code}-${index}`}
+                            animation="fadeInUp"
+                            duration={500}
+                            delay={index * 80}
+                            useNativeDriver
+                          >
+                            <View style={styles.promoCard}>
+                              <Text style={styles.promoTitle}>{promo.promo_name}</Text>
+                              <Text style={styles.promoDescription}>{promo.description}</Text>
+                              <Text style={styles.promoCode}>Código: {promo.promo_code}</Text>
+                            </View>
+                          </Animatable.View>
                         ))}
                       </ScrollView>
                     </>
@@ -1767,12 +1790,12 @@ const CustomerMap = ({ navigation }: Props) => {
         )}
 
         {Platform.OS === "android" && isMapVisible && (
-          <View style={styles.centerButton} onPress={centerMap}>
+          <TouchableOpacity style={styles.centerButton} onPress={centerMap}>
             <Text style={styles.centerButtonText}>
               Centra aquí{" "}
               <AntDesign name="right" size={18} color="red" />
             </Text>
-          </View>
+          </TouchableOpacity>
         )}
 
         <Modal
@@ -1820,7 +1843,7 @@ const CustomerMap = ({ navigation }: Props) => {
                   style={styles.cancelButton}
                   onPress={() => setModalVisibleImage(false)}
                 >
-                  <MaterialIcons name="cancel" size={24} color="#f20505" />
+                  <MaterialIcons name="cancel" size={24} color="#00f4f5" />
                   <Text style={styles.cancelButtonText}>Cancelar</Text>
                 </TouchableOpacity>
               </View>
@@ -1855,7 +1878,7 @@ const CustomerMap = ({ navigation }: Props) => {
                     style={styles.cancelButton}
                     onPress={() => setModalVisibleImageVerify(false)}
                   >
-                    <MaterialIcons name="cancel" size={24} color="#f20505" />
+                    <MaterialIcons name="cancel" size={24} color="#00f4f5" />
                     <Text style={styles.cancelButtonText}>Cancelar</Text>
                   </TouchableOpacity>
                 </View>
@@ -1872,8 +1895,36 @@ const CustomerMap = ({ navigation }: Props) => {
 
 const lightStyles = StyleSheet.create({
   containerSuper: {
-    backgroundColor: "#EEEEEE",
+    backgroundColor: "#e9f1f5",
     height: "300%",
+  },
+  glassOrbTop: {
+    position: "absolute",
+    top: -80,
+    right: -40,
+    width: 240,
+    height: 240,
+    borderRadius: 120,
+    backgroundColor: "rgba(0, 244, 245, 0.16)",
+    zIndex: 0,
+  },
+  glassOrbBottom: {
+    position: "absolute",
+    bottom: 80,
+    left: -60,
+    width: 260,
+    height: 260,
+    borderRadius: 130,
+    backgroundColor: "rgba(0, 32, 74, 0.10)",
+    zIndex: 0,
+  },
+  homeScroll: {
+    width: "auto",
+    margin: 10,
+    zIndex: 1,
+  },
+  homeScrollContent: {
+    paddingBottom: 110,
   },
   container: {
     flex: 1,
@@ -1885,12 +1936,7 @@ const lightStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  routeLine: {
-    lineColor: '#F20505',
-    lineWidth: 5,
-    lineCap: 'round',
-    lineJoin: 'round',
-  },
+  routeLine: {},
   autocompleteContainer: {
     position: "absolute",
     top: 10,
@@ -1899,35 +1945,42 @@ const lightStyles = StyleSheet.create({
     height: 800
   },
   input: {
-    height: 50,
-    backgroundColor: "#fff",
-    borderRadius: 10,
+    height: 52,
+    backgroundColor: "rgba(255, 255, 255, 0.78)",
+    borderRadius: 14,
     paddingHorizontal: 20,
     fontSize: 16,
     marginTop: 10,
+    borderWidth: 1,
+    borderColor: "rgba(0, 244, 245, 0.28)",
   },
   listView: {
-    backgroundColor: "#fff",
-    borderRadius: 10,
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    borderRadius: 14,
     marginHorizontal: 20,
+    shadowColor: "#00204a",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
   },
   bookNowContainer: {
-    flexDirection: "row", // Alinea los elementos horizontalmente
-    alignItems: "center", // Alinea verticalmente en el centro
-    justifyContent: "space-between", // Distribuye el espacio entre los elementos
-    padding: 10, // Espaciado interno
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: 10,
   },
 
   menuButton: {
     padding: 10,
     borderRadius: 100,
-    margin: 10
-    // Otros estilos del botón
+    margin: 10,
   },
 
   notificationText: {
-    fontSize: 16,
-    fontWeight: "bold",
+    fontSize: 18,
+    fontWeight: "800",
+    letterSpacing: 0.3,
     color: "#000",
   },
 
@@ -1945,16 +1998,23 @@ const lightStyles = StyleSheet.create({
     fontWeight: "bold",
   },
   bookNow: {
-    backgroundColor: "#f20505",
-    borderRadius: 25,
-    paddingVertical: 15,
-    paddingHorizontal: 100,
-    elevation: 5,
+    backgroundColor: "#00204a",
+    borderRadius: 28,
+    paddingVertical: 16,
+    paddingHorizontal: 80,
+    elevation: 6,
+    shadowColor: "#00204a",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    borderWidth: 1.5,
+    borderColor: "#00f4f5",
   },
   bookNowText: {
-    color: "#fff",
+    color: "#00f4f5",
     fontSize: 18,
     fontWeight: "bold",
+    letterSpacing: 1,
   },
   centerButton: {
     position: "absolute",
@@ -1966,10 +2026,9 @@ const lightStyles = StyleSheet.create({
     elevation: 5,
   },
   centerButtonText: {
-    color: "#F20505",
+    color: "#00f4f5",
     fontSize: 16,
     fontWeight: "bold",
-    justifyContent: "center",
   },
   imagePlaceholderText: {
     color: "#000",
@@ -2004,7 +2063,7 @@ const lightStyles = StyleSheet.create({
     fontSize: 16,
   },
   closeButton: {
-    backgroundColor: "#F20505",
+    backgroundColor: "#00f4f5",
     borderRadius: 20,
     padding: 10,
     elevation: 2,
@@ -2024,7 +2083,7 @@ const lightStyles = StyleSheet.create({
     marginVertical: 10,
   },
   favoriteButton: {
-    backgroundColor: "#F20505",
+    backgroundColor: "#00f4f5",
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
@@ -2039,38 +2098,56 @@ const lightStyles = StyleSheet.create({
     marginVertical: 10,
   },
   suggestionButton: {
-    backgroundColor: "#fff",
+    backgroundColor: "rgba(255, 255, 255, 0.72)",
     paddingHorizontal: 10,
-    borderRadius: 10,
-    marginRight: 15,
+    paddingVertical: 8,
+    borderRadius: 14,
+    marginRight: 12,
     alignItems: "center",
-    width: 100,
-    height: 100,
+    justifyContent: "center",
+    width: 105,
+    height: 105,
+    shadowColor: "#00204a",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: "rgba(0, 244, 245, 0.30)",
   },
   suggestionButtonText: {
-    color: "#000",
-    fontWeight: "bold",
+    color: "#00204a",
+    fontWeight: "700",
     fontSize: 12,
+    marginTop: 4,
   },
   containerDayli: {
     marginVertical: 20,
     paddingHorizontal: 10,
   },
   headerDayli: {
-    color: "#000",
-    fontSize: 18,
-    fontWeight: "bold",
-    marginBottom: 10,
+    color: "#00204a",
+    fontSize: 20,
+    fontWeight: "800",
+    marginBottom: 12,
+    letterSpacing: 0.6,
   },
   scrollContainerDayli: {
     flexDirection: "row",
   },
   cardDayli: {
-    backgroundColor: "#fff",
-    borderRadius: 15,
+    backgroundColor: "rgba(255, 255, 255, 0.74)",
+    borderRadius: 16,
     width: 200,
     marginRight: 15,
-    padding: 10,
+    padding: 12,
+    shadowColor: "#00204a",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.07,
+    shadowRadius: 8,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: "rgba(0, 244, 245, 0.28)",
   },
   cardImageDayli: {
     width: "70%",
@@ -2080,39 +2157,47 @@ const lightStyles = StyleSheet.create({
     alignSelf: "center",
   },
   cardTitleDayli: {
-    color: "#000",
+    color: "#00204a",
     fontSize: 16,
-    fontWeight: "bold",
+    fontWeight: "800",
   },
   cardSubtitleDayli: {
-    color: "#a1a1a1",
-    fontSize: 14,
+    color: "#8a9bae",
+    fontSize: 13,
     marginTop: 5,
+    lineHeight: 18,
   },
   containerAddress: {
     marginHorizontal: 10,
   },
   addressCard: {
-    backgroundColor: "#fff",
-    borderRadius: 15,
+    backgroundColor: "rgba(255, 255, 255, 0.8)",
+    borderRadius: 14,
     padding: 15,
     flexDirection: "row",
     alignItems: "center",
+    borderLeftWidth: 3,
+    borderLeftColor: "#00f4f5",
+    shadowColor: "#00204a",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
     marginBottom: 10,
   },
   icon: {
     marginRight: 15,
-    color: "#F20505",
+    color: "#00f4f5",
   },
   addressTitle: {
-    color: "#000",
-    fontSize: 16,
-    fontWeight: "bold",
+    color: "#00204a",
+    fontSize: 15,
+    fontWeight: "700",
   },
   addressSubtitle: {
-    color: "#a1a1a1",
-    fontSize: 14,
-    marginTop: 5,
+    color: "#8a9bae",
+    fontSize: 13,
+    marginTop: 4,
   },
   containerHorizontal: {
     marginVertical: 20,
@@ -2120,15 +2205,17 @@ const lightStyles = StyleSheet.create({
   bannerImage: {
     width: 300,
     height: 150,
-    borderRadius: 10,
+    borderRadius: 14,
     marginRight: 10,
   },
   selectedTypeContainer: {
     marginTop: 10,
     padding: 10,
-    backgroundColor: '#fff',
+    backgroundColor: 'rgba(255, 255, 255, 0.78)',
     borderRadius: 10,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 244, 245, 0.28)',
   },
   selectedTypeText: {
     fontSize: 16,
@@ -2219,13 +2306,13 @@ const lightStyles = StyleSheet.create({
     padding: 10,
   },
   nextButton: {
-    backgroundColor: "#f20505",
+    backgroundColor: "#00f4f5",
     width: 150,
     padding: 10,
     borderRadius: 10,
   },
   finishButton: {
-    backgroundColor: "#f20505",
+    backgroundColor: "#00f4f5",
     marginTop: 20,
     width: 200,
     borderRadius: 10,
@@ -2244,14 +2331,14 @@ const lightStyles = StyleSheet.create({
     fontWeight: "600", // Peso mediano para no saturar
     marginBottom: 20, // Más espacio entre elementos
     textAlign: "center",
-    color: "#ff6f61", // Color más suave pero llamativo
+    color: "#00f4f5", // Color más suave pero llamativo
     textShadowColor: "rgba(0, 0, 0, 0.15)", // Sombras más suaves
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 8, // Sombra más dispersa
     letterSpacing: 0.8, // Espaciado entre letras para mejor legibilidad
   },
   linkButton: {
-    color: "#f20505",
+    color: "#00f4f5",
     fontSize: 16,
     fontWeight: "bold",
     textAlign: "center",
@@ -2266,7 +2353,7 @@ const lightStyles = StyleSheet.create({
   botonCamera: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#b90000",
+    backgroundColor: "#00204a",
     padding: 15,
     borderRadius: 10,
     marginBottom: 15,
@@ -2277,7 +2364,7 @@ const lightStyles = StyleSheet.create({
   botonGallery: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f20505",
+    backgroundColor: "#00f4f5",
     padding: 15,
     borderRadius: 10,
     marginBottom: 15,
@@ -2286,7 +2373,7 @@ const lightStyles = StyleSheet.create({
     elevation: 5,
   },
   cancelButtonText: {
-    color: "#f20505",
+    color: "#00f4f5",
     fontSize: 16,
     fontWeight: "bold",
   },
@@ -2301,7 +2388,7 @@ const lightStyles = StyleSheet.create({
     justifyContent: "center",
     elevation: 5,
     borderWidth: 1,
-    borderColor: "#f20505",
+    borderColor: "#00f4f5",
   },
   inlinePicker: {
     flexDirection: 'column',
@@ -2337,19 +2424,20 @@ const lightStyles = StyleSheet.create({
     color: "#000",
   },
   notificationCard: {
-    backgroundColor: "#fff",
-    padding: 16,
-    borderRadius: 8,
-    flexDirection: "row", // Asegura que los elementos estén en fila
-    justifyContent: "flex-start", // Alinea los elementos al inicio
+    backgroundColor: "rgba(255, 255, 255, 0.78)",
+    padding: 14,
+    borderRadius: 16,
+    flexDirection: "row",
+    justifyContent: "flex-start",
     alignItems: "center",
     marginBottom: 16,
-  },
-
-  notificationText: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#000",
+    shadowColor: "#00204a",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: "rgba(0, 244, 245, 0.22)",
   },
   suggestionDescription: {
     fontSize: 12,
@@ -2359,11 +2447,39 @@ const lightStyles = StyleSheet.create({
 
 const darkStyles = StyleSheet.create({
   containerSuper: {
-    backgroundColor: "#545454",
+    backgroundColor: "#01060a",
+  },
+  glassOrbTop: {
+    position: "absolute",
+    top: -90,
+    right: -40,
+    width: 260,
+    height: 260,
+    borderRadius: 130,
+    backgroundColor: "rgba(21, 229, 233, 0.14)",
+    zIndex: 0,
+  },
+  glassOrbBottom: {
+    position: "absolute",
+    bottom: 70,
+    left: -70,
+    width: 280,
+    height: 280,
+    borderRadius: 140,
+    backgroundColor: "rgba(0, 32, 74, 0.26)",
+    zIndex: 0,
+  },
+  homeScroll: {
+    width: "auto",
+    margin: 10,
+    zIndex: 1,
+  },
+  homeScrollContent: {
+    paddingBottom: 110,
   },
   container: {
     flex: 1,
-    backgroundColor: "#545454",
+    backgroundColor: "#01060a",
   },
   map: {
     flex: 1,
@@ -2372,12 +2488,7 @@ const darkStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  routeLine: {
-    lineColor: '#FFFFFF',
-    lineWidth: 5,
-    lineCap: 'round',
-    lineJoin: 'round',
-  },
+  routeLine: {},
   autocompleteContainer: {
     position: "absolute",
     //top: 10,
@@ -2393,11 +2504,16 @@ const darkStyles = StyleSheet.create({
     fontSize: 16,
     marginTop: 10,
     color: "#fff",
+    backgroundColor: "rgba(4, 39, 58, 0.40)",
+    borderWidth: 1,
+    borderColor: "rgba(21, 229, 233, 0.35)",
   },
   listView: {
-    backgroundColor: "#333",
+    backgroundColor: "rgba(4, 39, 58, 0.78)",
     borderRadius: 10,
     marginHorizontal: 20,
+    borderWidth: 1,
+    borderColor: "rgba(21, 229, 233, 0.30)",
   },
 
   modalButtonText: {
@@ -2416,16 +2532,19 @@ const darkStyles = StyleSheet.create({
   },
 
   bookNow: {
-    backgroundColor: "#f20505",
-    borderRadius: 25,
-    paddingVertical: 15,
-    paddingHorizontal: 100,
-    elevation: 5,
+    backgroundColor: "#00204a",
+    borderRadius: 28,
+    paddingVertical: 16,
+    paddingHorizontal: 80,
+    elevation: 6,
+    borderWidth: 1.5,
+    borderColor: "#00f4f5",
   },
   bookNowText: {
-    color: "#fff",
+    color: "#00f4f5",
     fontSize: 18,
     fontWeight: "bold",
+    letterSpacing: 1,
   },
   centerButton: {
     position: "absolute",
@@ -2437,7 +2556,7 @@ const darkStyles = StyleSheet.create({
     elevation: 5,
   },
   centerButtonText: {
-    color: "#F20505",
+    color: "#00f4f5",
     fontSize: 16,
     fontWeight: "bold",
     justifyContent: "center",
@@ -2469,7 +2588,7 @@ const darkStyles = StyleSheet.create({
     fontSize: 16,
   },
   closeButton: {
-    backgroundColor: "#F20505",
+    backgroundColor: "#00f4f5",
     borderRadius: 20,
     padding: 10,
     elevation: 2,
@@ -2483,7 +2602,7 @@ const darkStyles = StyleSheet.create({
     marginVertical: 10,
   },
   favoriteButton: {
-    backgroundColor: "#F20505",
+    backgroundColor: "#00f4f5",
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
@@ -2497,38 +2616,46 @@ const darkStyles = StyleSheet.create({
     marginVertical: 10,
   },
   suggestionButton: {
-    backgroundColor: "#2E2E2E",
+    backgroundColor: "rgba(4, 39, 58, 0.42)",
     paddingHorizontal: 10,
-    borderRadius: 10,
-    marginRight: 15,
+    paddingVertical: 8,
+    borderRadius: 14,
+    marginRight: 12,
     alignItems: "center",
-    width: 100,
-    height: 100,
+    justifyContent: "center",
+    width: 105,
+    height: 105,
+    borderWidth: 1,
+    borderColor: "rgba(21, 229, 233, 0.35)",
   },
   suggestionButtonText: {
     color: "#fff",
-    fontWeight: "bold",
+    fontWeight: "700",
     fontSize: 12,
+    marginTop: 4,
   },
   containerDayli: {
     marginVertical: 20,
     paddingHorizontal: 10,
   },
   headerDayli: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "bold",
-    marginBottom: 10,
+    color: "#00f4f5",
+    fontSize: 20,
+    fontWeight: "800",
+    marginBottom: 12,
+    letterSpacing: 0.6,
   },
   scrollContainerDayli: {
     flexDirection: "row",
   },
   cardDayli: {
-    backgroundColor: "#1c1c1e",
-    borderRadius: 15,
+    backgroundColor: "rgba(4, 39, 58, 0.45)",
+    borderRadius: 16,
     width: 200,
     marginRight: 15,
-    padding: 10,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "rgba(21, 229, 233, 0.35)",
   },
   cardImageDayli: {
     width: "70%",
@@ -2539,39 +2666,42 @@ const darkStyles = StyleSheet.create({
 
   },
   cardTitleDayli: {
-    color: "#fff",
+    color: "#ffffff",
     fontSize: 16,
-    fontWeight: "bold",
+    fontWeight: "800",
   },
   cardSubtitleDayli: {
-    color: "#a1a1a1",
-    fontSize: 14,
+    color: "#8a9bae",
+    fontSize: 13,
     marginTop: 5,
+    lineHeight: 18,
   },
   containerAddress: {
     paddingHorizontal: 10,
   },
   addressCard: {
-    backgroundColor: "#1c1c1e",
-    borderRadius: 15,
+    backgroundColor: "rgba(4, 39, 58, 0.50)",
+    borderRadius: 14,
     padding: 15,
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 10,
+    borderLeftWidth: 3,
+    borderLeftColor: "#00f4f5",
   },
   icon: {
     marginRight: 15,
-    color: "#F20505",
+    color: "#00f4f5",
   },
   addressTitle: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "bold",
+    color: "#ffffff",
+    fontSize: 15,
+    fontWeight: "700",
   },
   addressSubtitle: {
-    color: "#a1a1a1",
-    fontSize: 14,
-    marginTop: 5,
+    color: "#8a9bae",
+    fontSize: 13,
+    marginTop: 4,
   },
   containerHorizontal: {
     marginVertical: 20,
@@ -2579,15 +2709,17 @@ const darkStyles = StyleSheet.create({
   bannerImage: {
     width: 300,
     height: 150,
-    borderRadius: 10,
+    borderRadius: 14,
     marginRight: 10,
   },
   selectedTypeContainer: {
     marginTop: 10,
     padding: 10,
-    backgroundColor: '#adadad',
+    backgroundColor: 'rgba(4, 39, 58, 0.55)',
     borderRadius: 10,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(21, 229, 233, 0.35)',
   },
   selectedTypeText: {
     fontSize: 16,
@@ -2638,7 +2770,7 @@ const darkStyles = StyleSheet.create({
   },
 
   prevButtonText: {
-    color: "#f20505",
+    color: "#00f4f5",
     fontSize: 16,
     fontWeight: "bold",
     textAlign: "center",
@@ -2661,14 +2793,14 @@ const darkStyles = StyleSheet.create({
     paddingTop: 50,
     paddingBottom: 20,
     paddingHorizontal: 20,
-    backgroundColor: "#474747", // o el color correspondiente
+    backgroundColor: "#01060a",
   },
   stepContainer: {
     
     alignItems: "center",
     paddingHorizontal: 20,
     paddingTop: 30,
-    backgroundColor:"#474747"
+    backgroundColor:"#01060a"
   },
   stepTitle: {
     fontSize: 24,
@@ -2705,18 +2837,18 @@ const darkStyles = StyleSheet.create({
     width: 150,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#f20505",
+    borderColor: "#00f4f5",
     padding: 10,
 
   },
   nextButton: {
-    backgroundColor: "#f20505",
+    backgroundColor: "#00f4f5",
     width: 150,
     padding: 10,
     borderRadius: 10,
   },
   finishButton: {
-    backgroundColor: "#f20505",
+    backgroundColor: "#00f4f5",
     marginTop: 20,
     width: 200,
     borderRadius: 10
@@ -2736,12 +2868,12 @@ const darkStyles = StyleSheet.create({
     fontWeight: "600", // Peso mediano para no saturar
     marginBottom: 20, // Más espacio entre elementos
     textAlign: "center",
-    color: "#ff6f61", // Color más suave pero llamativo
+    color: "#00f4f5", // Color más suave pero llamativo
     textShadowColor: "rgba(0, 0, 0, 0.15)", // Sombras más suaves
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 8, // Sombra más dispersa
     letterSpacing: 0.8, // Espaciado entre letras para mejor legibilidad
-    backgroundColor:"#474747"
+    backgroundColor:"#01060a"
     
   },
   explanatoryText: {
@@ -2751,7 +2883,7 @@ const darkStyles = StyleSheet.create({
     marginVertical: 10,
   },
   linkButton: {
-    color: "#f20505",
+    color: "#00f4f5",
     fontSize: 16,
     fontWeight: "bold",
     textAlign: "center",
@@ -2766,7 +2898,7 @@ const darkStyles = StyleSheet.create({
   botonCamera: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#b90000",
+    backgroundColor: "#00204a",
     padding: 15,
     borderRadius: 10,
     marginBottom: 15,
@@ -2777,7 +2909,7 @@ const darkStyles = StyleSheet.create({
   botonGallery: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f20505",
+    backgroundColor: "#00f4f5",
     padding: 15,
     borderRadius: 10,
     marginBottom: 15,
@@ -2786,7 +2918,7 @@ const darkStyles = StyleSheet.create({
     elevation: 5,
   },
   cancelButtonText: {
-    color: "#f20505",
+    color: "#00f4f5",
     fontSize: 16,
     fontWeight: "bold",
   },
@@ -2801,7 +2933,7 @@ const darkStyles = StyleSheet.create({
     justifyContent: "center",
     elevation: 5,
     borderWidth: 1,
-    borderColor: "#f20505",
+    borderColor: "#00f4f5",
   },
   inlinePicker: {
     flexDirection: 'column',
@@ -2838,39 +2970,21 @@ const darkStyles = StyleSheet.create({
     elevation: 5,
   },
   notificationCard: {
-    backgroundColor: "#721c24",
-    padding: 16,
-    borderRadius: 8,
-    flexDirection: "row", // Asegura que los elementos estén en fila
-    justifyContent: "flex-start", // Alinea los elementos al inicio
+    backgroundColor: "rgba(4, 39, 58, 0.52)",
+    padding: 14,
+    borderRadius: 16,
+    flexDirection: "row",
+    justifyContent: "flex-start",
     alignItems: "center",
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "rgba(21, 229, 233, 0.32)",
   },
-  profileImage: {
-    width: 30,
-    height: 30,
-    borderRadius: 15, // Hace que la imagen sea circular
-    marginRight: 10, // Espacio entre la imagen y el texto
-  },
-
   bookNowContainer: {
-    flexDirection: "row", // Alinea los elementos horizontalmente
-    alignItems: "center", // Alinea verticalmente en el centro
-    justifyContent: "space-between", // Distribuye el espacio entre los elementos
-    padding: 10, // Espaciado interno
-  },
-
-  menuButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     padding: 10,
-    borderRadius: 100,
-    margin: 10
-    // Otros estilos del botón
-  },
-
-  notificationText: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#fff",
   },
   suggestionDescription: {
     fontSize: 12,
@@ -2878,30 +2992,28 @@ const darkStyles = StyleSheet.create({
     marginBottom: 10,
   },
   promoCard: {
-    backgroundColor: '#fff',
-    padding: 10,
+    backgroundColor: 'rgba(4, 39, 58, 0.52)',
+    padding: 12,
     marginRight: 10,
-    borderRadius: 8,
+    borderRadius: 14,
     width: 200,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    borderWidth: 1,
+    borderColor: 'rgba(21, 229, 233, 0.32)',
+    elevation: 2,
   },
   promoTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#F20505',
+    color: '#00f4f5',
   },
   promoDescription: {
     fontSize: 14,
-    color: '#333',
+    color: '#8a9bae',
     marginVertical: 5,
   },
   promoCode: {
     fontSize: 12,
-    color: '#666',
+    color: '#00f4f5',
     fontStyle: 'italic',
   }
 });

@@ -132,7 +132,7 @@ const lightStyles = StyleSheet.create({
   },
   referralId: {
     fontSize: 18,
-    color: "#F20505",
+    color: "#00f4f5",
   },
 });
 const darkStyles = StyleSheet.create({
@@ -184,7 +184,7 @@ const darkStyles = StyleSheet.create({
   },
   referralId: {
     fontSize: 18,
-    color: "#F20505",
+    color: "#00f4f5",
   },
 });
 

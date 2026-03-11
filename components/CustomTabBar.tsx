@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { View, Text, TouchableOpacity, SafeAreaView } from "react-native";
 
 export default props => {
@@ -6,10 +6,10 @@ export default props => {
     state,
     descriptors,
     navigation,
-    activeBackgroundColor = "#f0f0f0",
-    activeTintColor = "#F20505",
-    inactiveBackgroundColor = "#FFF",
-    inactiveTintColor = "gray"
+    activeBackgroundColor = "#00204a",
+    activeTintColor = "#00f4f5",
+    inactiveBackgroundColor = "#ffffff",
+    inactiveTintColor = "#8a9bae"
   } = props;
   
   const { routes } = state;
@@ -18,11 +18,13 @@ export default props => {
       <View
         style={{
           flexDirection: "row",
-          height: 64,
+          height: 68,
           alignItems: "center",
           justifyContent: "space-between",
-          backgroundColor: "#FFFF", // Asegúrate de que el contenedor tenga un color de fondo
-         // borderTopWidth: 1
+          backgroundColor: "#ffffff",
+          paddingHorizontal: 8,
+          borderTopWidth: 1,
+          borderTopColor: "rgba(0, 32, 74, 0.08)",
         }}
       >
         {routes.map((route, index) => {
@@ -53,24 +55,30 @@ export default props => {
                 backgroundColor: backgroundColor,
                 flexDirection: "row",
                 margin: 4,
-                height: 50,
+                height: 46,
                 padding: 8,
                 paddingRight: 16,
                 paddingLeft: 16,
-                borderRadius: 50,
+                borderRadius: 23,
                 justifyContent: "center",
                 alignItems: "center",
-                elevation: 3
+                elevation: isFocused ? 4 : 0,
+                shadowColor: "#00204a",
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: isFocused ? 0.15 : 0,
+                shadowRadius: 4,
               }}
               onPress={onPress}
             >
               {options.tabBarIcon !== undefined &&
-                options.tabBarIcon({ color: tintColor, size: 28 })}
+                options.tabBarIcon({ color: tintColor, size: 24 })}
               {isFocused && (
                 <Text
                   style={{
                     marginLeft: 8,
-                    color: tintColor
+                    color: tintColor,
+                    fontWeight: "600",
+                    fontSize: 13,
                   }}
                 >
                   {label}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import {
   StyleSheet,
   View,
@@ -208,9 +208,9 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   selectedTaxiOption: {
-    borderColor: "#F20505",
+    borderColor: "#00f4f5",
     borderWidth: 2,
-    shadowColor: "#F20505",
+    shadowColor: "#00f4f5",
     shadowOpacity: 0.8,
     shadowRadius: 5,
   },

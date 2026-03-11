@@ -74,7 +74,7 @@ export default function WebViewLayout({ route }) {
           style={styles.webview}
         />
       ) : (
-        <ActivityIndicator size="large" color="#F20505" />
+        <ActivityIndicator size="large" color="#00f4f5" />
       )}
     </View>
   );

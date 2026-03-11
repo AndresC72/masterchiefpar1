@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import {
   StyleSheet,
   View,
@@ -14,7 +14,7 @@ export default function AuthLoadingScreen() {
         resizeMode="stretch"
         style={styles.imagebg}
       >
-        <ActivityIndicator style={{ paddingBottom: 100 }} color={'#F20505'} size='large' />
+        <ActivityIndicator style={{ paddingBottom: 100 }} color={'#00f4f5'} size='large' />
       </ImageBackground>
     </View>
   );

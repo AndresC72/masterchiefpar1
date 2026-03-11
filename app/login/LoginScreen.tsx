@@ -24,6 +24,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { useDispatch } from "react-redux";
 import { AntDesign, MaterialCommunityIcons, Feather } from "@expo/vector-icons";
 import supabase from '@/config/SupabaseConfig';
+import { login } from "@/common/reducers/authReducer";
 import { validateEmailFormat, validatePhoneFormat, extractPhoneDigits, normalizeEmail } from '@/common/utils/validators';
 import { useEmailValidation } from '@/hooks/useEmailValidation';
 import { usePhoneValidation } from '@/hooks/usePhoneValidation';
@@ -225,6 +226,7 @@ const LoginScreen = ({ navigation }: Props) => {
       });
       if (authError) throw authError;
       if (!data.user) throw new Error('No se pudo iniciar sesión');
+      dispatch(login(data.user));
     } catch (error: any) {
       let message = "Error de autenticación";
       if (error.message.includes('Invalid login credentials')) {

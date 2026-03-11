@@ -23,7 +23,7 @@ const NavigationWebView = () => {
         startInLoadingState
         renderLoading={() => (
           <ActivityIndicator
-            color="#F20505"
+            color="#00f4f5"
             size="large"
             style={styles.loading}
           />

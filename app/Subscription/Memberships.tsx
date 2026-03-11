@@ -54,7 +54,7 @@ const SubscriptionCard = () => {
   if (isLoading) {
     return (
       <View style={styles.loaderContainer}>
-        <ActivityIndicator size="large" color="#F20505" />
+        <ActivityIndicator size="large" color="#00f4f5" />
       </View>
     );
   }
@@ -227,7 +227,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   subscribeButton: {
-    backgroundColor: "#F20505",
+    backgroundColor: "#00f4f5",
     borderRadius: 10,
     paddingVertical: 12,
     alignItems: "center",

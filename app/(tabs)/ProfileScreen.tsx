@@ -12,6 +12,7 @@ import {
   useColorScheme,
   ScrollView,
 } from "react-native";
+import * as Animatable from "react-native-animatable";
 import {
   Ionicons,
   AntDesign,
@@ -131,7 +132,9 @@ const ProfileScreen = ({ navigation }: Props) => {
 
   return (
     <View style={dynamicStyles.container}>
-      <View style={dynamicStyles.profileContainer}>
+      <View pointerEvents="none" style={dynamicStyles.glassOrbTop} />
+      <View pointerEvents="none" style={dynamicStyles.glassOrbBottom} />
+      <Animatable.View animation="fadeInDown" duration={500} useNativeDriver style={dynamicStyles.profileContainer}>
         <Image
           source={(user as any)?.profile_image ? { uri: (user as any).profile_image } : require("@/assets/images/profile.png")}
           style={dynamicStyles.profileImage}
@@ -140,81 +143,81 @@ const ProfileScreen = ({ navigation }: Props) => {
           <Text style={dynamicStyles.profileName}>{(user as any)?.firstName} {(user as any)?.lastName}</Text>
           <Text style={dynamicStyles.profileSubtitle}>{(user as any)?.CompanyName}</Text>
         </View>
-      </View>
+      </Animatable.View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
-        <View style={dynamicStyles.menuContainer}>
-          <TouchableOpacity style={dynamicStyles.menuItem} onPress={() => navigation.navigate("Docs")}>
-            <AntDesign name="idcard" size={24} color="#F20505" />
+        <Animatable.View animation="fadeInUp" duration={550} useNativeDriver style={dynamicStyles.menuContainer}>
+          <TouchableOpacity activeOpacity={0.84} style={dynamicStyles.menuItem} onPress={() => navigation.navigate("Docs")}>
+            <AntDesign name="idcard" size={24} color="#00f4f5" />
             <Text style={dynamicStyles.menuText}>Configuración de perfil</Text>
-            <Ionicons name="chevron-forward-outline" size={24} color="#F20505" />
+            <Ionicons name="chevron-forward-outline" size={24} color="#00f4f5" />
           </TouchableOpacity>
 
           {(user as any)?.usertype === "customer" ? (
-            <TouchableOpacity style={dynamicStyles.menuItem} onPress={() => navigation.navigate("Search")}>
-              <FontAwesome5 name="search-location" size={24} color="#F20505" />
+            <TouchableOpacity activeOpacity={0.84} style={dynamicStyles.menuItem} onPress={() => navigation.navigate("Search")}>
+              <FontAwesome5 name="search-location" size={24} color="#00f4f5" />
               <Text style={dynamicStyles.menuText}>Mis lugares</Text>
-              <Ionicons name="chevron-forward-outline" size={24} color="#F20505" />
+              <Ionicons name="chevron-forward-outline" size={24} color="#00f4f5" />
             </TouchableOpacity>
           ) : null}
    {/* 
    <TouchableOpacity style={dynamicStyles.menuItem} onPress={() => navigation.navigate("MyEarning")}>
               <MaterialIcons name="attach-money" size={24} color="red" />
               <Text style={dynamicStyles.menuText}>Mis Ganancias</Text>
-              <Ionicons name="chevron-forward-outline" size={24} color="#F20505" />
+              <Ionicons name="chevron-forward-outline" size={24} color="#00f4f5" />
             </TouchableOpacity>
    */}
-          <TouchableOpacity style={dynamicStyles.menuItem} onPress={() => navigation.navigate("Carnet")}>
-            <AntDesign name="idcard" size={24} color="#F20505" />
+          <TouchableOpacity activeOpacity={0.84} style={dynamicStyles.menuItem} onPress={() => navigation.navigate("Carnet")}>
+            <AntDesign name="idcard" size={24} color="#00f4f5" />
             <Text style={dynamicStyles.menuText}>Carnet</Text>
-            <Ionicons name="chevron-forward-outline" size={24} color="#F20505" />
+            <Ionicons name="chevron-forward-outline" size={24} color="#00f4f5" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={dynamicStyles.menuItem} onPress={() => navigation.navigate('SecurityContact')}>
-            <AntDesign name="contacts" size={24} color="#F20505" />
+          <TouchableOpacity activeOpacity={0.84} style={dynamicStyles.menuItem} onPress={() => navigation.navigate('SecurityContact')}>
+            <AntDesign name="contacts" size={24} color="#00f4f5" />
             <Text style={dynamicStyles.menuText}>Contacto de seguridad</Text>
-            <Ionicons name="chevron-forward-outline" size={24} color="#F20505" />
+            <Ionicons name="chevron-forward-outline" size={24} color="#00f4f5" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={dynamicStyles.menuItem} onPress={() => navigation.navigate("ReceiveLocation")}>
-            <MaterialIcons name="share-location" size={24} color="#F20505" />
+          <TouchableOpacity activeOpacity={0.84} style={dynamicStyles.menuItem} onPress={() => navigation.navigate("ReceiveLocation")}>
+            <MaterialIcons name="share-location" size={24} color="#00f4f5" />
             <Text style={dynamicStyles.menuText}>Viaje Compartido</Text>
-            <Ionicons name="chevron-forward-outline" size={23} color="#F20505" />
+            <Ionicons name="chevron-forward-outline" size={23} color="#00f4f5" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={dynamicStyles.menuItem} onPress={() => navigation.navigate("Soporte")}>
-            <Ionicons name="chatbubble-ellipses-outline" size={24} color="#F20505" />
+          <TouchableOpacity activeOpacity={0.84} style={dynamicStyles.menuItem} onPress={() => navigation.navigate("Soporte")}>
+            <Ionicons name="chatbubble-ellipses-outline" size={24} color="#00f4f5" />
             <Text style={dynamicStyles.menuText}>Chat con TREAS</Text>
-            <Ionicons name="chevron-forward-outline" size={24} color="#F20505" />
+            <Ionicons name="chevron-forward-outline" size={24} color="#00f4f5" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={dynamicStyles.menuItem} onPress={benefits}>
-            <Ionicons name="log-out-outline" size={24} color="#F20505" />
+          <TouchableOpacity activeOpacity={0.84} style={dynamicStyles.menuItem} onPress={benefits}>
+            <Ionicons name="log-out-outline" size={24} color="#00f4f5" />
             <Text style={dynamicStyles.menuText}>Beneficios</Text>
-            <Ionicons name="chevron-forward-outline" size={24} color="#F20505" />
+            <Ionicons name="chevron-forward-outline" size={24} color="#00f4f5" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={dynamicStyles.menuItem} onPress={refer}>
-            <AntDesign name="share-alt" size={24} color="#F20505" />
+          <TouchableOpacity activeOpacity={0.84} style={dynamicStyles.menuItem} onPress={refer}>
+            <AntDesign name="share-alt" size={24} color="#00f4f5" />
             <Text style={dynamicStyles.menuText}>Comparte y gana</Text>
-            <Ionicons name="chevron-forward-outline" size={24} color="#F20505" />
+            <Ionicons name="chevron-forward-outline" size={24} color="#00f4f5" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={dynamicStyles.menuItem} onPress={sos}>
-            <MaterialIcons name="sos" size={24} color="#F20505" />
+          <TouchableOpacity activeOpacity={0.84} style={dynamicStyles.menuItem} onPress={sos}>
+            <MaterialIcons name="sos" size={24} color="#00f4f5" />
             <Text style={dynamicStyles.menuText}>SOS</Text>
-            <Ionicons name="chevron-forward-outline" size={23} color="#F20505" />
+            <Ionicons name="chevron-forward-outline" size={23} color="#00f4f5" />
           </TouchableOpacity>
 
           {(user as any)?.usertype === "driver" && (
             <>
-              <TouchableOpacity style={dynamicStyles.menuItem} onPress={() => navigation.navigate("Insurance")}>
-                <MaterialIcons name="security" size={24} color="#F20505" />
+              <TouchableOpacity activeOpacity={0.84} style={dynamicStyles.menuItem} onPress={() => navigation.navigate("Insurance")}>
+                <MaterialIcons name="security" size={24} color="#00f4f5" />
                 <Text style={dynamicStyles.menuText}>Aseguradora</Text>
-                <Ionicons name="chevron-forward-outline" size={23} color="#F20505" />
+                <Ionicons name="chevron-forward-outline" size={23} color="#00f4f5" />
               </TouchableOpacity>
 
-              <TouchableOpacity style={dynamicStyles.menuItem} onPress={handleDrivers}>
+              <TouchableOpacity activeOpacity={0.84} style={dynamicStyles.menuItem} onPress={handleDrivers}>
                 <Image
                   source={require("@/assets/images/iconos3d/DriversClub.png")}
                   style={{ height: 30, width: 30, borderRadius: 50 }}
@@ -224,23 +227,23 @@ const ProfileScreen = ({ navigation }: Props) => {
             </>
           )}
 
-          <TouchableOpacity style={dynamicStyles.menuItem} onPress={() => navigation.navigate("Complain")}>
-            <Ionicons name="help-buoy-outline" size={24} color="#F20505" />
+          <TouchableOpacity activeOpacity={0.84} style={dynamicStyles.menuItem} onPress={() => navigation.navigate("Complain")}>
+            <Ionicons name="help-buoy-outline" size={24} color="#00f4f5" />
             <Text style={dynamicStyles.menuText}>Quejas</Text>
-            <Ionicons name="chevron-forward-outline" size={23} color="#F20505" />
+            <Ionicons name="chevron-forward-outline" size={23} color="#00f4f5" />
           </TouchableOpacity>
           
   
-          <TouchableOpacity style={dynamicStyles.menuItem} onPress={handleLogout} disabled={loading}>
-            <Ionicons name="log-out-outline" size={24} color="#F20505" />
+          <TouchableOpacity activeOpacity={0.84} style={dynamicStyles.menuItem} onPress={handleLogout} disabled={loading}>
+            <Ionicons name="log-out-outline" size={24} color="#00f4f5" />
             <Text style={dynamicStyles.menuText}>{loading ? "Cerrando..." : "Cerrar Sesión"}</Text>
-            <Ionicons name="chevron-forward-outline" size={24} color="#F20505" />
+            <Ionicons name="chevron-forward-outline" size={24} color="#00f4f5" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={dynamicStyles.menuItem} onPress={() => navigation.navigate("Updates")}>
+          <TouchableOpacity activeOpacity={0.84} style={dynamicStyles.menuItem} onPress={() => navigation.navigate("Updates")}>
             <Text style={dynamicStyles.menuText}>Ver Actualizaciones</Text>
           </TouchableOpacity>
-        </View>
+        </Animatable.View>
       </ScrollView>
       <Text style={dynamicStyles.version}>RT {AppConfig.runtime_Version} V {AppConfig.ios_app_version}  B {AppConfig.android_app_version}</Text>
 
@@ -252,15 +255,41 @@ const ProfileScreen = ({ navigation }: Props) => {
 const styles = (isDarkMode: boolean) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: isDarkMode ? "#121212" : "white",
+    backgroundColor: isDarkMode ? "#01060a" : "#e9f1f5",
     paddingTop: 40,
+  },
+  glassOrbTop: {
+    position: "absolute",
+    top: -100,
+    right: -50,
+    width: 240,
+    height: 240,
+    borderRadius: 120,
+    backgroundColor: isDarkMode ? "rgba(21, 229, 233, 0.12)" : "rgba(0, 244, 245, 0.16)",
+  },
+  glassOrbBottom: {
+    position: "absolute",
+    bottom: 90,
+    left: -70,
+    width: 280,
+    height: 280,
+    borderRadius: 140,
+    backgroundColor: isDarkMode ? "rgba(0, 32, 74, 0.28)" : "rgba(0, 32, 74, 0.09)",
   },
   profileContainer: {
     flexDirection: "row",
     margin: 20,
-    borderBottomWidth: 0.2,
-    borderBottomColor: isDarkMode ? "#444" : "#ddd",
+    padding: 14,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: isDarkMode ? "rgba(21, 229, 233, 0.22)" : "rgba(0, 244, 245, 0.18)",
+    backgroundColor: isDarkMode ? "rgba(4, 39, 58, 0.46)" : "rgba(255, 255, 255, 0.75)",
     alignItems: "center",
+    shadowColor: "#00204a",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 3,
   },
   profileImage: {
     width: 100,
@@ -279,19 +308,24 @@ const styles = (isDarkMode: boolean) => StyleSheet.create({
   },
   menuContainer: {
     marginHorizontal: 20,
+    paddingBottom: 10,
   },
   menuItem: {
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 13,
-    borderBottomColor: isDarkMode ? "#444" : "#ddd",
+    paddingHorizontal: 12,
+    marginBottom: 10,
+    borderRadius: 14,
+    borderColor: isDarkMode ? "rgba(21, 229, 233, 0.18)" : "rgba(0, 244, 245, 0.15)",
     borderBottomWidth: 1,
+    backgroundColor: isDarkMode ? "rgba(4, 39, 58, 0.42)" : "rgba(255, 255, 255, 0.74)",
   },
   menuText: {
     flex: 1,
     fontSize: 16,
     marginLeft: 10,
-    fontWeight: "bold",
+    fontWeight: "800",
     color: isDarkMode ? "#fff" : "#000",
   },
   version: {

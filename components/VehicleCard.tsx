@@ -13,7 +13,7 @@ const VehicleCard = ({ car, onPress, onDelete }) => {
         <View style={styles.header}>
           <Text style={styles.title}>{car.vehicleMake} {car.vehicleModel}</Text>
           <TouchableOpacity onPress={onDelete}>
-            <FontAwesome name="trash" size={24} color="#f20505" />
+            <FontAwesome name="trash" size={24} color="#00f4f5" />
           </TouchableOpacity>
         </View>
         <View style={styles.infoRow}>
@@ -37,14 +37,14 @@ const VehicleCard = ({ car, onPress, onDelete }) => {
         </View>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', right: 60, width: '130%',}} >
       <View style={styles.infoRow}>
-          <FontAwesome name="check-circle" size={18} color={car.active ? "#F20505" : "#494949"} />
-          <Text style={[styles.infoText, { color: car.active ? "#F20505" : "#494949" }]}>
+          <FontAwesome name="check-circle" size={18} color={car.active ? "#00f4f5" : "#494949"} />
+          <Text style={[styles.infoText, { color: car.active ? "#00f4f5" : "#494949" }]}>
             Activo: {car.active ? "Sí" : "No"}
           </Text>
         </View>
         <View style={styles.infoRow}>
-          <FontAwesome name="thumbs-up" size={18} color={car.approved ? "#F20505" : "#494949"} />
-          <Text style={[styles.infoText, { color: car.approved ? "#F20505" : "#494949" }]}>
+          <FontAwesome name="thumbs-up" size={18} color={car.approved ? "#00f4f5" : "#494949"} />
+          <Text style={[styles.infoText, { color: car.approved ? "#00f4f5" : "#494949" }]}>
             Aprobado: {car.approved ? "Sí" : "No"}
           </Text>
         </View>

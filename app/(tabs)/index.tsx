@@ -1,4 +1,4 @@
-import React, {
+﻿import React, {
   useEffect,
   useState,
   useRef,
@@ -62,6 +62,7 @@ import { useRoute } from "@react-navigation/native";
 import { useFocusEffect } from "@react-navigation/native";
 import BottomSheet from "@gorhom/bottom-sheet"; // Importa el BottomSheet
 import { database } from "../../config/SupabaseConfig"; // Asegúrate de que la ruta sea correcta
+import supabase from "@/config/SupabaseConfig";
 import MapSensor from "./mapaSensors";
 
 
@@ -93,6 +94,7 @@ const MapScreen = () => {
   const [filteredBookings, setFilteredBookings] = useState([]);
   const [activeBookingsCount, setActiveBookingsCount] = useState(0);
   const [tourVisible, setTourVisible] = useState(false);
+  const [dbFirstName, setDbFirstName] = useState<string | null>(null);
   const settings = useSelector(selectSettings);
   const totalSteps = 9; // Total de pasos en el tour
   const [loading, setLoading] = useState(false); // Estado para controlar el loader
@@ -250,6 +252,53 @@ const [inprocess, setInprocess] = useState("");
  // console.log("closestBooking", closestBooking);
   useEffect(() => {
 
+    let isMounted = true;
+
+    const fetchFirstName = async () => {
+      try {
+        const {
+          data: { user: authUser },
+        } = await supabase.auth.getUser();
+
+        const authUserId = authUser?.id || user?.auth_id || user?.id;
+        if (!authUserId) {
+          if (isMounted) setDbFirstName(null);
+          return;
+        }
+
+        const { data: byAuthId } = await supabase
+          .from("users")
+          .select("first_name")
+          .eq("auth_id", authUserId)
+          .maybeSingle();
+
+        if (byAuthId?.first_name) {
+          if (isMounted) setDbFirstName(byAuthId.first_name);
+          return;
+        }
+
+        const { data: byId } = await supabase
+          .from("users")
+          .select("first_name")
+          .eq("id", authUserId)
+          .maybeSingle();
+
+        if (isMounted) {
+          setDbFirstName(byId?.first_name || null);
+        }
+      } catch (error) {
+        if (isMounted) setDbFirstName(null);
+      }
+    };
+
+    fetchFirstName();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.id]);
+
+  useEffect(() => {
     if (user) {
       setIsEmailVerified(user.emailVerified);
     }
@@ -521,8 +570,8 @@ const [inprocess, setInprocess] = useState("");
     const cards = [
       {
         id: 1,
-        title: "🚗 ¡Información de tu vehículo!",
-        subtitle: `🔍 Toca aquí para ver los detalles de tu vehículo.\nVehiculo activo: ${user.carType}\nPlaca: ${user?.vehicleNumber}`,
+        title: "¡Información de tu vehículo!",
+        subtitle: `Toca aquí para ver los detalles de tu vehículo.\nVehículo activo: ${user.carType}\nPlaca: ${user?.vehicleNumber}`,
         image: user?.car_image ? { uri: user.car_image } : require("@/assets/images/iconos3d/12.png"),
       },
       {
@@ -584,12 +633,20 @@ const [inprocess, setInprocess] = useState("");
       <View style={styles.containerDayli}>
         <Text style={styles.headerDayli}>T+Plus</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.scrollContainerDayli}>
-          {cards.map((card) => (
-            <TouchableOpacity key={card.id} style={styles.cardDayli} onPress={() => handlePress(card.id)}>
-              <Image source={card.image} style={styles.cardImageDayli} />
-              <Text style={styles.cardTitleDayli}>{card.title}</Text>
-              <Text style={styles.cardSubtitleDayli}>{card.subtitle}</Text>
-            </TouchableOpacity>
+          {cards.map((card, index) => (
+            <Animatable.View
+              key={card.id}
+              animation="fadeInUp"
+              duration={550}
+              delay={index * 80}
+              useNativeDriver
+            >
+              <TouchableOpacity style={styles.cardDayli} onPress={() => handlePress(card.id)}>
+                <Image source={card.image} style={styles.cardImageDayli} />
+                <Text style={styles.cardTitleDayli}>{card.title}</Text>
+                <Text style={styles.cardSubtitleDayli}>{card.subtitle}</Text>
+              </TouchableOpacity>
+            </Animatable.View>
           ))}
         </ScrollView>
       </View>
@@ -954,7 +1011,7 @@ const [inprocess, setInprocess] = useState("");
                     leftIcon={{
                       type: "antdesign",
                       name: "phone",
-                      color: "#f20505",
+                      color: "#00f4f5",
                     }}
                     inputStyle={styles.input}
                   />
@@ -1025,7 +1082,7 @@ const [inprocess, setInprocess] = useState("");
                       leftIcon={{
                         type: "antdesign",
                         name: "idcard",
-                        color: "#f20505",
+                        color: "#00f4f5",
                       }}
                       inputStyle={styles.input}
                     />
@@ -1059,7 +1116,7 @@ const [inprocess, setInprocess] = useState("");
                       leftIcon={{
                         type: "materialicons",
                         name: "account-balance",
-                        color: "#f20505",
+                        color: "#00f4f5",
                       }}
                       inputStyle={styles.input}
                     />
@@ -1127,7 +1184,7 @@ const [inprocess, setInprocess] = useState("");
                       leftIcon={{
                         type: "materialicons",
                         name: "location-on",
-                        color: "#f20505",
+                        color: "#00f4f5",
                       }}
                       inputStyle={styles.input}
                     />
@@ -1883,12 +1940,19 @@ const [inprocess, setInprocess] = useState("");
       <View style={styles.containerHorizontal}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           {banners.map((banner, index) => (
-            <TouchableOpacity
-              key={index}
-              onPress={() => handlePress(banner.url)}
+            <Animatable.View
+              key={`${banner.url}-${index}`}
+              animation="fadeInRight"
+              duration={500}
+              delay={index * 90}
+              useNativeDriver
             >
-              <Image source={banner.image} style={styles.bannerImage} />
-            </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => handlePress(banner.url)}
+              >
+                <Image source={banner.image} style={styles.bannerImage} />
+              </TouchableOpacity>
+            </Animatable.View>
           ))}
         </ScrollView>
       </View>
@@ -1897,53 +1961,6 @@ const [inprocess, setInprocess] = useState("");
 
   return (
     <View style={styles.container}>
-
-     
-      <View style={[styles.infoContainer, styles.infoContainerDark]}>
-        <Text
-          style={[
-            styles.statusText,
-            {
-              color: user?.driverActiveStatus
-                ? colorScheme === "dark"
-                  ? "#FF6B6B" // Rojo claro para modo oscuro
-                  : "red"
-                : colorScheme === "dark"
-                ? "#A9A9A9" // Gris claro para modo oscuro
-                : "gray",
-            },
-          ]}
-        >
-          {user?.driverActiveStatus ? "Activo" : "Descanso"} {"  "}
-        </Text>
-        <TouchableOpacity
-          style={{
-            backgroundColor: user?.driverActiveStatus ? "#F20505" : "#767577",
-            borderRadius: 20,
-            padding: 10,
-            alignItems: "center",
-            justifyContent: "center",
-            width: 50,
-            height: 30,
-          }}
-          onPress={() => {
-            const newStatus = !user?.driverActiveStatus;
-            handleSwipeSuccess(newStatus);
-            setIsEnabled(newStatus);
-          }}
-        >
-          <View
-            style={{
-              backgroundColor: "#fff",
-              borderRadius: 15,
-              width: 25,
-              height: 25,
-              transform: [{ translateX: user?.driverActiveStatus ? 20 : 0 }],
-              transition: "transform 0.2s ease-in-out",
-            }}
-          />
-        </TouchableOpacity>
-      </View>
 
       {IsMapVisible ? (
         <>
@@ -1967,7 +1984,7 @@ const [inprocess, setInprocess] = useState("");
             </Text>
             <TouchableOpacity
               style={{
-                backgroundColor: user?.driverActiveStatus ? "#F20505" : "#767577",
+                backgroundColor: user?.driverActiveStatus ? "#00f4f5" : "#767577",
                 borderRadius: 20,
                 padding: 10,
                 alignItems: "center",
@@ -1999,89 +2016,125 @@ const [inprocess, setInprocess] = useState("");
           </TouchableOpacity>
         </>
       ) : (
-        <ScrollView style={styles.bottomSheetContent}>
-          {/* Contenedor para la flecha y el saludo */}
-          <View >
-            {/* Flecha hacia atrás */}
-            <TouchableOpacity
-              onPress={() => setIsMapVisible(true)} // Cambia a mostrar el mapa
-            >
-              <Ionicons name="arrow-back" size={24} color={colorScheme === "dark" ? "#fff" : "#000"} />
-            </TouchableOpacity>
-
-            {/* Mensaje de saludo */}
-            <View style={styles.greetingContainer}>
-              <View style={styles.notificationCard}>
-                <Text style={styles.notificationText}>
-                  👋🏻{' '}
-                  {(() => {
-                    const currentHour = new Date().getHours();
-                    let greeting;
-                    if (currentHour < 12) {
-                      greeting = "Buenos días";
-                    } else if (currentHour < 18) {
-                      greeting = "Buenas tardes";
-                    } else {
-                      greeting = "Buenas noches";
-                    }
-                    return `${greeting}, ${user?.firstName} ${user?.lastName}`;
-                  })()}
-                </Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Sugerencias de servicios */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Sugerencias</Text>
-          </View>
-          <FlatList
-            horizontal
-            data={sugerencias}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <TouchableOpacity onPress={() => navigation.navigate(item.route)}>
-                <View style={styles.suggestionCard}>
-                  <Image source={item.icono} style={styles.suggestionIcon} />
-                  <Text style={styles.suggestionText}>{item.nombre}</Text>
-                </View>
-              </TouchableOpacity>
-            )}
-          />
-          {DailySavings()}
-
-          {/* Promociones o beneficios */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Novedades</Text>
-          </View>
-          {promociones.map((promo) => (
-            <TouchableOpacity
-              key={promo.id}
-              style={styles.promoCard}
-              onPress={() => navigation.navigate(promo.route)}
-            >
-              <Image source={promo.image} style={styles.promoImage} />
-              <View>
-                <Text style={styles.promoTitle}>{promo.titulo} →</Text>
-                <Text style={styles.promoDescription}>{promo.descripcion}</Text>
-              </View>
-            </TouchableOpacity>
-          ))}
-
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Beneficios</Text>
-          </View>
-            <HorizontalImageBanner />
-      
-
-          {/* Botón para cerrar el BottomSheet */}
-          <TouchableOpacity
-            onPress={() => setIsMapVisible(true)}
-            style={[styles.closeButton, { marginTop: 20, alignSelf: "center" }]}
+        <View style={nS.wrap}>
+          <View pointerEvents="none" style={nS.orbTop} />
+          <View pointerEvents="none" style={nS.orbBottomLeft} />
+          <ScrollView
+            style={nS.scroll}
+            contentContainerStyle={nS.scrollContent}
+            showsVerticalScrollIndicator={false}
           >
-            <Text style={styles.closeButtonText}>Cerrar</Text>
-          </TouchableOpacity>
-        </ScrollView>
+            {/* ─── HEADER ─── */}
+            <View style={nS.header}>
+              <View style={nS.avatarRing}>
+                {user?.profile_image ? (
+                  <Image source={{ uri: user.profile_image }} style={nS.avatarImg} />
+                ) : (
+                  <View style={nS.avatarFallback}>
+                    <Text style={nS.avatarInitial}>
+                      {(dbFirstName || user?.first_name || 'U')[0].toUpperCase()}
+                    </Text>
+                  </View>
+                )}
+              </View>
+              <View style={nS.headerMid}>
+                <Text style={nS.greetText}>
+                  {new Date().getHours() < 12 ? 'Buenos días' : new Date().getHours() < 18 ? 'Buenas tardes' : 'Buenas noches'}
+                </Text>
+                <Text style={nS.nameText}>{dbFirstName || user?.first_name || 'Usuario'}</Text>
+              </View>
+              <TouchableOpacity style={nS.mapBtn} onPress={() => setIsMapVisible(true)}>
+                <Ionicons name="map-outline" size={22} color="#00E5FF" />
+              </TouchableOpacity>
+            </View>
+
+            {/* ─── DESTINATION CARD ─── */}
+            <TouchableOpacity
+              style={nS.destCard}
+              onPress={() => navigation.navigate('TripPreviewScreen' as never)}
+              activeOpacity={0.85}
+            >
+              <View style={nS.destCardInner}>
+                <View style={nS.destIconWrap}>
+                  <Ionicons name="location" size={22} color="#00E5FF" />
+                </View>
+                <View style={nS.destTextWrap}>
+                  <Text style={nS.destLabel}>¿A dónde vamos?</Text>
+                  <Text style={nS.destSub}>Toca para buscar tu destino</Text>
+                </View>
+                <Ionicons name="arrow-forward-circle-outline" size={26} color="#00E5FF" />
+              </View>
+            </TouchableOpacity>
+
+            {/* ─── SERVICIOS ─── */}
+            <View style={nS.sectionRow}>
+              <Text style={nS.sectionTitle}>Servicios</Text>
+            </View>
+            <View style={nS.servicesGrid}>
+              {([
+                { id: 'urbano', label: 'Urbano', icon: require('@/assets/images/iconos3d/12.png') },
+                { id: 'intermunicipal', label: 'Intermunicipal', icon: require('@/assets/images/iconos3d/11.png') },
+                { id: 'encomiendas', label: 'Encomiendas', icon: require('@/assets/images/iconos3d/33.png') },
+                { id: 'especial', label: 'Especial', icon: require('@/assets/images/iconos3d/8.png') },
+              ] as const).map((svc) => (
+                <TouchableOpacity
+                  key={svc.id}
+                  style={nS.serviceCard}
+                  onPress={() => navigation.navigate('TripPreviewScreen' as never)}
+                  activeOpacity={0.8}
+                >
+                  <Image source={svc.icon} style={nS.serviceIcon} />
+                  <Text style={nS.serviceLabel}>{svc.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* ─── T+PLUS CARDS ─── */}
+            {DailySavings()}
+
+            {/* ─── PROMO BANNER ─── */}
+            <View style={nS.promoBanner}>
+              <View style={nS.promoTextWrap}>
+                <Text style={nS.promoTitle}>Justo para ti...</Text>
+                <Text style={nS.promoSub}>¡Justo para todos!</Text>
+                <Text style={nS.promoDesc}>Descubre los beneficios exclusivos de T+Plus para ti y tu familia.</Text>
+              </View>
+              <TouchableOpacity
+                style={nS.promoCta}
+                onPress={() => Linking.openURL('https://tmasplus.com/beneficios')}
+              >
+                <Text style={nS.promoCtaText}>Ver más</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* ─── BENEFICIOS ─── */}
+            <View style={nS.sectionRow}>
+              <Text style={nS.sectionTitle}>Beneficios</Text>
+            </View>
+            <View style={nS.beneficiosGrid}>
+              {([
+                { id: 'seguridad', label: 'Seguridad', icon: '🛡️', desc: 'Viaja con conductores verificados' },
+                { id: 'tarifas', label: 'Tarifas justas', icon: '💰', desc: 'Sin cobros sorpresa' },
+                { id: 'rapidez', label: 'Rapidez', icon: '⚡', desc: 'Llegamos en minutos' },
+                { id: 'confort', label: 'Confort', icon: '⭐', desc: 'Comodidad garantizada' },
+              ] as const).map((b) => (
+                <View key={b.id} style={nS.beneficioCard}>
+                  <Text style={nS.beneficioIcon}>{b.icon}</Text>
+                  <Text style={nS.beneficioLabel}>{b.label}</Text>
+                  <Text style={nS.beneficioDesc}>{b.desc}</Text>
+                </View>
+              ))}
+            </View>
+
+            {/* ─── ALIADOS ─── */}
+            <View style={nS.sectionRow}>
+              <Text style={nS.sectionTitle}>Aliados</Text>
+            </View>
+            <HorizontalImageBanner />
+
+            <View style={{ height: 100 }} />
+          </ScrollView>
+        </View>
 
       )}
 
@@ -2111,7 +2164,7 @@ const [inprocess, setInprocess] = useState("");
                 </Text>
               ) : currentStep === 5 ? (
                 <Text style={[styles.tourText, { flexShrink: 1 }]}>
-                  🎉¡Felicidades!🎉 Estas a un paso de completar tu registro en
+                  x}0¡Felicidades!x}0 Estas a un paso de completar tu registro en
                   T+Plus.
                 </Text>
               ) : (
@@ -2175,7 +2228,7 @@ const [inprocess, setInprocess] = useState("");
               style={styles.cancelButton}
               onPress={() => setModalVisibleImage(false)}
             >
-              <MaterialIcons name="cancel" size={24} color="#f20505" />
+              <MaterialIcons name="cancel" size={24} color="#00f4f5" />
               <Text style={styles.cancelButtonText}>Cancelar</Text>
             </TouchableOpacity>
           </View>
@@ -2210,7 +2263,7 @@ const [inprocess, setInprocess] = useState("");
               style={styles.cancelButton}
               onPress={() => setModalVisibleImageVerify(false)}
             >
-              <MaterialIcons name="cancel" size={24} color="#f20505" />
+              <MaterialIcons name="cancel" size={24} color="#00f4f5" />
               <Text style={styles.cancelButtonText}>Cancelar</Text>
             </TouchableOpacity>
           </View>
@@ -2338,6 +2391,31 @@ const [inprocess, setInprocess] = useState("");
 };
 
 const lightStyles = StyleSheet.create({
+  bottomSheetWrap: {
+    flex: 1,
+    width: "100%",
+    position: "relative",
+  },
+  glassOrbTop: {
+    position: "absolute",
+    top: -90,
+    right: -40,
+    width: 250,
+    height: 250,
+    borderRadius: 125,
+    backgroundColor: "rgba(0, 244, 245, 0.16)",
+    zIndex: 0,
+  },
+  glassOrbBottom: {
+    position: "absolute",
+    bottom: 20,
+    left: -70,
+    width: 280,
+    height: 280,
+    borderRadius: 140,
+    backgroundColor: "rgba(0, 32, 74, 0.10)",
+    zIndex: 0,
+  },
   container: {
     ...StyleSheet.absoluteFillObject,
     flex: 1,
@@ -2409,7 +2487,7 @@ const lightStyles = StyleSheet.create({
     textAlign: "center",
   },
   createMembershipButton: {
-    backgroundColor: "#f20505",
+    backgroundColor: "#00f4f5",
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 5,
@@ -2443,7 +2521,7 @@ const lightStyles = StyleSheet.create({
     width: "100%",
   },
   renewButton: {
-    backgroundColor: "#f20505",
+    backgroundColor: "#00f4f5",
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 5,
@@ -2498,14 +2576,21 @@ const lightStyles = StyleSheet.create({
     elevation:5
   },
   notificationCard: {
-    backgroundColor: "#ff9797",
+    backgroundColor: "rgba(255, 255, 255, 0.78)",
     padding: 16,
-    borderRadius: 8,
+    borderRadius: 16,
     width: '100%', // Opcional: establece el ancho al 100% del contenedor
+    borderWidth: 1,
+    borderColor: "rgba(0, 244, 245, 0.24)",
+    shadowColor: "#00204a",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
   },
   notificationText: {
-    fontSize: 16,
-    fontWeight: "bold",
+    fontSize: 18,
+    fontWeight: "800",
+    letterSpacing: 0.3,
     color: "#000",
   },
   kmBannerButtons: {
@@ -2515,7 +2600,7 @@ const lightStyles = StyleSheet.create({
     width: "100%",
   },
   rechargeButton: {
-    backgroundColor: "#f20505",
+    backgroundColor: "#00f4f5",
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 5,
@@ -2560,7 +2645,7 @@ const lightStyles = StyleSheet.create({
     textAlign: "center",
   },
   nextButton: {
-    backgroundColor: "#f20505",
+    backgroundColor: "#00f4f5",
     width: 150,
     padding: 10,
     borderRadius: 10,
@@ -2635,7 +2720,7 @@ const lightStyles = StyleSheet.create({
   botonCamera: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#b90000",
+    backgroundColor: "#00204a",
     padding: 15,
     borderRadius: 10,
     marginBottom: 15,
@@ -2646,7 +2731,7 @@ const lightStyles = StyleSheet.create({
   botonGallery: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f20505",
+    backgroundColor: "#00f4f5",
     padding: 15,
     borderRadius: 10,
     marginBottom: 15,
@@ -2672,7 +2757,7 @@ const lightStyles = StyleSheet.create({
     marginTop: 10,
   },
   linkButton: {
-    color: "#f20505",
+    color: "#00f4f5",
     fontSize: 16,
     fontWeight: "bold",
     textAlign: "center",
@@ -2683,7 +2768,7 @@ const lightStyles = StyleSheet.create({
     marginVertical: 5,
   },
   finishButton: {
-    backgroundColor: "#f20505",
+    backgroundColor: "#00f4f5",
     marginTop: 20,
     width: 200,
     borderRadius: 10,
@@ -2715,7 +2800,7 @@ const lightStyles = StyleSheet.create({
     fontSize: 16,
   },
   cancelButtonText: {
-    color: "#f20505",
+    color: "#00f4f5",
     fontSize: 16,
     fontWeight: "bold",
   },
@@ -2730,11 +2815,15 @@ const lightStyles = StyleSheet.create({
     justifyContent: "center",
     elevation: 5,
     borderWidth: 1,
-    borderColor: "#f20505",
+    borderColor: "#00f4f5",
   },
   bottomSheetContent: {
     padding: 16,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "rgba(233, 241, 245, 0.94)",
+    zIndex: 1,
+  },
+  bottomSheetContentContainer: {
+    paddingBottom: 80,
   },
 
   notificationLink: {
@@ -2749,16 +2838,18 @@ const lightStyles = StyleSheet.create({
     marginTop: 16,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
+    fontSize: 20,
+    fontWeight: "800",
+    letterSpacing: 0.4,
+    color: "#00204a",
   },
   viewAll: {
     color: "#007aff",
   },
   suggestionCard: {
-    backgroundColor: "#fff",
+    backgroundColor: "rgba(255, 255, 255, 0.74)",
     padding: 16,
-    borderRadius: 8,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
     marginRight: 16,
@@ -2768,6 +2859,8 @@ const lightStyles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
+    borderWidth: 1,
+    borderColor: "rgba(0, 244, 245, 0.28)",
   },
   suggestionIcon: {
     width: 40,
@@ -2776,13 +2869,14 @@ const lightStyles = StyleSheet.create({
   },
   suggestionText: {
     fontSize: 14,
-    fontWeight: "bold",
+    fontWeight: "800",
+    color: "#00204a",
   },
   promoCard: {
     flexDirection: "row",
-    backgroundColor: "#fff",
+    backgroundColor: "rgba(255, 255, 255, 0.78)",
     padding: 16,
-    borderRadius: 8,
+    borderRadius: 14,
     marginBottom: 16,
     alignItems: "center",
     elevation: 5,
@@ -2790,6 +2884,8 @@ const lightStyles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
+    borderWidth: 1,
+    borderColor: "rgba(0, 244, 245, 0.24)",
   },
   promoImage: {
     width: 100,
@@ -2798,8 +2894,9 @@ const lightStyles = StyleSheet.create({
     borderRadius: 8,
   },
   promoTitle: {
-    fontSize: 16,
-    fontWeight: "bold",
+    fontSize: 17,
+    fontWeight: "800",
+    color: "#00204a",
   },
   promoDescription: {
     fontSize: 14,
@@ -2822,8 +2919,9 @@ const lightStyles = StyleSheet.create({
   },
   headerDayli: {
     color: "#000",
-    fontSize: 18,
-    fontWeight: "bold",
+    fontSize: 20,
+    fontWeight: "800",
+    letterSpacing: 0.5,
     marginBottom: 10,
   },
   scrollContainerDayli: {
@@ -2831,11 +2929,13 @@ const lightStyles = StyleSheet.create({
 
   },
   cardDayli: {
-    backgroundColor: "#fff",
-    borderRadius: 15,
+    backgroundColor: "rgba(255, 255, 255, 0.74)",
+    borderRadius: 16,
     width: 200,
     marginRight: 15,
     padding: 10,
+    borderWidth: 1,
+    borderColor: "rgba(0, 244, 245, 0.22)",
   },
   cardImageDayli: {
     width: "70%",
@@ -2847,7 +2947,7 @@ const lightStyles = StyleSheet.create({
   cardTitleDayli: {
     color: "#000",
     fontSize: 16,
-    fontWeight: "bold",
+    fontWeight: "800",
   },
   cardSubtitleDayli: {
     color: "#a1a1a1",
@@ -2862,6 +2962,31 @@ const lightStyles = StyleSheet.create({
   },
 });
 const darkStyles = StyleSheet.create({
+  bottomSheetWrap: {
+    flex: 1,
+    width: "100%",
+    position: "relative",
+  },
+  glassOrbTop: {
+    position: "absolute",
+    top: -100,
+    right: -30,
+    width: 270,
+    height: 270,
+    borderRadius: 135,
+    backgroundColor: "rgba(21, 229, 233, 0.14)",
+    zIndex: 0,
+  },
+  glassOrbBottom: {
+    position: "absolute",
+    bottom: 10,
+    left: -80,
+    width: 290,
+    height: 290,
+    borderRadius: 145,
+    backgroundColor: "rgba(0, 32, 74, 0.28)",
+    zIndex: 0,
+  },
   container: {
     ...StyleSheet.absoluteFillObject,
     flex: 1,
@@ -2933,7 +3058,7 @@ const darkStyles = StyleSheet.create({
     textAlign: "center",
   },
   createMembershipButton: {
-    backgroundColor: "#f20505",
+    backgroundColor: "#00f4f5",
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 5,
@@ -2967,7 +3092,7 @@ const darkStyles = StyleSheet.create({
     width: "100%",
   },
   renewButton: {
-    backgroundColor: "#f20505",
+    backgroundColor: "#00f4f5",
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 5,
@@ -3032,7 +3157,7 @@ const darkStyles = StyleSheet.create({
     color: "#000",
   },
   rechargeButton: {
-    backgroundColor: "#f20505",
+    backgroundColor: "#00f4f5",
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 5,
@@ -3070,11 +3195,11 @@ const darkStyles = StyleSheet.create({
     width: 150,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#f20505",
+    borderColor: "#00f4f5",
     padding: 10,
   },
   prevButtonText: {
-    color: "#f20505",
+    color: "#00f4f5",
     fontSize: 16,
     fontWeight: "bold",
     textAlign: "center",
@@ -3082,7 +3207,7 @@ const darkStyles = StyleSheet.create({
     alignItems: "center",
   },
   nextButton: {
-    backgroundColor: "#f20505",
+    backgroundColor: "#00f4f5",
     width: 150,
     padding: 10,
     borderRadius: 10,
@@ -3158,7 +3283,7 @@ const darkStyles = StyleSheet.create({
   botonCamera: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#b90000",
+    backgroundColor: "#00204a",
     padding: 15,
     borderRadius: 10,
     marginBottom: 15,
@@ -3169,7 +3294,7 @@ const darkStyles = StyleSheet.create({
   botonGallery: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f20505",
+    backgroundColor: "#00f4f5",
     padding: 15,
     borderRadius: 10,
     marginBottom: 15,
@@ -3196,7 +3321,7 @@ const darkStyles = StyleSheet.create({
     color: "#fff",
   },
   linkButton: {
-    color: "#f20505",
+    color: "#00f4f5",
     fontSize: 16,
     fontWeight: "bold",
     textAlign: "center",
@@ -3208,7 +3333,7 @@ const darkStyles = StyleSheet.create({
     color: "#fff",
   },
   finishButton: {
-    backgroundColor: "#f20505",
+    backgroundColor: "#00f4f5",
     marginTop: 20,
     width: 200,
     borderRadius: 10,
@@ -3240,7 +3365,7 @@ const darkStyles = StyleSheet.create({
     fontSize: 16,
   },
   cancelButtonText: {
-    color: "#f20505",
+    color: "#00f4f5",
     fontSize: 16,
     fontWeight: "bold",
   },
@@ -3255,25 +3380,32 @@ const darkStyles = StyleSheet.create({
     justifyContent: "center",
     elevation: 5,
     borderWidth: 1,
-    borderColor: "#f20505",
+    borderColor: "#00f4f5",
   },
   bottomSheetContent: {
     padding: 16,
-    backgroundColor: "#474747", // Darker background for Bottom Sheet
+    backgroundColor: "rgba(1, 6, 10, 0.94)", // Glass dark background
+    zIndex: 1,
+  },
+  bottomSheetContentContainer: {
+    paddingBottom: 80,
   },
 
   notificationCard: {
-    backgroundColor: "#4f0000", // Dark red for notifications
+    backgroundColor: "rgba(4, 39, 58, 0.52)",
     padding: 16,
-    borderRadius: 8,
+    borderRadius: 16,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "rgba(21, 229, 233, 0.30)",
   },
   notificationText: {
-    fontSize: 16,
-    fontWeight: "bold",
+    fontSize: 18,
+    fontWeight: "800",
+    letterSpacing: 0.3,
     color: "#ffffff", // White text for better contrast
   },
   notificationLink: {
@@ -3288,20 +3420,23 @@ const darkStyles = StyleSheet.create({
     marginTop: 16,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
+    fontSize: 20,
+    fontWeight: "800",
+    letterSpacing: 0.4,
     color: "#ffffff", // White text for section titles
   },
   viewAll: {
     color: "#1e90ff", // Bright blue for 'View All' links
   },
   suggestionCard: {
-    backgroundColor: "#333333", // Dark background for suggestion cards
+    backgroundColor: "rgba(4, 39, 58, 0.45)",
     padding: 16,
-    borderRadius: 8,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
     marginRight: 16,
+    borderWidth: 1,
+    borderColor: "rgba(21, 229, 233, 0.35)",
   },
   suggestionIcon: {
     width: 40,
@@ -3310,14 +3445,14 @@ const darkStyles = StyleSheet.create({
   },
   suggestionText: {
     fontSize: 14,
-    fontWeight: "bold",
+    fontWeight: "800",
     color: "#ffffff", // White text for suggestions
   },
   promoCard: {
     flexDirection: "row",
-    backgroundColor: "#000", // Dark background for promo cards
+    backgroundColor: "rgba(4, 39, 58, 0.52)",
     padding: 16,
-    borderRadius: 8,
+    borderRadius: 14,
     marginBottom: 16,
     elevation: 5,
     alignItems: "center",
@@ -3325,6 +3460,8 @@ const darkStyles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
+    borderWidth: 1,
+    borderColor: "rgba(21, 229, 233, 0.32)",
   },
   promoImage: {
     width: 100,
@@ -3333,8 +3470,8 @@ const darkStyles = StyleSheet.create({
     borderRadius: 8,
   },
   promoTitle: {
-    fontSize: 16,
-    fontWeight: "bold",
+    fontSize: 17,
+    fontWeight: "800",
     color: "#ffffff", // White text for promo titles
   },
   promoDescription: {
@@ -3367,19 +3504,22 @@ const darkStyles = StyleSheet.create({
   },
   headerDayli: {
     color: "#fff",
-    fontSize: 18,
-    fontWeight: "bold",
+    fontSize: 20,
+    fontWeight: "800",
+    letterSpacing: 0.5,
     marginBottom: 10,
   },
   scrollContainerDayli: {
     flexDirection: "row",
   },
   cardDayli: {
-    backgroundColor: "#1c1c1e",
-    borderRadius: 15,
+    backgroundColor: "rgba(4, 39, 58, 0.45)",
+    borderRadius: 16,
     width: 200,
     marginRight: 15,
     padding: 10,
+    borderWidth: 1,
+    borderColor: "rgba(21, 229, 233, 0.30)",
   },
   cardImageDayli: {
     width: "70%",
@@ -3392,7 +3532,7 @@ const darkStyles = StyleSheet.create({
   cardTitleDayli: {
     color: "#fff",
     fontSize: 16,
-    fontWeight: "bold",
+    fontWeight: "800",
   },
   cardSubtitleDayli: {
     color: "#a1a1a1",
@@ -3407,4 +3547,259 @@ const darkStyles = StyleSheet.create({
   },
 });
 
+const nS = StyleSheet.create({
+  wrap: {
+    flex: 1,
+    width: '100%',
+    backgroundColor: '#051A26',
+  },
+  orbTop: {
+    position: 'absolute',
+    top: -80,
+    right: -60,
+    width: 260,
+    height: 260,
+    borderRadius: 130,
+    backgroundColor: 'rgba(0, 229, 255, 0.07)',
+    zIndex: 0,
+  },
+  orbBottomLeft: {
+    position: 'absolute',
+    bottom: 100,
+    left: -80,
+    width: 280,
+    height: 280,
+    borderRadius: 140,
+    backgroundColor: 'rgba(0, 32, 74, 0.20)',
+    zIndex: 0,
+  },
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingTop: 55,
+    paddingBottom: 100,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  avatarRing: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    borderWidth: 2,
+    borderColor: '#00E5FF',
+    overflow: 'hidden',
+    marginRight: 12,
+  },
+  avatarImg: {
+    width: '100%',
+    height: '100%',
+  },
+  avatarFallback: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: 'rgba(0,229,255,0.18)',
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+  },
+  avatarInitial: {
+    color: '#00E5FF',
+    fontSize: 20,
+    fontWeight: '800' as const,
+  },
+  headerMid: {
+    flex: 1,
+  },
+  greetText: {
+    color: 'rgba(255,255,255,0.55)',
+    fontSize: 13,
+    fontWeight: '500' as const,
+  },
+  nameText: {
+    color: '#ffffff',
+    fontSize: 19,
+    fontWeight: '800' as const,
+    letterSpacing: 0.3,
+  },
+  mapBtn: {
+    padding: 8,
+    backgroundColor: 'rgba(0,229,255,0.1)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(0,229,255,0.2)',
+  },
+  destCard: {
+    backgroundColor: 'rgba(10, 46, 61, 0.72)',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 229, 255, 0.3)',
+    marginBottom: 26,
+    shadowColor: '#00E5FF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 14,
+    elevation: 8,
+  },
+  destCardInner: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    padding: 18,
+  },
+  destIconWrap: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(0, 229, 255, 0.12)',
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+    marginRight: 14,
+  },
+  destTextWrap: {
+    flex: 1,
+  },
+  destLabel: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '700' as const,
+    letterSpacing: 0.3,
+  },
+  destSub: {
+    color: 'rgba(255,255,255,0.45)',
+    fontSize: 12,
+    marginTop: 3,
+  },
+  sectionRow: {
+    flexDirection: 'row' as const,
+    justifyContent: 'space-between' as const,
+    alignItems: 'center' as const,
+    marginBottom: 14,
+    marginTop: 4,
+  },
+  sectionTitle: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: '800' as const,
+    letterSpacing: 0.4,
+  },
+  servicesGrid: {
+    flexDirection: 'row' as const,
+    flexWrap: 'wrap' as const,
+    justifyContent: 'space-between' as const,
+    marginBottom: 24,
+  },
+  serviceCard: {
+    width: '47%',
+    backgroundColor: 'rgba(10, 46, 61, 0.72)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 229, 255, 0.18)',
+    padding: 18,
+    alignItems: 'center' as const,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  serviceIcon: {
+    width: 52,
+    height: 52,
+    marginBottom: 10,
+    resizeMode: 'contain' as const,
+  },
+  serviceLabel: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '700' as const,
+    letterSpacing: 0.3,
+    textAlign: 'center' as const,
+  },
+  promoBanner: {
+    backgroundColor: 'rgba(0, 229, 255, 0.08)',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 229, 255, 0.22)',
+    padding: 20,
+    marginBottom: 26,
+    flexDirection: 'row' as const,
+    justifyContent: 'space-between' as const,
+    alignItems: 'center' as const,
+  },
+  promoTextWrap: {
+    flex: 1,
+    marginRight: 12,
+  },
+  promoTitle: {
+    color: '#00E5FF',
+    fontSize: 13,
+    fontWeight: '700' as const,
+    letterSpacing: 0.3,
+    marginBottom: 2,
+  },
+  promoSub: {
+    color: '#ffffff',
+    fontSize: 17,
+    fontWeight: '900' as const,
+    letterSpacing: 0.2,
+    marginBottom: 6,
+  },
+  promoDesc: {
+    color: 'rgba(255,255,255,0.55)',
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  promoCta: {
+    backgroundColor: '#00E5FF',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+  },
+  promoCtaText: {
+    color: '#051A26',
+    fontWeight: '800' as const,
+    fontSize: 13,
+  },
+  beneficiosGrid: {
+    flexDirection: 'row' as const,
+    flexWrap: 'wrap' as const,
+    justifyContent: 'space-between' as const,
+    marginBottom: 26,
+  },
+  beneficioCard: {
+    width: '47%',
+    backgroundColor: 'rgba(10, 46, 61, 0.72)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 229, 255, 0.14)',
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  beneficioIcon: {
+    fontSize: 26,
+    marginBottom: 8,
+  },
+  beneficioLabel: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '700' as const,
+    marginBottom: 4,
+  },
+  beneficioDesc: {
+    color: 'rgba(255,255,255,0.48)',
+    fontSize: 11,
+    lineHeight: 15,
+  },
+});
+
 export default MapScreen;
+

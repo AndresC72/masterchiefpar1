@@ -764,7 +764,7 @@ const CarsScreen = ({ navigation }: any) => {
                 styles.botonCamera,
                 {
                   width: "50%",
-                  backgroundColor: isFormComplete ? "#F20505" : "#B0B0B0"
+                  backgroundColor: isFormComplete ? "#00f4f5" : "#B0B0B0"
                 }
               ]}
               disabled={!isFormComplete}
@@ -829,7 +829,7 @@ const CarsScreen = ({ navigation }: any) => {
           </Modal>
           {loading && (
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#F20505" />
+              <ActivityIndicator size="large" color="#00f4f5" />
               <Text style={styles.loadingText}>Cargando...</Text>
             </View>
           )}
@@ -921,7 +921,7 @@ const lightStyles = StyleSheet.create({
     paddingBottom: 5,
   },
   uploadButton: {
-    backgroundColor: "#F20505",
+    backgroundColor: "#00f4f5",
     borderRadius: 16,
     alignItems: "center",
     marginVertical: 5,
@@ -1013,7 +1013,7 @@ const lightStyles = StyleSheet.create({
   botonGallery: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#b90000",
+    backgroundColor: "#00204a",
     padding: 15,
     borderRadius: 10,
     marginBottom: 15,
@@ -1105,7 +1105,7 @@ const darkStyles = StyleSheet.create({
 
   },
   uploadButton: {
-    backgroundColor: "#F20505",
+    backgroundColor: "#00f4f5",
     borderRadius: 16,
     alignItems: "center",
     marginVertical: 5,
@@ -1197,7 +1197,7 @@ const darkStyles = StyleSheet.create({
   botonGallery: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#b90000",
+    backgroundColor: "#00204a",
     padding: 15,
     borderRadius: 10,
     marginBottom: 15,

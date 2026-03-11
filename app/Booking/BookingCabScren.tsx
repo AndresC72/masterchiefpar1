@@ -1,4 +1,4 @@
-import React, {
+﻿import React, {
   useRef,
   useMemo,
   useCallback,
@@ -337,7 +337,7 @@ const BookingCabScreen = () => {
             body: JSON.stringify({
               tokens: [currentBooking.customer_token],
               title: `¡${currentBooking.customer_name} Tu viaje ha comenzado!`,
-              body: `¡Hola ${currentBooking.customer_name}! 🚗✨ Tu emocionante viaje ha comenzado. ¡Prepárate para una experiencia increíble!`,
+              body: `¡Hola ${currentBooking.customer_name}! xaS Tu emocionante viaje ha comenzado. ¡Prepárate para una experiencia increíble!`,
             }),
           }
         )
@@ -1327,8 +1327,8 @@ const BookingCabScreen = () => {
                 radio_props={incidentOptions}
                 initial={null}
                 onPress={(value) => setSelectedIncident(value)}
-                buttonColor={"#F20505"}
-                selectedButtonColor={"#F20505"}
+                buttonColor={"#00f4f5"}
+                selectedButtonColor={"#00f4f5"}
                 labelStyle={{ fontSize: 16, color: "#000" }}
                 radioStyle={{ marginBottom: 15 }}
               />
@@ -1341,7 +1341,7 @@ const BookingCabScreen = () => {
                 <TouchableOpacity
                   style={[
                     styles.modalConfirmButton,
-                    { backgroundColor: "#F20505", marginHorizontal: 10 },
+                    { backgroundColor: "#00f4f5", marginHorizontal: 10 },
                   ]}
                   onPress={handleReportIncident}
                 >
@@ -2010,7 +2010,7 @@ const DriverInfo = ({ currentBooking, user, colorScheme }) => {
 
         {/* Ensure the driver rating is available and valid */}
         <Text style={styles.driverRating}>
-          <FontAwesome5 name="star" size={14} color="#F20505" />{" "}
+          <FontAwesome5 name="star" size={14} color="#00f4f5" />{" "}
           {currentBooking?.driverRating ?? "No Rating"}
         </Text>
 
@@ -2227,7 +2227,7 @@ const lightStyles = StyleSheet.create({
     fontWeight: "bold",
   },
   callButton: {
-    backgroundColor: "#F20505",
+    backgroundColor: "#00f4f5",
     borderRadius: 10,
     padding: 10,
     flex: 1,
@@ -2403,7 +2403,7 @@ const lightStyles = StyleSheet.create({
     alignItems: "center",
   },
   iconButton: {
-    backgroundColor: "#F20505", // Color de fondo del botón
+    backgroundColor: "#00f4f5", // Color de fondo del botón
     padding: 10, // Espacio interno del botón
     borderRadius: 5, // Bordes redondeados
     alignItems: "center", // Alineación centrada del contenido
@@ -2473,7 +2473,7 @@ const lightStyles = StyleSheet.create({
     width: "100%",
   },
   modalConfirmButton: {
-    backgroundColor: "#F20505",
+    backgroundColor: "#00f4f5",
     borderRadius: 5,
     padding: 10,
     marginTop: 10,
@@ -2543,12 +2543,12 @@ const lightStyles = StyleSheet.create({
   },
   floatButton1: {
     borderWidth: 1,
-    borderColor: "#F20505",
+    borderColor: "#00f4f5",
     alignItems: "center",
     justifyContent: "center",
     width: 50,
     height: 50,
-    backgroundColor: "#F20505",
+    backgroundColor: "#00f4f5",
     borderRadius: 30,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
@@ -2587,7 +2587,7 @@ const lightStyles = StyleSheet.create({
 
   amountText: {
     fontSize: 16,
-    color: "#F20505",
+    color: "#00f4f5",
     marginBottom: 10,
   },
   paymentMethodContainer: {
@@ -2621,7 +2621,7 @@ const lightStyles = StyleSheet.create({
   successModalView: {
     width: 250,
     padding: 20,
-    backgroundColor: "#f20505",
+    backgroundColor: "#00f4f5",
     borderRadius: 10,
     alignItems: "center",
     elevation: 10,
@@ -2793,7 +2793,7 @@ const darkStyles = StyleSheet.create({
     fontWeight: "bold",
   },
   callButton: {
-    backgroundColor: "#F20505",
+    backgroundColor: "#00f4f5",
     borderRadius: 10,
     padding: 10,
     flex: 1,
@@ -2972,7 +2972,7 @@ const darkStyles = StyleSheet.create({
     alignItems: "center",
   },
   iconButton: {
-    backgroundColor: "#F20505", // Color de fondo del botón
+    backgroundColor: "#00f4f5", // Color de fondo del botón
     padding: 10, // Espacio interno del botón
     borderRadius: 5, // Bordes redondeados
     alignItems: "center", // Alineación centrada del contenido
@@ -3042,7 +3042,7 @@ const darkStyles = StyleSheet.create({
     width: "100%",
   },
   modalConfirmButton: {
-    backgroundColor: "#F20505",
+    backgroundColor: "#00f4f5",
     borderRadius: 5,
     padding: 10,
     marginTop: 10,
@@ -3112,12 +3112,12 @@ const darkStyles = StyleSheet.create({
   },
   floatButton1: {
     borderWidth: 1,
-    borderColor: "#F20505",
+    borderColor: "#00f4f5",
     alignItems: "center",
     justifyContent: "center",
     width: 50,
     height: 50,
-    backgroundColor: "#F20505",
+    backgroundColor: "#00f4f5",
     borderRadius: 30,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
@@ -3156,7 +3156,7 @@ const darkStyles = StyleSheet.create({
 
   amountText: {
     fontSize: 16,
-    color: "#F20505",
+    color: "#00f4f5",
     marginBottom: 10,
   },
   paymentMethodContainer: {
@@ -3191,7 +3191,7 @@ const darkStyles = StyleSheet.create({
   successModalView: {
     width: 250,
     padding: 20,
-    backgroundColor: "#f20505",
+    backgroundColor: "#00f4f5",
     borderRadius: 10,
     alignItems: "center",
     elevation: 10,
@@ -3208,7 +3208,7 @@ const darkStyles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     marginHorizontal: 5,
-    backgroundColor: "#F20505",
+    backgroundColor: "#00f4f5",
   },
   modalButtonCancel: {
     borderRadius: 10,
@@ -3221,3 +3221,4 @@ const darkStyles = StyleSheet.create({
 });
 
 export default BookingCabScreen;
+

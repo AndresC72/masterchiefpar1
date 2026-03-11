@@ -141,7 +141,7 @@ const getStyles = (colorScheme: string | null) =>
       marginBottom: 20,
     },
     verifyButton: {
-      backgroundColor: "#F20505",
+      backgroundColor: "#00f4f5",
       paddingVertical: 10,
       paddingHorizontal: 20,
       borderRadius: 5,
@@ -156,7 +156,7 @@ const getStyles = (colorScheme: string | null) =>
       marginTop: 10,
     },
     resendCodeText: {
-      color: "#F20505",
+      color: "#00f4f5",
       textDecorationLine: "underline",
     },
     openGmailButton: {

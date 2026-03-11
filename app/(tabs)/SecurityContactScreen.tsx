@@ -84,7 +84,7 @@ const styles = StyleSheet.create({
     color: "#FFF", // Texto oscuro
   },
   button: {
-    backgroundColor: "#F20505",
+    backgroundColor: "#00f4f5",
     paddingVertical: 15,
     borderRadius: 8,
     alignItems: "center",

@@ -295,7 +295,7 @@ export default function DriverRating(props) {
                 maxStars={5}
                 starSize={50}
                 enableHalfStar={true}
-                color={'#F20505'}
+                color={'#00f4f5'}
                 emptyColor={MAIN_COLOR}
                 rating={starCount}
                 onChange={(rating) => onStarRatingPress(rating)}
@@ -405,7 +405,7 @@ const styles = StyleSheet.create({
   myButtonStyle: {
     justifyContent: "center",
     alignContent: "center",
-    backgroundColor: "#F20505",
+    backgroundColor: "#00f4f5",
     width: "100%",
     height: 50,
     padding: 5,

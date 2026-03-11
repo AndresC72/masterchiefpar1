@@ -1266,7 +1266,7 @@ const lightStyles = StyleSheet.create({
   successModalView: {
     width: 250,
     padding: 20,
-    backgroundColor: "#f20505",
+    backgroundColor: "#00f4f5",
     borderRadius: 10,
     alignItems: "center",
     elevation: 10,
@@ -1611,7 +1611,7 @@ const darkStyles = StyleSheet.create({
   successModalView: {
     width: 250,
     padding: 20,
-    backgroundColor: "#f20505",
+    backgroundColor: "#00f4f5",
     borderRadius: 10,
     alignItems: "center",
     elevation: 10,

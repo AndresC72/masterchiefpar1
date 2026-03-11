@@ -1,4 +1,4 @@
-import { Platform } from 'react-native';
+﻿import { Platform } from 'react-native';
 import * as Device from 'expo-device';
 import { AppConfig } from '@/config/AppConfig';
 import Constants from 'expo-constants';
@@ -49,7 +49,7 @@ export default async function GetPushToken() {
         name: 'default',
         importance: Notifications.AndroidImportance.MAX,
         vibrationPattern: [0, 250, 250, 250],
-        lightColor: '#F20505',
+        lightColor: '#00f4f5',
         sound: 'default',
       });
       await Notifications.setNotificationChannelAsync('bookings', {

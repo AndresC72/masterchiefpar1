@@ -93,7 +93,7 @@ const BookingsView: React.FC<BookingsViewProps> = ({
                       source={require("./../assets/images/iconos3d/45.png")}
                       style={{ width: 100, height: 100, }}
                     />
-                    <Text style={[styles.customerName, { color: "#F20505", }]}>
+                    <Text style={[styles.customerName, { color: "#00f4f5", }]}>
 
 
                       PROGRAMADO{" "}
@@ -107,7 +107,7 @@ const BookingsView: React.FC<BookingsViewProps> = ({
                       source={require("./../assets/images/iconos3d/46.png")}
                       style={{ width: 50, height: 50 }}
                     />
-                    <Text style={[styles.customerName, { color: "#F20505" }]}>
+                    <Text style={[styles.customerName, { color: "#00f4f5" }]}>
                       INMEDIATO{" "}
                     </Text>
                     <Image
@@ -120,7 +120,7 @@ const BookingsView: React.FC<BookingsViewProps> = ({
               <Text style={styles.customerName}>
                 {moment(booking.tripdate).format("lll")}
               </Text>
-              <Text style={[styles.customerName,{ color: "#F20505"}]}>
+              <Text style={[styles.customerName,{ color: "#00f4f5"}]}>
                 {booking.payment_mode === "cash"
                   ? "Efectivo"
                   : booking.payment_mode === "corp"
@@ -277,7 +277,7 @@ const styles = StyleSheet.create({
     marginVertical: 5,
   },
   dot: {
-    color: "#F20505",
+    color: "#00f4f5",
     fontSize: 20,
   },
   tripFareContainer: {
@@ -295,15 +295,15 @@ const styles = StyleSheet.create({
     alignItems: "baseline",
   },
   price: {
-    color: "#F20505",
+    color: "#00f4f5",
     fontSize: 16,
   },
   distance: {
-    color: "#F20505",
+    color: "#00f4f5",
     fontSize: 16,
   },
   time: {
-    color: "#F20505",
+    color: "#00f4f5",
     fontSize: 16,
   },
   buttonContainer: {
@@ -329,7 +329,7 @@ const styles = StyleSheet.create({
     elevation: 12,
   },
   buttonAccept: {
-    backgroundColor: "#F20505",
+    backgroundColor: "#00f4f5",
     borderRadius: 10,
     padding: 10,
     marginHorizontal: 5,

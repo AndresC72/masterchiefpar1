@@ -70,19 +70,19 @@ const CancelModal = ({ isVisible, onClose, currentBooking, user }) => {
             radio_props={cancelReasons}
             initial={null}
             onPress={handleReasonSelect}
-            buttonColor={'#F20505'}
-            selectedButtonColor={'#F20505'}
+            buttonColor={'#00f4f5'}
+            selectedButtonColor={'#00f4f5'}
             labelStyle={{ fontSize: 16, color: '#000' }}
             radioStyle={{ marginBottom: 15 }}
           />
           <View style={styles.buttonContainer}>
-            <Button color={'#F20505'}
+            <Button color={'#00f4f5'}
               title="Cerrar" onPress={onClose} />
             <Button
               title="Cancelar Viaje"
               onPress={handleCancelBooking}
               disabled={isButtonDisabled}  // Deshabilitar si no se selecciona motivo
-              color={isButtonDisabled ? '#ccc' : '#F20505'}
+              color={isButtonDisabled ? '#ccc' : '#00f4f5'}
             />
           </View>
         </View>
@@ -134,7 +134,7 @@ const styles = {
   successModalView: {
     width: 250,
     padding: 20,
-    backgroundColor: "#f20505",
+    backgroundColor: "#00f4f5",
     borderRadius: 10,
     alignItems: "center",
     elevation: 10,
