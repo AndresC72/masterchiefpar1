@@ -1,4 +1,32 @@
-﻿import React, {
+﻿// Animación de semáforo secuencial
+const TrafficLightAnimation = () => {
+  const [light, setLight] = useState<'red' | 'yellow' | 'green'>('red');
+  React.useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (light === 'red') {
+      timer = setTimeout(() => setLight('yellow'), 3000);
+    } else if (light === 'yellow') {
+      timer = setTimeout(() => setLight('green'), 4000);
+    } else if (light === 'green') {
+      timer = setTimeout(() => setLight('red'), 2000);
+    }
+    return () => clearTimeout(timer);
+  }, [light]);
+  return (
+    <View style={{ position: 'absolute', top: -350, left: 0, right: 0, zIndex: 10, alignItems: 'center' }}>
+      <View style={{ backgroundColor: 'rgba(15,47,61,0.92)', borderRadius: 18, paddingVertical: 16, paddingHorizontal: 24, shadowColor: '#00E5FF', shadowOpacity: 0.18, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, borderWidth: 1, borderColor: '#00E5FF', width: '90%' }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'center', marginBottom: 8 }}>
+          <View style={{ width: 22, height: 22, borderRadius: 11, marginHorizontal: 6, borderWidth: 2, borderColor: '#fff', shadowColor: '#FF3B3B', shadowOpacity: 0.4, shadowRadius: 6, backgroundColor: light === 'red' ? '#FF3B3B' : '#3a3a3a', opacity: light === 'red' ? 1 : 0.3 }} />
+          <View style={{ width: 22, height: 22, borderRadius: 11, marginHorizontal: 6, borderWidth: 2, borderColor: '#fff', shadowColor: '#FFD600', shadowOpacity: 0.4, shadowRadius: 6, backgroundColor: light === 'yellow' ? '#FFD600' : '#3a3a3a', opacity: light === 'yellow' ? 1 : 0.3 }} />
+          <View style={{ width: 22, height: 22, borderRadius: 11, marginHorizontal: 6, borderWidth: 2, borderColor: '#fff', shadowColor: '#00E676', shadowOpacity: 0.4, shadowRadius: 6, backgroundColor: light === 'green' ? '#00E676' : '#3a3a3a', opacity: light === 'green' ? 1 : 0.3 }} />
+        </View>
+        <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16, textAlign: 'center', marginBottom: 2, letterSpacing: 0.2 }}>¡Dale al botón GO para empezar a buscar servicios T+Plus!</Text>
+        <Text style={{ color: '#00E5FF', fontSize: 13, textAlign: 'center', fontWeight: '500', letterSpacing: 0.2 }}>Como en una carrera, espera el verde y ¡arranca!</Text>
+      </View>
+    </View>
+  );
+};
+import React, {
   useEffect,
   useState,
   useRef,
@@ -22,8 +50,10 @@ import {
   useColorScheme,
   Linking,
   FlatList,
+  Animated,
+  PanResponder,
 } from "react-native";
-import { useSelector, useDispatch } from "react-redux";
+import { useSelector } from "react-redux";
 import { RootState } from "@/common/store";
 import { updateProfile } from "@/common/actions/authactions";
 import BookingsView from "@/components/BookingsView";
@@ -49,7 +79,6 @@ import {
   listenToSettingsChanges,
   selectSettings,
 } from "@/common/reducers/settingsSlice";
-import tourImage from "@/assets/images/icon.png"; // Importa la imagen del tour
 import * as Animatable from "react-native-animatable";
 import { Ionicons, AntDesign, MaterialIcons } from "@expo/vector-icons";
 import RNPickerSelect from "react-native-picker-select";
@@ -61,19 +90,36 @@ const { width } = Dimensions.get("window");
 import { useRoute } from "@react-navigation/native";
 import { useFocusEffect } from "@react-navigation/native";
 import BottomSheet from "@gorhom/bottom-sheet"; // Importa el BottomSheet
-import { database } from "../../config/SupabaseConfig"; // Asegúrate de que la ruta sea correcta
-import supabase from "@/config/SupabaseConfig";
+import { supabase } from "@/config/SupabaseConfig";
 import MapSensor from "./mapaSensors";
+import * as Speech from "expo-speech";
+import { useAppDispatch } from "../../common/store/hooks";
 
+const tourImage = require("../../assets/images/icon.png");
+
+type UserDataState = {
+  profile_image: string | null;
+  mobile: string;
+  docType: string;
+  verifyId: string;
+  bankAccount: string;
+  city: string;
+  addres: string;
+  verifyIdImage?: string;
+  firstName?: string;
+  lastName?: string;
+};
 
 
 const MapScreen = () => {
+  const dispatch = useAppDispatch();
+  const user = useSelector((state: RootState) => state.auth.user) as any;
+  const settings = useSelector(selectSettings);
   const [currentPosition, setCurrentPosition] = useState();
   const [isEnabled, setIsEnabled] = useState(false);
-  const dispatch = useDispatch();
-  const [bookings, setBookings] = useState([]); // Estado local para las reservas
-  const user = (useSelector((state: RootState) => state.auth.user) || {}) as any;
-  const navigation = useNavigation();
+  const [bookings, setBookings] = useState<any[]>([]); // Estado local para las reservas
+  const profile = useSelector((state: RootState) => state.auth.profile) as any;
+  const navigation = useNavigation<any>();
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [checks, setChecks] = useState({
     carExists: user?.carExists || false,
@@ -91,11 +137,11 @@ const MapScreen = () => {
   );
   const [showRenewBanner, setShowRenewBanner] = useState(false);
   const [showKmBanner, setShowKmBanner] = useState(false);
-  const [filteredBookings, setFilteredBookings] = useState([]);
+  const [filteredBookings, setFilteredBookings] = useState<any[]>([]);
   const [activeBookingsCount, setActiveBookingsCount] = useState(0);
   const [tourVisible, setTourVisible] = useState(false);
   const [dbFirstName, setDbFirstName] = useState<string | null>(null);
-  const settings = useSelector(selectSettings);
+  const [dbLastName, setDbLastName] = useState<string | null>(null);
   const totalSteps = 9; // Total de pasos en el tour
   const [loading, setLoading] = useState(false); // Estado para controlar el loader
   const [loadingMessage, setLoadingMessage] = useState(
@@ -103,7 +149,7 @@ const MapScreen = () => {
   );
   const [currentStep, setCurrentStep] = useState(0);
   const colorScheme = useColorScheme(); // Hook para detectar si es modo oscuro o claro
-  const [userData, setUserData] = useState({
+  const [userData, setUserData] = useState<UserDataState>({
     profile_image: user?.profile_image || null,
     mobile: user?.mobile || "",
     docType: user?.docType || "",
@@ -116,10 +162,9 @@ const MapScreen = () => {
   const [modalVisibleImage, setModalVisibleImage] = useState(false);
   const [docTypes] = useState(["CC", "Pasaporte", "CE"]);
   const [modalVisibleImageVerify, setModalVisibleImageVerify] = useState(false);
-  const route = useRoute();
- // console.log(route,"aaaaahaaaa")
+  const route = useRoute<any>();
   const [isEmailVerified, setIsEmailVerified] = useState(Boolean(user?.emailVerified));
-const [inprocess, setInprocess] = useState("");
+  const [inprocess, setInprocess] = useState("");
   const styles = colorScheme === "dark" ? darkStyles : lightStyles; // Estilos dinámicos
   const stepMessages = [
     "Estás en el paso 1 de 9: Sube tu foto de perfil.",
@@ -127,9 +172,9 @@ const [inprocess, setInprocess] = useState("");
     "Estás en el paso 3 de 9: Selecciona el tipo de documento.",
     "Estás en el paso 4 de 9: Ingresa tu número de documento.",
     "Estás en el paso 5 de 9: Ingresa tu número de DAVIPLATA.",
-    "Estás en el paso 6 de 9: Porfavor Selecciona tu Ciudad",
-    "Estás en el paso 7 de 9: Porfavor ingresa tu dirección",
-    "Estás en el paso 8 de 9: Porfavor Actualiza tus Documentos",
+    "Estás en el paso 6 de 9: Por favor, selecciona tu ciudad.",
+    "Estás en el paso 7 de 9: Por favor, ingresa tu dirección.",
+    "Estás en el paso 8 de 9: Por favor, actualiza tus documentos.",
     "Estás en el paso 9 de 9: Resumen de la información.",
   ];
   const cities = [
@@ -247,47 +292,138 @@ const [inprocess, setInprocess] = useState("");
     "Mocoa",
     "Puerto Asis",
   ];
-  const [closestBooking, setClosestBooking] = useState(null);
-  const [IsMapVisible, setIsMapVisible] = useState(true);
- // console.log("closestBooking", closestBooking);
+  const [closestBooking, setClosestBooking] = useState<any | null>(null);
+  const database = getDatabase();
+  const [IsMapVisible, setIsMapVisible] = useState(false);
+  const userTypeRaw = String(
+    profile?.user_type ||
+      user?.usertype ||
+      user?.user_type ||
+      user?.userType ||
+      user?.user_metadata?.usertype ||
+      user?.user_metadata?.user_type ||
+      user?.user_metadata?.userType ||
+      ''
+  )
+    .trim()
+    .toLowerCase();
+  const isDriverView = userTypeRaw === 'driver';
+  const userRef = ref(database, `users/${user.id}`);
+
+  const resolveDriverName = useCallback(async () => {
+    const profileFirst = String(profile?.first_name || profile?.firstName || '').trim();
+    const profileLast = String(profile?.last_name || profile?.lastName || '').trim();
+
+    if (profileFirst || profileLast) {
+      console.log('[VOICE] name from auth.profile/users:', profileFirst || '(null)', profileLast || '(null)');
+      return {
+        firstName: profileFirst || null,
+        lastName: profileLast || null,
+      };
+    }
+
+    const candidateAuthId =
+      profile?.auth_id ||
+      user?.auth_id ||
+      user?.user_metadata?.sub ||
+      null;
+
+    if (candidateAuthId) {
+      const { data: byAuthIdRaw, error: byAuthIdError } = await supabase
+        .from('users')
+        .select('first_name,last_name')
+        .eq('auth_id', candidateAuthId)
+        .maybeSingle();
+      const byAuthId: any = byAuthIdRaw;
+
+      if (byAuthIdError) {
+        console.log('[VOICE] byAuthId error:', byAuthIdError.message);
+      }
+
+      if (byAuthId?.first_name || byAuthId?.last_name) {
+        console.log('[VOICE] name from users.auth_id:', byAuthId.first_name, byAuthId.last_name);
+        return {
+          firstName: byAuthId?.first_name || null,
+          lastName: byAuthId?.last_name || null,
+        };
+      }
+    }
+
+    const candidateUserId = profile?.id || user?.id || null;
+
+    if (candidateUserId) {
+      const { data: byIdRaw, error: byIdError } = await supabase
+        .from('users')
+        .select('first_name,last_name')
+        .eq('id', candidateUserId)
+        .maybeSingle();
+      const byId: any = byIdRaw;
+
+      if (byIdError) {
+        console.log('[VOICE] byId error:', byIdError.message);
+      }
+
+      if (byId?.first_name || byId?.last_name) {
+        console.log('[VOICE] name from users.id:', byId.first_name, byId.last_name);
+        return {
+          firstName: byId?.first_name || null,
+          lastName: byId?.last_name || null,
+        };
+      }
+    }
+
+    try {
+      const {
+        data: { user: authUser },
+      } = await supabase.auth.getUser();
+
+      const authUserId = authUser?.id;
+      if (authUserId) {
+        const { data: fallbackRaw, error: fallbackError } = await supabase
+          .from('users')
+          .select('first_name,last_name')
+          .eq('auth_id', authUserId)
+          .maybeSingle();
+        const fallbackUser: any = fallbackRaw;
+
+        if (fallbackError) {
+          console.log('[VOICE] fallback by auth user error:', fallbackError.message);
+        }
+
+        if (fallbackUser?.first_name || fallbackUser?.last_name) {
+          console.log('[VOICE] name from users.auth_id fallback:', fallbackUser.first_name, fallbackUser.last_name);
+          return {
+            firstName: fallbackUser?.first_name || null,
+            lastName: fallbackUser?.last_name || null,
+          };
+        }
+      }
+    } catch (error) {
+      console.log('[VOICE] auth fallback error:', error);
+    }
+
+    console.log('[VOICE] name not found in users/profile, fallback to store/auth fields');
+    return null;
+  }, [profile?.auth_id, profile?.first_name, profile?.firstName, profile?.id, profile?.last_name, profile?.lastName, user?.auth_id, user?.id, user?.user_metadata?.sub]);
+
   useEffect(() => {
 
     let isMounted = true;
 
     const fetchFirstName = async () => {
       try {
-        const {
-          data: { user: authUser },
-        } = await supabase.auth.getUser();
-
-        const authUserId = authUser?.id || user?.auth_id || user?.id;
-        if (!authUserId) {
-          if (isMounted) setDbFirstName(null);
-          return;
-        }
-
-        const { data: byAuthId } = await supabase
-          .from("users")
-          .select("first_name")
-          .eq("auth_id", authUserId)
-          .maybeSingle();
-
-        if (byAuthId?.first_name) {
-          if (isMounted) setDbFirstName(byAuthId.first_name);
-          return;
-        }
-
-        const { data: byId } = await supabase
-          .from("users")
-          .select("first_name")
-          .eq("id", authUserId)
-          .maybeSingle();
-
+        const fullName = await resolveDriverName();
         if (isMounted) {
-          setDbFirstName(byId?.first_name || null);
+          setDbFirstName(fullName?.firstName || null);
+          setDbLastName(fullName?.lastName || null);
+          console.log('[VOICE] db name state set to:', fullName?.firstName || '(null)', fullName?.lastName || '(null)');
         }
       } catch (error) {
-        if (isMounted) setDbFirstName(null);
+        console.log('[VOICE] fetchFirstName error:', error);
+        if (isMounted) {
+          setDbFirstName(null);
+          setDbLastName(null);
+        }
       }
     };
 
@@ -296,13 +432,19 @@ const [inprocess, setInprocess] = useState("");
     return () => {
       isMounted = false;
     };
-  }, [user?.id]);
+  }, [resolveDriverName]);
 
   useEffect(() => {
     if (user) {
       setIsEmailVerified(user.emailVerified);
     }
   }, [user]);
+
+  useEffect(() => {
+    if (isDriverView) {
+      setIsMapVisible(true);
+    }
+  }, [isDriverView]);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -314,7 +456,7 @@ const [inprocess, setInprocess] = useState("");
     }, [route.params?.openModal])
   );
   useEffect(() => {
-    if (user.usertype === "driver") {
+    if (isDriverView) {
       const fields = [
         { value: user.profile_image, step: 0 },
         { value: user.mobile, step: 1 },
@@ -324,18 +466,16 @@ const [inprocess, setInprocess] = useState("");
         { value: user.city, step: 5 },
         { value: user.addres, step: 6 },
       ];
-     // console.log("fields", fields);
-     // console.log("user.emailVerified", user.emailVerified);
       const firstEmptyField = fields.find((field) => !field.value);
 
       if (firstEmptyField && user.emailVerified && inprocess !== "Process") {
         setTourVisible(true);
-     //   setCurrentStep(firstEmptyField.step);
       } else {
         //      setTourVisible(false);
       }
     }
   }, [
+    isDriverView,
     user.verifyIdImage,
     user.verifyId,
     user.docType,
@@ -481,7 +621,12 @@ const [inprocess, setInprocess] = useState("");
   }, [user?.carType, user?.location]);
   
   // Función para calcular distancia en metros
-  const getDistanceFromLatLonInMeters = (lat1, lon1, lat2, lon2) => {
+  const getDistanceFromLatLonInMeters = (
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number
+  ) => {
     const R = 6371; // Radio de la tierra en km
     const dLat = (lat2 - lat1) * (Math.PI / 180);
     const dLon = (lon2 - lon1) * (Math.PI / 180);
@@ -505,7 +650,7 @@ const [inprocess, setInprocess] = useState("");
   }, [bookings, dispatch]);
 
   // Effect to watch position changes
-  const handleSwipeSuccess = async (newStatus) => {
+  const handleSwipeSuccess = async (newStatus: boolean) => {
     const updateData = {
       driverActiveStatus: newStatus,
     };
@@ -527,38 +672,30 @@ const [inprocess, setInprocess] = useState("");
 
 
 
-    const handlePress = (id) => {
+    const handlePress = (id: number) => {
       switch (id) {
         case 1:
-          // Navegar a la pantalla de "Carnet"
           navigation.navigate('CarsScreen');
           break;
         case 2:
-          // Navegar a la pantalla de "Reservas"
           navigation.navigate('RideList');
           break;
         case 3:
-          // Abrir WhatsApp
           Linking.openURL(`https://wa.me/message/BTQOY5GZC7REF1`);
           break;
         case 4:
-          // Navegar a la pantalla de "Perfil"
           navigation.navigate('Docs');
           break;
         case 5:
-          // Abrir Términos y Condiciones en un navegador web
           Linking.openURL('https://tmasplus.com/terminos-y-condiciones');
           break;
         case 6:
-          // Abrir Términos y Condiciones en un navegador web
           Linking.openURL('https://tmasplus.com/condiciones-recargas');
           break;
         case 7:
-          // Navegar a la pantalla de "Contactos de seguridad"
           navigation.navigate('SecurityContact');
           break;
         case 8:
-          // Realizar una llamada telefónica
           const call_link = Platform.OS === 'android' ? `tel:${settings.panic}` : `telprompt:${settings.panic}`;
           Linking.openURL(call_link);
           break;
@@ -567,37 +704,34 @@ const [inprocess, setInprocess] = useState("");
       }
     };
 
-    const cards = [
+    const cards: Array<{ id: number; title: string; subtitle: string; image: any; badge?: any; animation?: string; }> = [
       {
         id: 1,
         title: "¡Información de tu vehículo!",
-        subtitle: `Toca aquí para ver los detalles de tu vehículo.\nVehículo activo: ${user.carType}\nPlaca: ${user?.vehicleNumber}`,
+        subtitle: `Toca aquí para ver los detalles de tu vehículo.\nVehículo activo: ${user.carType}.\nPlaca: ${user?.vehicleNumber}.`,
         image: user?.car_image ? { uri: user.car_image } : require("@/assets/images/iconos3d/12.png"),
       },
       {
         id: 2,
         title: `¡Tienes ${activeBookingsCount} ${activeBookingsCount === 1 ? 'reserva activa' : 'reservas activas'}!`,
-        // Start of Selection
-        // Start of Selection
-        // Start of Selection
-        subtitle: `¡Hola! ${closestBooking ? `Tienes una reserva para el ${new Date(closestBooking.tripdate).toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' })}. El viaje es DESDE ${closestBooking.pickupAddress} HASTA: ${closestBooking.dropAddress}` : 'Pronto tendrás una nueva reserva'} !`,
+        subtitle: `¡Hola! ${closestBooking ? `Tienes una reserva para el ${new Date(closestBooking.tripdate).toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' })}. El viaje es desde ${closestBooking.pickupAddress} hasta ${closestBooking.dropAddress}.` : 'Pronto tendrás una nueva reserva.'}`,
         image: require("@/assets/images/iconos3d/45.png"),
         badge: activeBookingsCount > 0 ? {
           value: activeBookingsCount,
-          color: '#FF4500'
+          color: '#FFFFFF'
         } : null,
         animation: 'pulse',
       },
       {
         id: 3,
-        title: "¡Chatea con nosotros!",
+        title: "Chatea con nosotros",
         subtitle: "¿Necesitas ayuda? Comunícate con nosotros por WhatsApp para obtener soporte rápido y personalizado.",
         image: require("@/assets/images/iconos3d/36.png"),
       },
       {
         id: 4,
         title: "Verifica y actualiza tu perfil",
-        subtitle: "En T+Plus, tu seguridad es nuestra prioridad. Realizamos un estudio de seguridad para garantizar que todo esté en orden. ¡Actualiza tu perfil con total tranquilidad!",
+        subtitle: "En T+Plus, tu seguridad es nuestra prioridad. Realizamos un estudio de seguridad para garantizar que todo esté en orden. Actualiza tu perfil con total tranquilidad.",
         image: require("@/assets/images/iconos3d/19.png"),
       },
       {
@@ -608,38 +742,28 @@ const [inprocess, setInprocess] = useState("");
       },
       {
         id: 6,
-        title: "Términos y condiciones de Recarga",
-        subtitle: "Consulta los términos y condiciones de T+Plus para conocer nuestras políticas sobre la recarga de dinero y cómo aseguramos una experiencia segura y transparente para todos nuestros usuarios.",
-
-        image: require("@/assets/images/iconos3d/TerminosApp.png"),
-
-
-      },
-      {
-        id: 7,
         title: "Acceso a contacto de seguridad",
-        subtitle: "Añade contactos de confianza para que podamos notificarles en caso de emergencia. Mantén a tus seres queridos informados y seguros mientras usas T+Plus.",
+        subtitle: "Agrega contactos de confianza para que podamos notificarles en caso de emergencia. Mantén a tus seres queridos informados y seguros mientras usas T+Plus.",
         image: require("@/assets/images/iconos3d/24.png"),
       },
       {
-        id: 8,
-        title: "Botón de Emergencia (SOS)",
-        subtitle: "En caso de emergencia, usa el botón de SOS para alertar a tus contactos de seguridad o recibir ayuda inmediata. Tu seguridad es nuestra prioridad.",
+        id: 7,
+        title: "Botón de emergencia (SOS)",
+        subtitle: "En caso de emergencia, utiliza el botón de SOS para alertar a tus contactos de seguridad o recibir ayuda inmediata. Tu seguridad es nuestra prioridad.",
         image: require("@/assets/images/iconos3d/17.png"),
-      },
+      }
     ];
 
     return (
-      <View style={styles.containerDayli}>
-        <Text style={styles.headerDayli}>T+Plus</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.scrollContainerDayli}>
-          {cards.map((card, index) => (
+      <View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          {cards.map((card: any, index: number) => (
             <Animatable.View
               key={card.id}
               animation="fadeInUp"
               duration={550}
               delay={index * 80}
-              useNativeDriver
+              useNativeDriver={true}
             >
               <TouchableOpacity style={styles.cardDayli} onPress={() => handlePress(card.id)}>
                 <Image source={card.image} style={styles.cardImageDayli} />
@@ -656,7 +780,7 @@ const [inprocess, setInprocess] = useState("");
     setIsEnabled(user?.driverActiveStatus || false);
   }, [user]);
 
-  const handleAccept = (booking) => {
+  const handleAccept = (booking: any) => {
    
     navigation.navigate("RideList", { booking });
 
@@ -691,8 +815,8 @@ const [inprocess, setInprocess] = useState("");
             },
             body: JSON.stringify({
               tokens: [booking.customer_token],
-              title: `¡Servicio Aceptado!`,
-              body: `Hola ${booking.customer_name}, tu servicio ha sido aceptado con éxito. El conductor ${user.firstName} ${user.lastName} está listo para atenderte. Puedes comunicarte con él a través del chat de la reserva. La placa del vehículo es ${user.vehicleNumber}.`,
+              title: 'Servicio aceptado',
+              body: 'Hola ' + booking.customer_name + ', su servicio ha sido aceptado con exito. El conductor ' + user.firstName + ' ' + user.lastName + ' esta listo para atenderle. Puede comunicarse con el a traves del chat de la reserva. La placa del vehiculo es ' + user.vehicleNumber + '.',
             }),
           }
         )
@@ -700,17 +824,42 @@ const [inprocess, setInprocess] = useState("");
           .then((data) => {
             console.log("Notificación enviada:", data);
           })
-          .catch((error) => {
+          .catch((error: unknown) => {
             console.error("Error al enviar la notificación:", error);
           });
       })
       .catch((error) => {
-        Alert.alert("Error", `No se pudo aceptar la reserva: ${error}`);
+        Alert.alert('Error', 'No se pudo aceptar la reserva: ' + error);
       });
   };
 
   const [lastDeclineTime, setLastDeclineTime] = useState<number | null>(null);
   const [bookingModalDecline, setBookingModalDecline] = useState(false);
+  const [driverOnline, setDriverOnline] = useState(Boolean(user?.driverActiveStatus));
+  const [showIncomingRequest, setShowIncomingRequest] = useState(false);
+  const [showNovedades, setShowNovedades] = useState(false);
+  const [driverTab, setDriverTab] = useState<'home' | 'routes' | 'activity' | 'profile'>('home');
+  const [sheetCollapsed, setSheetCollapsed] = useState(false);
+  const sheetAnim = useRef(new Animated.Value(0)).current;
+  const goPulseAnim = useRef(new Animated.Value(0)).current;
+  const goBreathAnim = useRef(new Animated.Value(0)).current;
+  const driverSheetCollapsedOffset = 100;
+
+  const sheetPanResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > 6,
+      onPanResponderRelease: (_, g) => {
+        if (g.dy > 40) {
+          Animated.timing(sheetAnim, { toValue: 1, duration: 260, useNativeDriver: true }).start();
+          setSheetCollapsed(true);
+        } else if (g.dy < -40) {
+          Animated.timing(sheetAnim, { toValue: 0, duration: 260, useNativeDriver: true }).start();
+          setSheetCollapsed(false);
+        }
+      },
+    })
+  ).current;
 
   const handleDecline = () => {
     setBookingModalDecline(false); // Cierra el modal
@@ -729,8 +878,219 @@ const [inprocess, setInprocess] = useState("");
   }, [filteredBookings, lastDeclineTime]);
   2;
 
+  const incomingBooking = (filteredBookings && filteredBookings.length > 0
+    ? filteredBookings[0]
+    : null) as any;
+
   useEffect(() => {
-    dispatch(listenForNewBookings());
+    if (!IsMapVisible || !driverOnline || showNovedades) {
+      setShowIncomingRequest(false);
+      return;
+    }
+    setShowIncomingRequest(Boolean(incomingBooking));
+  }, [IsMapVisible, driverOnline, incomingBooking, showNovedades]);
+
+  useEffect(() => {
+    if (driverOnline) {
+      goPulseAnim.stopAnimation();
+      goBreathAnim.stopAnimation();
+      goPulseAnim.setValue(0);
+      goBreathAnim.setValue(0);
+      return;
+    }
+
+    goPulseAnim.setValue(0);
+    goBreathAnim.setValue(0);
+
+    const pulseLoop = Animated.loop(
+      Animated.timing(goPulseAnim, {
+        toValue: 1,
+        duration: 1800,
+        useNativeDriver: true,
+      })
+    );
+
+    const breathLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(goBreathAnim, {
+          toValue: 1,
+          duration: 900,
+          useNativeDriver: true,
+        }),
+        Animated.timing(goBreathAnim, {
+          toValue: 0,
+          duration: 900,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+
+    pulseLoop.start();
+    breathLoop.start();
+
+    return () => {
+      pulseLoop.stop();
+      breathLoop.stop();
+      goPulseAnim.stopAnimation();
+      goBreathAnim.stopAnimation();
+    };
+  }, [driverOnline, goBreathAnim, goPulseAnim]);
+
+  const speakDriverGreeting = useCallback(async () => {
+    const hour = new Date().getHours();
+    const periodGreeting = hour < 12 ? 'Buenos dias' : hour < 18 ? 'Buenas tardes' : 'Buenas noches';
+    const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    const readValidatedName = async () => {
+      const firstState = String(dbFirstName || profile?.first_name || profile?.firstName || '').trim();
+      const lastState = String(dbLastName || profile?.last_name || profile?.lastName || '').trim();
+      if (firstState || lastState) {
+        return { firstName: firstState, lastName: lastState };
+      }
+
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          const nameFromDb = await Promise.race([
+            resolveDriverName(),
+            new Promise<null>((resolve) => setTimeout(() => resolve(null), 2500)),
+          ]);
+
+          const firstDb = String(nameFromDb?.firstName || '').trim();
+          const lastDb = String(nameFromDb?.lastName || '').trim();
+
+          if (firstDb || lastDb) {
+            return { firstName: firstDb, lastName: lastDb };
+          }
+        } catch (_) {}
+
+        await wait(350);
+      }
+
+      return null;
+    };
+
+    const resolvedName = await readValidatedName();
+
+    let conductorWithName: string;
+    if (resolvedName) {
+      const first = String(resolvedName.firstName || '').trim();
+      const last = String(resolvedName.lastName || '').trim();
+      const fullName = (first + ' ' + last).trim();
+      console.log('[VOICE] fullName used for speech:', fullName || '(empty)');
+      conductorWithName = fullName ? 'conductor ' + fullName : 'conductor';
+    } else {
+      console.log('[VOICE] Name not found in DB, using fallback "conductor".');
+      conductorWithName = 'conductor';
+    }
+    const message = periodGreeting + ', ' + conductorWithName + '. Recuerda manejar con responsabilidad. Usa el cinturon de seguridad, cuide su vida y la de los demas. T mas Plus, justo para usted, justo para todos.';
+
+    try {
+      await Speech.stop();
+    } catch (_) {}
+
+    await new Promise((resolve) => setTimeout(resolve, 120));
+
+    try {
+      Speech.speak(message, {
+        language: 'es-CO',
+        pitch: 1,
+        rate: 0.92,
+        onStart: () => console.log('[VOICE] Speech started (es-CO)'),
+        onDone: () => console.log('[VOICE] Speech done (es-CO)'),
+        onError: (err) => console.log('[VOICE] Speech error (es-CO):', err),
+      });
+      console.log('[VOICE] Speech.speak launched (es-CO)');
+      return true;
+    } catch (_) {
+      try {
+        Speech.speak(message, {
+          pitch: 1,
+          rate: 0.92,
+          onStart: () => console.log('[VOICE] Speech started (default)'),
+          onDone: () => console.log('[VOICE] Speech done (default)'),
+          onError: (err) => console.log('[VOICE] Speech error (default):', err),
+        });
+        console.log('[VOICE] Speech.speak launched (default language)');
+        return true;
+      } catch (error) {
+        console.log('Speech error:', error);
+        return false;
+      }
+    }
+
+  }, [dbFirstName, dbLastName, profile?.first_name, profile?.firstName, profile?.last_name, profile?.lastName, resolveDriverName]);
+
+  const toggleDriverOnline = async () => {
+    const newStatus = !driverOnline;
+    setDriverOnline(newStatus);
+    setShowIncomingRequest(false);
+    setShowNovedades(false);
+    setIsEnabled(newStatus);
+
+    if (newStatus) {
+      await speakDriverGreeting();
+      setIsMapVisible(true);
+    } else {
+      setIsMapVisible(false);
+    }
+
+    await handleSwipeSuccess(newStatus);
+  };
+
+  const handleAcceptIncoming = () => {
+    if (!incomingBooking) return;
+    setShowIncomingRequest(false);
+    setShowNovedades(true);
+    handleAccept(incomingBooking);
+  };
+
+  const handleRejectIncoming = () => {
+    setShowIncomingRequest(false);
+    handleDecline();
+  };
+
+  const onDriverNavPress = (tab: 'home' | 'routes' | 'activity' | 'profile' | 'go') => {
+    if (tab === 'go') {
+      void toggleDriverOnline();
+      return;
+    }
+
+    setDriverTab(tab);
+    if (tab === 'home') {
+      navigation.navigate('CarsScreen' as never);
+      return;
+    }
+    if (tab === 'routes') {
+      navigation.navigate('Wallet' as never);
+      return;
+    }
+    if (tab === 'activity') {
+      navigation.navigate('DriverActivity' as never);
+      return;
+    }
+    if (tab === 'profile') {
+      navigation.navigate('Profile' as never);
+      return;
+    }
+  };
+
+  const goPulseScale = goPulseAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 1.6],
+  });
+
+  const goPulseOpacity = goPulseAnim.interpolate({
+    inputRange: [0, 0.35, 1],
+    outputRange: [0.28, 0.16, 0],
+  });
+
+  const goButtonScale = goBreathAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 1.07],
+  });
+
+  useEffect(() => {
+    dispatch(listenForNewBookings() as any);
   }, [dispatch]);
 
   //-----------------..........................................................................................................................................................................................................
@@ -765,7 +1125,7 @@ const [inprocess, setInprocess] = useState("");
     }
   }, [dispatch, user]);
 
-  const takePhoto = async (variable) => {
+  const takePhoto = async (variable: "profile" | "verifyId") => {
     const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
 
     if (permissionResult.granted === false) {
@@ -799,7 +1159,7 @@ const [inprocess, setInprocess] = useState("");
     }
   };
 
-  const pickImage = async (variable) => {
+  const pickImage = async (variable: "profile" | "verifyId") => {
     let result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
@@ -832,7 +1192,7 @@ const [inprocess, setInprocess] = useState("");
       //   dispatch(updateProfile({ ...userData, verifyIdImage: downloadURL }, ""));
 
       // Cierra el modal si está abierto
-      dispatch(updateProfile({ ...userData }, userData.profile_image));
+      dispatch(updateProfile({ ...userData }, userData.profile_image || undefined));
       try {
         // Realiza la llamada a la verificación en Topus con axios
         const response = await axios.post(
@@ -857,9 +1217,9 @@ const [inprocess, setInprocess] = useState("");
 
         // Procesar los resultados para verificar entidades con paso = '2' excepto 'simit'
         let blockedTopus = false;
-        let blockedReasonTopus = [];
+        let blockedReasonTopus: string[] = [];
 
-        results.forEach((item) => {
+        results.forEach((item: any) => {
           if (item.entidad !== "simit" && item.paso === "2") {
             blockedTopus = true;
             blockedReasonTopus.push(item.entidad);
@@ -881,16 +1241,10 @@ const [inprocess, setInprocess] = useState("");
           ],
         };
 
-        const success = dispatch(updateProfile(filteredData));
-
-        if (success) {
-          setLoading(false); // Muestra el loader
-          setTourVisible(false); // Oculta el tour si es necesario
-          console.log("Verificación completada", results);
-
-        } else {
-          console.log("Error en la verificación", results);
-        }
+        await dispatch(updateProfile(filteredData) as any);
+        setLoading(false); // Muestra el loader
+        setTourVisible(false); // Oculta el tour si es necesario
+        console.log("Verificación completada", results);
       } catch (error) {
         console.error("Error en la verificación:", error);
         console.log("error", error);
@@ -905,7 +1259,7 @@ const [inprocess, setInprocess] = useState("");
     }
     // Despacha la acción updateProfile con los datos del usuario
   };
-  const navigateToDocuments = (data) => {
+  const navigateToDocuments = (data: any) => {
     setInprocess(data);
     navigation.navigate("ImageGallery", { data:data  });
     setTourVisible(false);
@@ -951,7 +1305,7 @@ const [inprocess, setInprocess] = useState("");
                       />
                     ) : (
                       <View style={styles.imagePlaceholder}>
-                        <AntDesign name="camerao" size={50} color="#ccc" />
+                        <AntDesign name="camera" size={50} color="#ccc" />
                         <Text>Subir imagen</Text>
                       </View>
                     )}
@@ -1058,7 +1412,7 @@ const [inprocess, setInprocess] = useState("");
             case 3:
               return (
                 <TouchableWithoutFeedback
-                  onPress={Platform.OS === "ios" ? Keyboard.dismiss : null}
+                  onPress={Platform.OS === "ios" ? Keyboard.dismiss : undefined}
                 >
                   <>
                     <Text style={styles.stepTitle}>
@@ -1092,7 +1446,7 @@ const [inprocess, setInprocess] = useState("");
             case 4:
               return (
                 <TouchableWithoutFeedback
-                  onPress={Platform.OS === "ios" ? Keyboard.dismiss : null}
+                  onPress={Platform.OS === "ios" ? Keyboard.dismiss : undefined}
                 >
                   <>
                     <Text style={styles.stepTitle}>
@@ -1161,43 +1515,34 @@ const [inprocess, setInprocess] = useState("");
               );
             case 6:
               return (
-                <TouchableWithoutFeedback
-                  onPress={Platform.OS === "ios" ? Keyboard.dismiss : null}
-                >
-                  <>
-                    <Text style={styles.stepTitle}>
-                      Dirección de residencia
-                    </Text>
-                    <Text style={styles.explanatoryText}>
-                      Por requerimiento de facturación electrónica y
-                      verificación de seguridad, es muy importante que nos
-                      indiques tu actual dirección de residencia:
-                    </Text>
-                    <View style={styles.pickerContainer}></View>
-                    <Input
-                      placeholder="Calle 123, Ciudad"
-                      value={userData.addres}
-                      onChangeText={(text) =>
-                        setUserData({ ...userData, addres: text })
-                      }
-                      //keyboardType="number-pad"
-                      leftIcon={{
-                        type: "materialicons",
-                        name: "location-on",
-                        color: "#00f4f5",
-                      }}
-                      inputStyle={styles.input}
-                    />
-                  </>
-                </TouchableWithoutFeedback>
+                <>
+                  <Text style={styles.stepTitle}>Dirección de residencia</Text>
+                  <Text style={styles.explanatoryText}>
+                    Por requerimiento de facturación electrónica y
+                    verificación de seguridad, es muy importante que nos
+                    indiques tu actual dirección de residencia:
+                  </Text>
+                  <View style={styles.pickerContainer}></View>
+                  <Input
+                    placeholder="Calle 123, Ciudad"
+                    value={userData.addres}
+                    onChangeText={(text) =>
+                      setUserData({ ...userData, addres: text })
+                    }
+                    //keyboardType="number-pad"
+                    leftIcon={{
+                      type: "materialicons",
+                      name: "location-on",
+                      color: "#00f4f5",
+                    }}
+                    inputStyle={styles.input}
+                  />
+                </>
               );
             case 7:
               return (
                 <>
                   <Text style={styles.stepTitle}>Sube tus documentos</Text>
-             
-
-                  {/* Verificar documentos faltantes */}
                   <Text style={styles.explanatoryText}>
                     Documentos faltantes:
                   </Text>
@@ -1267,7 +1612,7 @@ const [inprocess, setInprocess] = useState("");
                       />
                     </View>
                   ) : (
-                    <Text style={styles.allDocumentsUpToDate}>
+                    <Text style={styles.summaryText}>
                       Todos tus documentos están al día Puedes continuar.
                     </Text>
                   )}
@@ -1285,7 +1630,6 @@ const [inprocess, setInprocess] = useState("");
                     revisarlas ingresa al siguiente link:
                   </Text>
                   <TouchableOpacity
-                    style={styles.linkButton}
                     onPress={() =>
                       Linking.openURL(
                         "https://tmasplus.com/politica-de-privacidad"
@@ -1390,7 +1734,7 @@ const [inprocess, setInprocess] = useState("");
           orderByChild("driver_status"),
           equalTo(`${user.id}_${status}`)
         );
-      //  console.log(`Creando consulta para estado: ${status}`);
+        // console.log(`Creando consulta para estado: ${status}`);
         return q;
       });
 
@@ -1401,45 +1745,19 @@ const [inprocess, setInprocess] = useState("");
 
       snapshots.forEach((snapshot, index) => {
         const status = statuses[index];
-        //console.log( `Procesando snapshot para estado "${status}":`, snapshot.exists() );
-
         if (snapshot.exists()) {
           const bookings = snapshot.val();
-          console.log(
-            `Bookings encontrados para estado "${status}":`,
-            bookings
-          );
-
-          Object.entries(bookings).forEach(
-            ([bookingId, booking]: [string, any]) => {
-              //console.log(`Procesando booking ID: ${bookingId}`, booking);
-
-              if (
-                booking.trip_cost !== undefined &&
-                booking.trip_cost !== null
-              ) {
-                const tripCost = parseFloat(booking.trip_cost);
-                if (!isNaN(tripCost)) {
-                  console.log(
-                    `Trip cost válido para booking ID ${bookingId}: ${tripCost}`
-                  );
-                  balance += tripCost;
-                } else {
-                  console.warn(
-                    `trip_cost inválido para booking ID: ${bookingId}`,
-                    booking.trip_cost
-                  );
-                }
-              } else {
-                console.warn(
-                  `trip_cost no está definido para booking ID: ${bookingId}`,
-                  booking
-                );
+          Object.entries(bookings).forEach(([bookingId, booking]: [string, any]) => {
+            if (
+              booking.trip_cost !== undefined &&
+              booking.trip_cost !== null
+            ) {
+              const tripCost = parseFloat(booking.trip_cost);
+              if (!isNaN(tripCost)) {
+                balance += tripCost;
               }
             }
-          );
-        } else {
-        //  console.log(`No se encontraron bookings para estado "${status}".`);
+          });
         }
       });
 
@@ -1571,24 +1889,23 @@ const [inprocess, setInprocess] = useState("");
             orderByChild("driver_status"),
             equalTo(`${user.id}_${status}`)
           );
-       //   console.log(`Creando consulta para estado: ${status}`);
+          // console.log(`Creando consulta para estado: ${status}`);
           return q;
         });
 
         // Ejecutar todas las consultas en paralelo
       //  console.log("Ejecutando consultas concurrentes...");
         const snapshots = await Promise.all(queries.map((q) => get(q)));
-       // console.log("Consultas completadas. Procesando resultados...");
+      //  console.log("Consultas completadas. Procesando resultados...");
 
         snapshots.forEach((snapshot, index) => {
           const status = statuses[index];
-         // console.log( `Procesando snapshot para estado "${status}":`,snapshot.exists());
+          // console.log(`Procesando snapshot para estado "${status}":`, snapshot.exists());
 
           if (snapshot.exists()) {
             const bookings = snapshot.val();
             console.log(
-              `Bookings encontrados para estado "${status}":`,
-              bookings
+              `Bookings encontrados para estado "${status}":`, bookings
             );
 
             Object.entries(bookings).forEach(
@@ -1932,7 +2249,7 @@ const [inprocess, setInprocess] = useState("");
 
     ];
 
-    const handlePress = (url) => {
+    const handlePress = (url: string) => {
       Linking.openURL(url);
     };
 
@@ -1962,59 +2279,202 @@ const [inprocess, setInprocess] = useState("");
   return (
     <View style={styles.container}>
 
-      {IsMapVisible ? (
-        <>
-          <MapSensor currentPosition={currentPosition} />
-          <View style={[styles.infoContainer, styles.infoContainerDark]}>
-            <Text
-              style={[
-                styles.statusText,
-                {
-                  color: user?.driverActiveStatus
-                    ? colorScheme === "dark"
-                      ? "#FF6B6B" // Rojo claro para modo oscuro
-                      : "red"
-                    : colorScheme === "dark"
-                      ? "#A9A9A9" // Gris claro para modo oscuro
-                      : "gray",
-                },
-              ]}
-            >
-              {user?.driverActiveStatus ? "Activo" : "Descanso"} {"  "}
-            </Text>
-            <TouchableOpacity
-              style={{
-                backgroundColor: user?.driverActiveStatus ? "#00f4f5" : "#767577",
-                borderRadius: 20,
-                padding: 10,
-                alignItems: "center",
-                justifyContent: "center",
-                width: 50,
-                height: 30,
-              }}
-              onPress={() => {
-                const newStatus = !user?.driverActiveStatus;
-                handleSwipeSuccess(newStatus);
-                setIsEnabled(newStatus);
-              }}
-            >
-              <View
-                style={{
-                  backgroundColor: "#fff",
-                  borderRadius: 15,
-                  width: 25,
-                  height: 25,
-                  transform: [{ translateX: user?.driverActiveStatus ? 20 : 0 }],
-                  transition: "transform 0.2s ease-in-out",
+      {(IsMapVisible || isDriverView) ? (
+        <View style={nS.mapStage}>
+          {(!isDriverView || driverOnline) && <MapSensor currentPosition={currentPosition} />}
+          <View pointerEvents="box-none" style={nS.driverOverlay}>
+            <View style={nS.driverTopBar}>
+              <TouchableOpacity
+                style={nS.driverCircleBtn}
+                onPress={() => {
+                  if (!isDriverView) setIsMapVisible(false);
                 }}
-              />
-            </TouchableOpacity>
-          </View>
+              >
+                <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
+              </TouchableOpacity>
 
-          <TouchableOpacity style={styles.bookNow} onPress={() => setIsMapVisible(false)} >
-            <Text style={styles.infoText}>Novedades {user?.cartype}</Text>
-          </TouchableOpacity>
-        </>
+              <View style={nS.driverEarningsPill}>
+                <Text style={nS.driverEarningsLabel}>Hoy</Text>
+                <Text style={nS.driverEarningsAmount}>$ {Number(balance || 0).toLocaleString('es-CO')}</Text>
+              </View>
+
+              <View style={nS.driverMiniAvatarRing}>
+                {user?.profile_image ? (
+                  <Image source={{ uri: user.profile_image }} style={nS.driverMiniAvatarImg} />
+                ) : (
+                  <Ionicons name="person" size={18} color="#00E5FF" />
+                )}
+              </View>
+            </View>
+
+            {showIncomingRequest && incomingBooking && (
+              <View style={nS.incomingRequestCard}>
+                <View style={nS.incomingHeader}>
+                  <Text style={nS.incomingType}>T+Plus Servicio</Text>
+                  <Text style={nS.incomingEta}>Nuevo</Text>
+                </View>
+                <Text style={nS.incomingPrice}>
+                  ${Number(incomingBooking?.trip_cost || 0).toLocaleString('es-CO')}
+                </Text>
+                <Text style={nS.incomingRouteText} numberOfLines={1}>
+                  {incomingBooking?.pickupAddress || incomingBooking?.pickup?.add || 'Origen no disponible'}
+                </Text>
+                <Text style={nS.incomingRouteText} numberOfLines={1}>
+                  {incomingBooking?.dropAddress || incomingBooking?.drop?.add || 'Destino no disponible'}
+                </Text>
+                <View style={nS.incomingActions}>
+                  <TouchableOpacity style={nS.rejectBtn} onPress={handleRejectIncoming}>
+                    <Text style={nS.rejectBtnText}>Rechazar</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={nS.acceptBtn} onPress={handleAcceptIncoming}>
+                    <Text style={nS.acceptBtnText}>Aceptar</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
+            {showNovedades && (
+              <View style={nS.driverNovedadesCard}>
+                <View style={nS.driverNovedadesHeader}>
+                  <Text style={nS.driverNovedadesTitle}>Novedades</Text>
+                  <TouchableOpacity onPress={() => setShowNovedades(false)}>
+                    <Ionicons name="close" size={18} color="rgba(255,255,255,0.7)" />
+                  </TouchableOpacity>
+                </View>
+                <Text style={nS.driverNovedadesText}>
+                  En camino al punto de recogida. Sigue la ruta indicada en el mapa.
+                </Text>
+              </View>
+            )}
+
+            {!showNovedades && (
+              <Animated.View
+                style={[
+                  nS.driverBottomSheet,
+                  {
+                    transform: [{
+                      translateY: sheetAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [0, driverSheetCollapsedOffset],
+                      }),
+                    }],
+                  },
+                ]}
+                {...sheetPanResponder.panHandlers}
+              >
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => {
+                    if (sheetCollapsed) {
+                      Animated.timing(sheetAnim, { toValue: 0, duration: 260, useNativeDriver: true }).start();
+                      setSheetCollapsed(false);
+                    }
+                  }}
+                >
+                  <View style={nS.driverSheetHandle} />
+                </TouchableOpacity>
+                <Text style={nS.driverStatusText}>
+                  {driverOnline ? 'Buscando servicios...' : 'Buscar servicios'}
+                </Text>
+                <Text style={nS.driverStatusSub}>
+                  {driverOnline
+                    ? 'Conectado y esperando una solicitud'
+                    : 'Activa tu estado para iniciar a recibir solicitudes de pasajeros'}
+                </Text>
+
+                <View style={nS.driverStatsRow}>
+                  <View style={nS.driverStatItem}>
+                    <Ionicons name="car-outline" size={20} color="#00E5FF" />
+                    <Text style={nS.driverStatVal}>{activeBookingsCount}</Text>
+                    <Text style={nS.driverStatLbl}>Viajes</Text>
+                  </View>
+                  <View style={nS.driverStatItem}>
+                    <Ionicons name="time-outline" size={20} color="#00E5FF" />
+                    <Text style={nS.driverStatVal}>{driverOnline ? 'Online' : 'Off'}</Text>
+                    <Text style={nS.driverStatLbl}>Estado</Text>
+                  </View>
+                  <View style={nS.driverStatItem}>
+                    <Ionicons name="speedometer-outline" size={20} color="#00E5FF" />
+                    <Text style={nS.driverStatVal}>98%</Text>
+                    <Text style={nS.driverStatLbl}>Aceptación</Text>
+                  </View>
+                </View>
+              </Animated.View>
+            )}
+
+            <View style={nS.driverBottomNav}>
+              <View style={nS.driverNavItems}>
+                <TouchableOpacity
+                  style={[nS.driverNavItem, driverTab === 'home' && nS.driverNavItemActive]}
+                  onPress={() => onDriverNavPress('home')}
+                >
+                  <Ionicons name="car-outline" size={20} color={driverTab === 'home' ? '#00E5FF' : 'rgba(255,255,255,0.35)'} />
+                  <Text style={[nS.driverNavLabel, driverTab === 'home' && nS.driverNavLabelActive]}>Vehículo</Text>
+                  {driverTab === 'home' && <View style={nS.driverNavIndicator} />}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[nS.driverNavItem, driverTab === 'routes' && nS.driverNavItemActive]}
+                  onPress={() => onDriverNavPress('routes')}
+                >
+                  <Ionicons name="wallet-outline" size={20} color={driverTab === 'routes' ? '#00E5FF' : 'rgba(255,255,255,0.35)'} />
+                  <Text style={[nS.driverNavLabel, driverTab === 'routes' && nS.driverNavLabelActive]}>Billetera</Text>
+                  {driverTab === 'routes' && <View style={nS.driverNavIndicator} />}
+                </TouchableOpacity>
+
+                {/* Semáforo y mensaje arriba de la pantalla */}
+                {!driverOnline && (
+                  <TrafficLightAnimation />
+                )}
+                <TouchableOpacity style={nS.driverNavCenter} onPress={() => onDriverNavPress('go')}>
+                  <View style={nS.driverNavCenterStack}>
+                    {!driverOnline && (
+                      <Animated.View
+                        pointerEvents="none"
+                        style={[
+                          nS.driverNavCenterPulseRing,
+                          {
+                            opacity: goPulseOpacity,
+                            transform: [{ scale: goPulseScale }],
+                          },
+                        ]}
+                      />
+                    )}
+                    <Animated.View
+                      style={[
+                        nS.driverNavCenterBtn,
+                        !driverOnline && nS.driverNavCenterBtnGo,
+                        !driverOnline && {
+                          transform: [{ scale: goButtonScale }],
+                        },
+                      ]}
+                    >
+                      <Text style={[nS.driverNavGoText, !driverOnline && nS.driverNavGoTextGo]}>{driverOnline ? 'T+' : 'GO'}</Text>
+                    </Animated.View>
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[nS.driverNavItem, driverTab === 'activity' && nS.driverNavItemActive]}
+                  onPress={() => onDriverNavPress('activity')}
+                >
+                  <Ionicons name="pulse-outline" size={20} color={driverTab === 'activity' ? '#00E5FF' : 'rgba(255,255,255,0.35)'} />
+                  <Text style={[nS.driverNavLabel, driverTab === 'activity' && nS.driverNavLabelActive]}>Actividad</Text>
+                  {driverTab === 'activity' && <View style={nS.driverNavIndicator} />}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[nS.driverNavItem, driverTab === 'profile' && nS.driverNavItemActive]}
+                  onPress={() => onDriverNavPress('profile')}
+                >
+                  <Ionicons name="person-outline" size={20} color={driverTab === 'profile' ? '#00E5FF' : 'rgba(255,255,255,0.35)'} />
+                  <Text style={[nS.driverNavLabel, driverTab === 'profile' && nS.driverNavLabelActive]}>Perfil</Text>
+                  {driverTab === 'profile' && <View style={nS.driverNavIndicator} />}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </View>
       ) : (
         <View style={nS.wrap}>
           <View pointerEvents="none" style={nS.orbTop} />
@@ -2147,7 +2607,7 @@ const [inprocess, setInprocess] = useState("");
         onRequestClose={() => setTourVisible(!tourVisible)}
       >
         <TouchableWithoutFeedback
-          onPress={Platform.OS === "ios" ? Keyboard.dismiss : null}
+          onPress={Platform.OS === "ios" ? Keyboard.dismiss : undefined}
         >
           <ScrollView contentContainerStyle={styles.tourContainer}>
             <View
@@ -2164,7 +2624,7 @@ const [inprocess, setInprocess] = useState("");
                 </Text>
               ) : currentStep === 5 ? (
                 <Text style={[styles.tourText, { flexShrink: 1 }]}>
-                  x}0¡Felicidades!x}0 Estas a un paso de completar tu registro en
+                  ¡Felicidades! Estás a un paso de completar tu registro en
                   T+Plus.
                 </Text>
               ) : (
@@ -2542,577 +3002,7 @@ const lightStyles = StyleSheet.create({
   closeButtonText: {
     color: "#fff",
     fontSize: 16,
-    padingBottom: 50
-  },
-  kmBanner: {
-    padding: 20,
-    backgroundColor: "#ffff",
-    borderRadius: 10,
-    alignItems: "center",
-    marginTop: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
-    elevation: 5,
-  },
-  kmBannerText: {
-    fontSize: 16,
-    color: "#f24452",
-    marginBottom: 10,
-    textAlign: "center",
-  },
-  headerContainer: {
-    flexDirection: 'column', // Organiza los elementos en columna
-    alignItems: 'flex-start', // Alinea los elementos al inicio (izquierda)
-    // Añade padding para espaciar los elementos del borde
-  },
-  backButton: {
-    marginBottom: 10, // Espacio debajo de la flecha
-  },
-  greetingContainer: {
-    width: '100%', // Asegura que el contenedor ocupe todo el ancho disponible
-    marginTop: 10,
-    elevation:5
-  },
-  notificationCard: {
-    backgroundColor: "rgba(255, 255, 255, 0.78)",
-    padding: 16,
-    borderRadius: 16,
-    width: '100%', // Opcional: establece el ancho al 100% del contenedor
-    borderWidth: 1,
-    borderColor: "rgba(0, 244, 245, 0.24)",
-    shadowColor: "#00204a",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-  },
-  notificationText: {
-    fontSize: 18,
-    fontWeight: "800",
-    letterSpacing: 0.3,
-    color: "#000",
-  },
-  kmBannerButtons: {
-    flexDirection: "column", // Cambiado a 'column' para que los botones sean verticales
-    justifyContent: "space-between",
-    alignItems: "center", // Opcional: Centrar los botones horizontalmente
-    width: "100%",
-  },
-  rechargeButton: {
-    backgroundColor: "#00f4f5",
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 5,
-    marginRight: 10,
-  },
-  rechargeButtonText: {
-    color: "#fff",
-    fontSize: 16,
-  },
-  tourContainer: {
-    flex: 1,
-    paddingTop: 50,
-    backgroundColor: "#fff",
-  },
-  tourImage: {
-    width: 200,
-    height: 100,
-    resizeMode: "contain",
-    marginBottom: 20,
-  },
-  tourText: {
-    fontSize: 16,
-    fontWeight: "bold",
-    marginBottom: 20,
-    color: "#000",
-  },
-  navigationButtons: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    marginBottom: 20,
-  },
-  prevButton: {
-    backgroundColor: "#cccccc",
-    width: 150,
-    borderRadius: 10,
-    padding: 10,
-  },
-  prevButtonText: {
-    color: "#000",
-    fontSize: 16,
-    fontWeight: "bold",
-    textAlign: "center",
-  },
-  nextButton: {
-    backgroundColor: "#00f4f5",
-    width: 150,
-    padding: 10,
-    borderRadius: 10,
-  },
-  nextButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "bold",
-    textAlign: "center",
-  },
-  stepContainer: {
-    flex: 1,
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingTop: 30,
-  },
-  stepMessage: {
-    fontSize: 22, // Aumentar tamaño para más impacto
-    fontWeight: "600", // Peso mediano para no saturar
-    marginBottom: 20, // Más espacio entre elementos
-    textAlign: "center",
-    color: "#ff6f61", // Color más suave pero llamativo
-    textShadowColor: "rgba(0, 0, 0, 0.15)", // Sombras más suaves
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 8, // Sombra más dispersa
-    letterSpacing: 0.8, // Espaciado entre letras para mejor legibilidad
-  },
-  stepTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 20,
-  },
-  explanatoryText: {
-    fontSize: 16,
-    color: "#000",
-    textAlign: "center",
-    marginVertical: 10,
-  },
-  profileImage: {
-    width: 150,
-    height: 150,
-    borderRadius: 10,
-    marginBottom: 10,
-  },
-  imagePlaceholder: {
-    width: 150,
-    height: 150,
-    borderRadius: 10,
-    backgroundColor: "#eee",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 10,
-  },
-  modalContainerIos: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  modalViewIos: {
-    width: 300,
-    borderRadius: 20,
-    padding: 35,
-    alignItems: "center",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  botonCamera: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#00204a",
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 15,
-    width: "100%",
-    justifyContent: "center",
-    elevation: 5,
-  },
-  botonGallery: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#00f4f5",
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 15,
-    width: "100%",
-    justifyContent: "center",
-    elevation: 5,
-  },
-  pickerContainer: {
-    width: "100%",
-    marginTop: 20,
-  },
-  modalButtonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  input: {
-    height: 50,
-    backgroundColor: "#fff",
-    borderRadius: 10,
-    paddingHorizontal: 20,
-    fontSize: 16,
-    marginTop: 10,
-  },
-  linkButton: {
-    color: "#00f4f5",
-    fontSize: 16,
-    fontWeight: "bold",
-    textAlign: "center",
-    textDecorationLine: "underline",
-  },
-  summaryText: {
-    fontSize: 18,
-    marginVertical: 5,
-  },
-  finishButton: {
-    backgroundColor: "#00f4f5",
-    marginTop: 20,
-    width: 200,
-    borderRadius: 10,
-  },
-  modalContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-  },
-  modalView: {
-    width: 300,
-    backgroundColor: "white",
-    borderRadius: 20,
-    padding: 35,
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  modalText: {
-    marginBottom: 15,
-    textAlign: "center",
-    fontSize: 16,
-  },
-  cancelButtonText: {
-    color: "#00f4f5",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  cancelButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fff",
-    padding: 15,
-    borderRadius: 10,
-    marginTop: 10,
-    width: "100%",
-    justifyContent: "center",
-    elevation: 5,
-    borderWidth: 1,
-    borderColor: "#00f4f5",
-  },
-  bottomSheetContent: {
-    padding: 16,
-    backgroundColor: "rgba(233, 241, 245, 0.94)",
-    zIndex: 1,
-  },
-  bottomSheetContentContainer: {
-    paddingBottom: 80,
-  },
-
-  notificationLink: {
-    color: "#007aff",
-    fontWeight: "bold",
-  },
-  section: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
-    marginTop: 16,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: "800",
-    letterSpacing: 0.4,
-    color: "#00204a",
-  },
-  viewAll: {
-    color: "#007aff",
-  },
-  suggestionCard: {
-    backgroundColor: "rgba(255, 255, 255, 0.74)",
-    padding: 16,
-    borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 16,
-    elevation: 5,
-    margin:10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    borderWidth: 1,
-    borderColor: "rgba(0, 244, 245, 0.28)",
-  },
-  suggestionIcon: {
-    width: 40,
-    height: 40,
-    marginBottom: 8,
-  },
-  suggestionText: {
-    fontSize: 14,
-    fontWeight: "800",
-    color: "#00204a",
-  },
-  promoCard: {
-    flexDirection: "row",
-    backgroundColor: "rgba(255, 255, 255, 0.78)",
-    padding: 16,
-    borderRadius: 14,
-    marginBottom: 16,
-    alignItems: "center",
-    elevation: 5,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    borderWidth: 1,
-    borderColor: "rgba(0, 244, 245, 0.24)",
-  },
-  promoImage: {
-    width: 100,
-    height: 100,
-    marginRight: 16,
-    borderRadius: 8,
-  },
-  promoTitle: {
-    fontSize: 17,
-    fontWeight: "800",
-    color: "#00204a",
-  },
-  promoDescription: {
-    fontSize: 14,
-    color: "#555",
-  },
-
-  containerHorizontal: {
-    marginVertical: 5,
-  },
-  bannerImage: {
-    width: 300,
-    height: 150,
-    borderRadius: 10,
-    marginRight: 10,
-    elevation: 5
-  },
-  containerDayli: {
-    marginVertical: 20,
-    paddingHorizontal: 10,
-  },
-  headerDayli: {
-    color: "#000",
-    fontSize: 20,
-    fontWeight: "800",
-    letterSpacing: 0.5,
-    marginBottom: 10,
-  },
-  scrollContainerDayli: {
-    flexDirection: "row",
-
-  },
-  cardDayli: {
-    backgroundColor: "rgba(255, 255, 255, 0.74)",
-    borderRadius: 16,
-    width: 200,
-    marginRight: 15,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: "rgba(0, 244, 245, 0.22)",
-  },
-  cardImageDayli: {
-    width: "70%",
-    height: 100,
-    borderRadius: 10,
-    marginBottom: 10,
-    alignSelf: "center",
-  },
-  cardTitleDayli: {
-    color: "#000",
-    fontSize: 16,
-    fontWeight: "800",
-  },
-  cardSubtitleDayli: {
-    color: "#a1a1a1",
-    fontSize: 14,
-    marginTop: 5,
-  },
-  backButton: {
-    position: "absolute",
-    top: 40,
-    left: 20,
-    zIndex: 10, // Para asegurarse de que esté por encima de otros elementos
-  },
-});
-const darkStyles = StyleSheet.create({
-  bottomSheetWrap: {
-    flex: 1,
-    width: "100%",
-    position: "relative",
-  },
-  glassOrbTop: {
-    position: "absolute",
-    top: -100,
-    right: -30,
-    width: 270,
-    height: 270,
-    borderRadius: 135,
-    backgroundColor: "rgba(21, 229, 233, 0.14)",
-    zIndex: 0,
-  },
-  glassOrbBottom: {
-    position: "absolute",
-    bottom: 10,
-    left: -80,
-    width: 290,
-    height: 290,
-    borderRadius: 145,
-    backgroundColor: "rgba(0, 32, 74, 0.28)",
-    zIndex: 0,
-  },
-  container: {
-    ...StyleSheet.absoluteFillObject,
-    flex: 1,
-    justifyContent: "flex-end",
-    alignItems: "center",
-  },
-  map: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  infoContainer: {
-    position: "absolute",
-    top: 20,
-    right: 10,
-    backgroundColor: "rgba(255, 255, 255, 0.7)",
-    padding: 10,
-    borderRadius: 5,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.8,
-    shadowRadius: 2,
-    elevation: 5,
-    justifyContent: "center",
-    alignItems: "center",
-    flexDirection: "row",
-  },
-  infoText: {
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  bookNow: {
-    position: "absolute",
-    bottom: 20,
-    left: (width - 90) / 2,
-    width: 240,
-    height: 55,
-    backgroundColor: "rgba(255, 255, 255, 0.7)",
-    borderRadius: 23,
-    padding: 20,
-    shadowColor: "gray",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.8,
-    shadowRadius: 2,
-    elevation: 5,
-    display: "flex",
-    alignItems: "flex-start",
-    justifyContent: "center",
-  },
-  banner: {
-    padding: 20,
-    backgroundColor: "#f8d7da",
-    borderRadius: 10,
-    alignItems: "center",
-    marginTop: 20,
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
-    elevation: 5,
-  },
-  bannerText: {
-    fontSize: 18,
-    color: "#721c24",
-    fontWeight: "bold",
-    marginBottom: 10,
-  },
-  bannerSubText: {
-    fontSize: 16,
-    color: "#721c24",
-    marginBottom: 20,
-    textAlign: "center",
-  },
-  createMembershipButton: {
-    backgroundColor: "#00f4f5",
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 5,
-  },
-  createMembershipButtonText: {
-    color: "#fff",
-    fontSize: 16,
-  },
-  renewBanner: {
-    padding: 20,
-    borderRadius: 10,
-    alignItems: "center",
-    marginTop: 20,
-    backgroundColor: "#ffff",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
-    elevation: 5,
-    margin: 20,
-  },
-  renewBannerText: {
-    fontSize: 16,
-    color: "#856404",
-    marginBottom: 10,
-    textAlign: "center",
-  },
-  renewBannerButtons: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    width: "100%",
-  },
-  renewButton: {
-    backgroundColor: "#00f4f5",
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 5,
-    marginRight: 10,
-  },
-  renewButtonText: {
-    color: "#fff",
-    fontSize: 16,
-  },
-  closeButton: {
-    backgroundColor: "#333",
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 5,
-    marginTop: 10,
-    marginBottom: 50
-  },
-  closeButtonText: {
-    color: "#fff",
-    fontSize: 16,
+    paddingBottom: 50
   },
   kmBanner: {
     padding: 20,
@@ -3143,7 +3033,7 @@ const darkStyles = StyleSheet.create({
     alignItems: 'flex-start', // Alinea los elementos al inicio (izquierda)
     padding: 10, // Añade padding para espaciar los elementos del borde
   },
-  backButton: {
+  backButtonHeader: {
     marginBottom: 10, // Espacio debajo de la flecha
   },
   greetingContainer: {
@@ -3151,7 +3041,7 @@ const darkStyles = StyleSheet.create({
     marginTop: 10,
   },
 
-  notificationText: {
+  notificationTextCompact: {
     fontSize: 16,
     fontWeight: "bold",
     color: "#000",
@@ -3229,7 +3119,7 @@ const darkStyles = StyleSheet.create({
     fontWeight: "600", // Peso mediano para no saturar
     marginBottom: 20, // Más espacio entre elementos
     textAlign: "center",
-    color: "#ff6f61", // Color más suave pero llamativo
+    color: "#FFFFFF", // Color cambiado a blanco
     textShadowColor: "rgba(0, 0, 0, 0.15)", // Sombras más suaves
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 8, // Sombra más dispersa
@@ -3257,7 +3147,7 @@ const darkStyles = StyleSheet.create({
     width: 150,
     height: 150,
     borderRadius: 10,
-    backgroundColor: "#707070",
+    backgroundColor: "#eee",
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 10,
@@ -3527,7 +3417,6 @@ const darkStyles = StyleSheet.create({
     borderRadius: 10,
     marginBottom: 10,
     alignSelf: "center",
-
   },
   cardTitleDayli: {
     color: "#fff",
@@ -3539,15 +3428,605 @@ const darkStyles = StyleSheet.create({
     fontSize: 14,
     marginTop: 5,
   },
-  backButton: {
+  backButtonFloating: {
     position: "absolute",
+    top: 40,
+    left: 20,
+    zIndex: 10, // Para asegurarse de que esté por encima de otros elementos
+  },
+});
+const darkStyles = StyleSheet.create({
+  bottomSheetWrap: {
+    flex: 1,
+    width: "100%",
+    position: "relative",
+  },
+  glassOrbTop: {
+    position: "absolute",
+    top: -100,
+    right: -30,
+    width: 270,
+    height: 270,
+    borderRadius: 135,
+    backgroundColor: "rgba(21, 229, 233, 0.14)",
+    zIndex: 0,
+  },
+  glassOrbBottom: {
+    position: "absolute",
+    bottom: 10,
+    left: -80,
+    width: 290,
+    height: 290,
+    borderRadius: 145,
+    backgroundColor: "rgba(0, 32, 74, 0.28)",
+    zIndex: 0,
+  },
+  container: {
+    ...StyleSheet.absoluteFillObject,
+    flex: 1,
+    justifyContent: "flex-end",
+    alignItems: "center",
+  },
+  map: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  infoContainer: {
+    position: "absolute",
+    top: 20,
+    right: 10,
+    backgroundColor: "rgba(255, 255, 255, 0.7)",
+    padding: 10,
+    borderRadius: 5,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.8,
+    shadowRadius: 2,
+    elevation: 5,
+    justifyContent: "center",
+    alignItems: "center",
+    flexDirection: "row",
+  },
+  infoText: {
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  bookNow: {
+    position: "absolute",
+    bottom: 20,
+    left: (width - 90) / 2,
+    width: 240,
+    height: 55,
+    backgroundColor: "rgba(255, 255, 255, 0.7)",
+    borderRadius: 23,
+    padding: 20,
+    shadowColor: "gray",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.8,
+    shadowRadius: 2,
+    elevation: 5,
+    display: "flex",
+    alignItems: "flex-start",
+    justifyContent: "center",
+  },
+  banner: {
+    padding: 20,
+    backgroundColor: "#f8d7da",
+    borderRadius: 10,
+    alignItems: "center",
+    marginTop: 20,
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    elevation: 5,
+  },
+  bannerText: {
+    fontSize: 18,
+    color: "#721c24",
+    fontWeight: "bold",
+    marginBottom: 10,
+  },
+  bannerSubText: {
+    fontSize: 16,
+    color: "#721c24",
+    marginBottom: 20,
+    textAlign: "center",
+  },
+  createMembershipButton: {
+    backgroundColor: "#00f4f5",
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 5,
+  },
+  createMembershipButtonText: {
+    color: "#fff",
+    fontSize: 16,
+  },
+  renewBanner: {
+    padding: 20,
+    borderRadius: 10,
+    alignItems: "center",
+    marginTop: 20,
+    backgroundColor: "#ffff",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    elevation: 5,
+    margin: 20,
+  },
+  renewBannerText: {
+    fontSize: 16,
+    color: "#856404",
+    marginBottom: 10,
+    textAlign: "center",
+  },
+  renewBannerButtons: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    width: "100%",
+  },
+  renewButton: {
+    backgroundColor: "#00f4f5",
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 5,
+    marginRight: 10,
+  },
+  renewButtonText: {
+    color: "#fff",
+    fontSize: 16,
+  },
+  closeButton: {
+    backgroundColor: "#333",
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 5,
+    marginTop: 10,
+    marginBottom: 50
+  },
+  closeButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    paddingBottom: 50
+  },
+  kmBanner: {
+    padding: 20,
+    backgroundColor: "#ffff",
+    borderRadius: 10,
+    alignItems: "center",
+    marginTop: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    elevation: 5,
+  },
+  kmBannerText: {
+    fontSize: 16,
+    color: "#f24452",
+    marginBottom: 10,
+    textAlign: "center",
+  },
+  kmBannerButtons: {
+    flexDirection: "column", // Cambiado a 'column' para que los botones sean verticales
+    justifyContent: "space-between",
+    alignItems: "center", // Opcional: Centrar los botones horizontalmente
+    width: "100%",
+  },
+  headerContainer: {
+    flexDirection: 'column', // Organiza los elementos en columna
+    alignItems: 'flex-start', // Alinea los elementos al inicio (izquierda)
+    padding: 10, // Añade padding para espaciar los elementos del borde
+  },
+  backButtonHeader: {
+    marginBottom: 10, // Espacio debajo de la flecha
+  },
+  greetingContainer: {
+    width: '100%', // Asegura que el contenedor ocupe todo el ancho disponible
+    marginTop: 10,
+  },
 
+  notificationTextCompact: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#000",
+  },
+  rechargeButton: {
+    backgroundColor: "#00f4f5",
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 5,
+    marginRight: 10,
+  },
+  rechargeButtonText: {
+    color: "#fff",
+    fontSize: 16,
+  },
+  tourContainer: {
+    flex: 1,
+    paddingTop: 50,
+    backgroundColor: "#474747",
+  },
+  tourImage: {
+    width: 200,
+    height: 100,
+    resizeMode: "contain",
+    marginBottom: 20,
+    borderRadius: 100,
+  },
+  tourText: {
+    fontSize: 16,
+    fontWeight: "bold",
+    marginBottom: 20,
+    color: "#fff",
+  },
+  navigationButtons: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    marginBottom: 20,
+  },
+  prevButton: {
+    backgroundColor: "#cccccc",
+    width: 150,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#00f4f5",
+    padding: 10,
+  },
+  prevButtonText: {
+    color: "#00f4f5",
+    fontSize: 16,
+    fontWeight: "bold",
+    textAlign: "center",
+    alignSelf: "center",
+    alignItems: "center",
+  },
+  nextButton: {
+    backgroundColor: "#00f4f5",
+    width: 150,
+    padding: 10,
+    borderRadius: 10,
+  },
+  nextButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "bold",
+    textAlign: "center",
+  },
+  stepContainer: {
+    flex: 1,
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingTop: 30,
+  },
+  stepMessage: {
+    fontSize: 22, // Aumentar tamaño para más impacto
+    fontWeight: "600", // Peso mediano para no saturar
+    marginBottom: 20, // Más espacio entre elementos
+    textAlign: "center",
+    color: "#FFFFFF", // Color cambiado a blanco
+    textShadowColor: "rgba(0, 0, 0, 0.15)", // Sombras más suaves
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 8, // Sombra más dispersa
+    letterSpacing: 0.8, // Espaciado entre letras para mejor legibilidad
+  },
+  stepTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+    marginBottom: 20,
+    color: "#fff",
+  },
+  explanatoryText: {
+    fontSize: 16,
+    color: "#D7D7D7",
+    textAlign: "center",
+    marginVertical: 10,
+  },
+  profileImage: {
+    width: 150,
+    height: 150,
+    borderRadius: 10,
+    marginBottom: 10,
+  },
+  imagePlaceholder: {
+    width: 150,
+    height: 150,
+    borderRadius: 10,
+    backgroundColor: "#eee",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  modalContainerIos: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalViewIos: {
+    width: 300,
+    borderRadius: 20,
+    padding: 35,
+    alignItems: "center",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  botonCamera: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#00204a",
+    padding: 15,
+    borderRadius: 10,
+    marginBottom: 15,
+    width: "100%",
+    justifyContent: "center",
+    elevation: 5,
+  },
+  botonGallery: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#00f4f5",
+    padding: 15,
+    borderRadius: 10,
+    marginBottom: 15,
+    width: "100%",
+    justifyContent: "center",
+    elevation: 5,
+  },
+  pickerContainer: {
+    width: "100%",
+    marginTop: 20,
+  },
+  modalButtonText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  input: {
+    height: 50,
+
+    borderRadius: 10,
+    paddingHorizontal: 20,
+    fontSize: 16,
+    marginTop: 10,
+    color: "#fff",
+  },
+  linkButton: {
+    color: "#00f4f5",
+    fontSize: 16,
+    fontWeight: "bold",
+    textAlign: "center",
+    textDecorationLine: "underline",
+  },
+  summaryText: {
+    fontSize: 18,
+    marginVertical: 5,
+    color: "#fff",
+  },
+  finishButton: {
+    backgroundColor: "#00f4f5",
+    marginTop: 20,
+    width: 200,
+    borderRadius: 10,
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+  },
+  modalView: {
+    width: 300,
+    backgroundColor: "white",
+    borderRadius: 20,
+    padding: 35,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  modalText: {
+    marginBottom: 15,
+    textAlign: "center",
+    fontSize: 16,
+  },
+  cancelButtonText: {
+    color: "#00f4f5",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  cancelButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    padding: 15,
+    borderRadius: 10,
+    marginTop: 10,
+    width: "100%",
+    justifyContent: "center",
+    elevation: 5,
+    borderWidth: 1,
+    borderColor: "#00f4f5",
+  },
+  bottomSheetContent: {
+    padding: 16,
+    backgroundColor: "rgba(1, 6, 10, 0.94)", // Glass dark background
+    zIndex: 1,
+  },
+  bottomSheetContentContainer: {
+    paddingBottom: 80,
+  },
+
+  notificationCard: {
+    backgroundColor: "rgba(4, 39, 58, 0.52)",
+    padding: 16,
+    borderRadius: 16,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "rgba(21, 229, 233, 0.30)",
+  },
+  notificationText: {
+    fontSize: 18,
+    fontWeight: "800",
+    letterSpacing: 0.3,
+    color: "#ffffff", // White text for better contrast
+  },
+  notificationLink: {
+    color: "#1e90ff", // Bright blue for links
+    fontWeight: "bold",
+  },
+  section: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+    marginTop: 16,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: "800",
+    letterSpacing: 0.4,
+    color: "#ffffff", // White text for section titles
+  },
+  viewAll: {
+    color: "#1e90ff", // Bright blue for 'View All' links
+  },
+  suggestionCard: {
+    backgroundColor: "rgba(4, 39, 58, 0.45)",
+    padding: 16,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 16,
+    borderWidth: 1,
+    borderColor: "rgba(21, 229, 233, 0.35)",
+  },
+  suggestionIcon: {
+    width: 40,
+    height: 40,
+    marginBottom: 8,
+  },
+  suggestionText: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#ffffff", // White text for suggestions
+  },
+  promoCard: {
+    flexDirection: "row",
+    backgroundColor: "rgba(4, 39, 58, 0.52)",
+    padding: 16,
+    borderRadius: 14,
+    marginBottom: 16,
+    elevation: 5,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    borderWidth: 1,
+    borderColor: "rgba(21, 229, 233, 0.32)",
+  },
+  promoImage: {
+    width: 100,
+    height: 100,
+    marginRight: 16,
+    borderRadius: 8,
+  },
+  promoTitle: {
+    fontSize: 17,
+    fontWeight: "800",
+    color: "#ffffff", // White text for promo titles
+  },
+  promoDescription: {
+    fontSize: 14,
+    color: "#cccccc", // Light gray for promo descriptions
+  },
+  statusText: {
+    fontSize: 16,
+    fontWeight: "bold",
+    top: 3,
+    marginRight: 10,
+  },
+
+  infoContainerDark: {
+    backgroundColor: "#545454", // Modo oscuro
+  },
+
+  containerHorizontal: {
+  },
+  bannerImage: {
+    width: 300,
+    height: 150,
+    borderRadius: 10,
+    marginRight: 10,
+    elevation:5
+  },
+  containerDayli: {
+    marginVertical: 20,
+    paddingHorizontal: 10,
+  },
+  headerDayli: {
+    color: "#fff",
+    fontSize: 20,
+    fontWeight: "800",
+    letterSpacing: 0.5,
+    marginBottom: 10,
+  },
+  scrollContainerDayli: {
+    flexDirection: "row",
+  },
+  cardDayli: {
+    backgroundColor: "rgba(4, 39, 58, 0.45)",
+    borderRadius: 16,
+    width: 200,
+    marginRight: 15,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: "rgba(21, 229, 233, 0.30)",
+  },
+  cardImageDayli: {
+    width: "70%",
+    height: 100,
+    borderRadius: 10,
+    marginBottom: 10,
+    alignSelf: "center",
+  },
+  cardTitleDayli: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "800",
+  },
+  cardSubtitleDayli: {
+    color: "#a1a1a1",
+    fontSize: 14,
+    marginTop: 5,
+  },
+  backButtonFloating: {
+    position: "absolute",
+    top: 40,
     left: 20,
     zIndex: 10, // Para asegurarse de que esté por encima de otros elementos
   },
 });
 
 const nS = StyleSheet.create({
+  mapStage: {
+    flex: 1,
+    width: '100%',
+    backgroundColor: '#051A26',
+  },
   wrap: {
     flex: 1,
     width: '100%',
@@ -3698,7 +4177,6 @@ const nS = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(0, 229, 255, 0.18)',
     padding: 18,
-    alignItems: 'center' as const,
     marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -3798,6 +4276,328 @@ const nS = StyleSheet.create({
     color: 'rgba(255,255,255,0.48)',
     fontSize: 11,
     lineHeight: 15,
+  },
+  driverOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'space-between',
+    paddingTop: 50,
+    paddingBottom: 22,
+    paddingHorizontal: 16,
+  },
+  driverTopBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  driverCircleBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(10,46,61,0.72)',
+    borderWidth: 1,
+    borderColor: 'rgba(0,229,255,0.22)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  driverEarningsPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(10,46,61,0.82)',
+    borderWidth: 1,
+    borderColor: 'rgba(0,229,255,0.3)',
+    borderRadius: 24,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+  },
+  driverEarningsLabel: {
+    color: 'rgba(255,255,255,0.64)',
+    fontSize: 11,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    fontWeight: '700',
+  },
+  driverEarningsAmount: {
+    color: '#00E5FF',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  driverMiniAvatarRing: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 2,
+    borderColor: '#00E5FF',
+    backgroundColor: 'rgba(5,26,38,0.9)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  driverMiniAvatarImg: {
+    width: '100%',
+    height: '100%',
+  },
+  driverBottomSheet: {
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    backgroundColor: 'rgba(8,33,46,0.88)',
+    borderWidth: 1,
+    borderColor: 'rgba(0,229,255,0.22)',
+    paddingTop: 10,
+    paddingBottom: 20,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    marginBottom: 95,
+  },
+  driverSheetHandle: {
+    width: 44,
+    height: 4,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255,255,255,0.38)',
+    marginBottom: 5,
+  },
+  driverStatusText: {
+    color: '#00E5FF',
+    fontSize: 22,
+    fontWeight: '800',
+    textAlign: 'center',
+    marginTop: 2,
+  },
+  driverStatusSub: {
+    color: 'rgba(255,255,255,0.62)',
+    fontSize: 12,
+    marginTop: 4,
+    marginBottom: 14,
+    textAlign: 'center',
+  },
+  driverStatsRow: {
+    width: '100%',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 4,
+  },
+  driverStatItem: {
+    width: '31%',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 14,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(0,229,255,0.12)',
+  },
+  driverStatVal: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '800',
+    marginTop: 4,
+  },
+  driverStatLbl: {
+    color: 'rgba(255,255,255,0.58)',
+    fontSize: 10,
+    textTransform: 'uppercase',
+    marginTop: 2,
+  },
+  incomingRequestCard: {
+    backgroundColor: 'rgba(10,46,61,0.94)',
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: '#00E5FF',
+    padding: 16,
+    shadowColor: '#00E5FF',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.22,
+    shadowRadius: 14,
+    elevation: 9,
+  },
+  incomingHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  incomingType: {
+    color: '#00E5FF',
+    fontWeight: '800',
+    fontSize: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  incomingEta: {
+    color: 'rgba(255,255,255,0.82)',
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  incomingPrice: {
+    color: '#fff',
+    fontSize: 30,
+    fontWeight: '900',
+    marginBottom: 8,
+  },
+  incomingRouteText: {
+    color: 'rgba(255,255,255,0.84)',
+    fontSize: 13,
+    marginBottom: 3,
+  },
+  incomingActions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 10,
+  },
+  rejectBtn: {
+    flex: 1,
+    height: 46,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.24)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  rejectBtnText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  acceptBtn: {
+    flex: 1,
+    height: 46,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#00E5FF',
+  },
+  acceptBtnText: {
+    color: '#051A26',
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  driverNovedadesCard: {
+    backgroundColor: 'rgba(10,46,61,0.90)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(0,229,255,0.3)',
+    padding: 14,
+    marginTop: 10,
+  },
+  driverNovedadesHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  driverNovedadesTitle: {
+    color: '#00E5FF',
+    fontSize: 13,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  driverNovedadesText: {
+    color: 'rgba(255,255,255,0.9)',
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  driverBottomNav: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom:  32,
+    paddingHorizontal: 12,
+  },
+  driverNavItems: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    paddingVertical: 8,
+    borderRadius: 24,
+    backgroundColor: 'rgba(8,35,50,0.88)',
+    borderWidth: 1,
+    borderColor: 'rgba(0,229,255,0.12)',
+  },
+  driverNavItem: {
+    minWidth: 56,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    paddingVertical: 4,
+  },
+  driverNavItemActive: {
+    opacity: 1,
+  },
+  driverNavLabel: {
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.35)',
+    marginTop: 2,
+    fontWeight: '500',
+  },
+  driverNavLabelActive: {
+    color: '#00E5FF',
+  },
+  driverNavIndicator: {
+    position: 'absolute',
+    bottom: -4,
+    width: 18,
+    height: 2,
+    borderRadius: 2,
+    backgroundColor: '#00E5FF',
+  },
+  driverNavCenter: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: -8,
+  },
+  driverNavCenterStack: {
+    width: 76,
+    height: 76,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  driverNavCenterPulseRing: {
+    position: 'absolute',
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    borderWidth: 2,
+    borderColor: 'rgba(0,229,255,0.35)',
+    backgroundColor: 'rgba(0,229,255,0.08)',
+  },
+  driverNavCenterBtn: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: '#00E5FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#00E5FF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 10,
+  },
+  driverNavCenterBtnGo: {
+    backgroundColor: '#0F2F3D',
+    borderWidth: 1,
+    borderColor: 'rgba(0,229,255,0.55)',
+    shadowColor: '#0F2F3D',
+  },
+  driverNavCenterLabel: {
+    fontSize: 10,
+    color: '#FFFFFF',
+    marginTop: 2,
+    fontWeight: '500',
+  },
+  driverNavGoText: {
+    color: '#051A26',
+    fontSize: 18,
+    fontWeight: '900',
+    letterSpacing: 0.4,
+  },
+  driverNavGoTextGo: {
+    color: '#00E5FF',
   },
 });
 

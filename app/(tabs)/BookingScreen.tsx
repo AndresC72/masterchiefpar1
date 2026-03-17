@@ -984,7 +984,7 @@ const snapPoints = useMemo(() => ["3%", "50%", "90%"], []); // Ajusta los puntos
           coordinate={[destination.longitude, destination.latitude]}
         >
           <View style={styles.markerContainer}>
-            <Ionicons name="location" size={40} color="#FF0000" />
+            <Ionicons name="location" size={40} color="#FFFFFF" />
           </View>
         </Mapbox.PointAnnotation>
       </Mapbox.MapView>
@@ -998,7 +998,7 @@ const snapPoints = useMemo(() => ["3%", "50%", "90%"], []); // Ajusta los puntos
           </Text>
           <View style={styles.separator}></View>
           <Text style={styles.address}>
-            <FontAwesome5 name="map-pin" size={24} color="red" />{" "}
+            <FontAwesome5 name="map-pin" size={24} color="#FFFFFF" />{" "}
             {destination.title}
           </Text>
         </View>

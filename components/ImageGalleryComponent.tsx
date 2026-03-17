@@ -1,5 +1,16 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, FlatList, Dimensions, Modal, Alert, useColorScheme } from 'react-native';
+import React, { useMemo, useRef, useState } from "react";
+import {
+  Alert,
+  Animated,
+  Easing,
+  Image,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { Ionicons, AntDesign, MaterialIcons } from "@expo/vector-icons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useSelector } from "react-redux";
@@ -10,374 +21,780 @@ import { getDatabase, ref as dbRef, update } from "firebase/database";
 
 type Props = NativeStackScreenProps<any>;
 
-const { width } = Dimensions.get('window');
-const CARD_WIDTH = width * 0.8;
-const CARD_HEIGHT = CARD_WIDTH * 0.6;
+type DocKey =
+  | "verifyIdImage"
+  | "verifyIdImageBk"
+  | "SOATImage"
+  | "cardPropImage"
+  | "cardPropImageBK"
+  | "licenseImage"
+  | "licenseImageBack";
+
+type DocDef = {
+  key: DocKey;
+  label: string;
+  icon: React.ComponentProps<typeof Ionicons>["name"];
+  accent: string;
+};
+
+const DOC_DEFS: DocDef[] = [
+  { key: "verifyIdImage", label: "Cedula Frente", icon: "card-outline", accent: "#FF5D73" },
+  { key: "verifyIdImageBk", label: "Cedula Posterior", icon: "copy-outline", accent: "#FF7A8E" },
+  { key: "SOATImage", label: "SOAT", icon: "document-text-outline", accent: "#00E5FF" },
+  { key: "cardPropImage", label: "Propiedad Frente", icon: "wallet-outline", accent: "#FACC15" },
+  { key: "cardPropImageBK", label: "Propiedad Posterior", icon: "albums-outline", accent: "#F87171" },
+  { key: "licenseImage", label: "Licencia Frente", icon: "id-card-outline", accent: "#22D3EE" },
+  { key: "licenseImageBack", label: "Licencia Posterior", icon: "reader-outline", accent: "#34D399" },
+];
 
 const ImageGalleryComponent = ({ navigation, route }: Props) => {
-    const colorScheme = useColorScheme();
-    const user = useSelector((state: RootState) => state.auth.user);
-    const [modalVisible, setModalVisible] = useState(false);
-    const [selectedImage, setSelectedImage] = useState(null);
-    const { data } = route.params || {}; // Recibir los datos pasados y evitar crash si no viene
-    console.log(data, "dataaaaaa")
-    const [images, setImages] = useState(() => {
-        if (user?.usertype === 'customer') {
-            return [
-                { uri: user?.verifyIdImage, name: "Cedula Frente", nameStorage: "verifyIdImage" }
-            ];
-        } else {
-            return [
-                { uri: user?.verifyIdImage, name: "Cedula Frente", nameStorage: "verifyIdImage" },
-                { uri: user?.verifyIdImageBk, name: "Cedula Posterior", nameStorage: "verifyIdImageBk" },
-                { uri: user?.SOATImage, name: "SOAT", nameStorage: "SOATImage" },
-                { uri: user?.cardPropImage, name: "Tarjeta de Propiedad Frente", nameStorage: "cardPropImage" },
-                { uri: user?.cardPropImageBK, name: "Tarjeta de Propiedad Posterior", nameStorage: "cardPropImageBK" },
-                { uri: user?.licenseImage, name: "Licencia Frente", nameStorage: "licenseImage" },
-                { uri: user?.licenseImageBack, name: "Licencia Posterior", nameStorage: "licenseImageBack" },
-            ];
-        }
+  const user = useSelector((state: RootState) => state.auth.user) as any;
+  const { data } = route.params || {};
+
+  const [sourceModalVisible, setSourceModalVisible] = useState(false);
+  const [compareModalVisible, setCompareModalVisible] = useState(false);
+  const [previewModalVisible, setPreviewModalVisible] = useState(false);
+  const [selectedDoc, setSelectedDoc] = useState<DocDef | null>(null);
+  const [previewUri, setPreviewUri] = useState<string | null>(null);
+  const [candidateUri, setCandidateUri] = useState<string | null>(null);
+  const [loadingUpload, setLoadingUpload] = useState(false);
+
+  const [savedUris, setSavedUris] = useState<Record<DocKey, string | null>>({
+    verifyIdImage: user?.verifyIdImage || null,
+    verifyIdImageBk: user?.verifyIdImageBk || null,
+    SOATImage: user?.SOATImage || null,
+    cardPropImage: user?.cardPropImage || null,
+    cardPropImageBK: user?.cardPropImageBK || user?.cardPropImageBk || null,
+    licenseImage: user?.licenseImage || null,
+    licenseImageBack: user?.licenseImageBack || null,
+  });
+
+  const [pendingUris, setPendingUris] = useState<Partial<Record<DocKey, string>>>({});
+
+  const glowPulse = useRef(new Animated.Value(0)).current;
+  const orbSpin = useRef(new Animated.Value(0)).current;
+
+  React.useEffect(() => {
+    const glowLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(glowPulse, {
+          toValue: 1,
+          duration: 2600,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+        Animated.timing(glowPulse, {
+          toValue: 0,
+          duration: 2600,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+      ])
+    );
+
+    const orbLoop = Animated.loop(
+      Animated.timing(orbSpin, {
+        toValue: 1,
+        duration: 20000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    );
+
+    glowLoop.start();
+    orbLoop.start();
+
+    return () => {
+      glowLoop.stop();
+      orbLoop.stop();
+    };
+  }, [glowPulse, orbSpin]);
+
+  const docs = useMemo(() => {
+    const isCustomer = user?.usertype === "customer";
+    const defs = isCustomer ? DOC_DEFS.slice(0, 1) : DOC_DEFS;
+    return defs.map((doc) => ({
+      ...doc,
+      currentUri: savedUris[doc.key] || null,
+      nextUri: pendingUris[doc.key] || null,
+    }));
+  }, [pendingUris, savedUris, user?.usertype]);
+
+  const pendingCount = useMemo(() => Object.keys(pendingUris).length, [pendingUris]);
+
+  const glowScale = glowPulse.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 1.2],
+  });
+
+  const glowOpacity = glowPulse.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.22, 0.42],
+  });
+
+  const orbRotate = orbSpin.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", "360deg"],
+  });
+
+  const openSourcePicker = (doc: DocDef) => {
+    setSelectedDoc(doc);
+    setSourceModalVisible(true);
+  };
+
+  const showImagePreview = (uri: string | null) => {
+    if (!uri) return;
+    setPreviewUri(uri);
+    setPreviewModalVisible(true);
+  };
+
+  const getImageFromLibrary = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [5, 3],
+      quality: 0.8,
     });
 
-    const handleImagePress = (image) => {
-        setSelectedImage(image);
-        setModalVisible(true);
-    };
+    if (!result.canceled) {
+      setCandidateUri(result.assets[0].uri);
+      setSourceModalVisible(false);
+      setCompareModalVisible(true);
+    }
+  };
 
-    const updateImageInList = (uri, imageName) => {
-        setImages((prevImages) =>
-            prevImages.map((image) =>
-                image.nameStorage === imageName ? { ...image, uri: uri } : image
-            )
-        );
-    };
+  const getImageFromCamera = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Permiso denegado", "Se requiere acceso a la cámara para tomar fotos.");
+      return;
+    }
 
-    const pickImage = async () => {
-        let result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            allowsEditing: true,
-            aspect: [5, 3],
-            quality: 0.7,
-        });
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [5, 3],
+      quality: 0.8,
+    });
 
-        if (!result.canceled) {
-            const uri = result.assets[0].uri;
-            updateImageInList(uri, selectedImage.nameStorage);
-            await processImage(uri, selectedImage.nameStorage);
-            setModalVisible(false); // Cerrar el modal después de seleccionar una imagen
-        }
-    };
+    if (!result.canceled) {
+      setCandidateUri(result.assets[0].uri);
+      setSourceModalVisible(false);
+      setCompareModalVisible(true);
+    }
+  };
 
-    const takePhoto = async () => {
-        const { status } = await ImagePicker.requestCameraPermissionsAsync();
-        if (status !== 'granted') {
-            Alert.alert("Permiso denegado", "Se requiere acceso a la cámara para tomar fotos.");
-            return;
-        }
+  const confirmCandidate = () => {
+    if (!selectedDoc || !candidateUri) {
+      setCompareModalVisible(false);
+      return;
+    }
 
-        let result = await ImagePicker.launchCameraAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            allowsEditing: true,
-            aspect: [5, 3],
-            quality: 0.7,
-        });
+    setPendingUris((prev) => ({
+      ...prev,
+      [selectedDoc.key]: candidateUri,
+    }));
 
-        if (!result.canceled) {
-            const uri = result.assets[0].uri;
-            updateImageInList(uri, selectedImage.nameStorage);
-            await processImage(uri, selectedImage.nameStorage);
-            setModalVisible(false); // Cerrar el modal después de tomar una foto
-        }
-    };
+    setCompareModalVisible(false);
+    setCandidateUri(null);
+  };
 
-    const processImage = async (uri: string, imageName: string) => {
-        if (!user?.uid) {
-            Alert.alert("Error", "El usuario no está autenticado.");
-            return;
-        }
+  const discardCandidate = () => {
+    setCompareModalVisible(false);
+    setCandidateUri(null);
+  };
 
-        try {
-            const storage = getStorage();
-            const storageRef = ref(storage, `users/${user.uid}/${imageName}`);
+  const uploadDoc = async (userId: string, docKey: DocKey, localUri: string) => {
+    const storage = getStorage();
+    const storageRef = ref(storage, `users/${userId}/${docKey}`);
 
-            const response = await fetch(uri);
-            const blob = await response.blob();
+    const response = await fetch(localUri);
+    const blob = await response.blob();
 
-            await uploadBytes(storageRef, blob);
-            const downloadURL = await getDownloadURL(storageRef);
+    await uploadBytes(storageRef, blob);
+    const downloadURL = await getDownloadURL(storageRef);
 
-            const db = getDatabase();
-            const updates = {};
-            updates[`/users/${user.uid}/${imageName}`] = downloadURL;
+    const db = getDatabase();
+    const updates: Record<string, string> = {};
+    updates[`/users/${userId}/${docKey}`] = downloadURL;
+    await update(dbRef(db), updates);
 
-            await update(dbRef(db), updates);
+    return downloadURL;
+  };
 
-            //console.log(`${imageName} actualizada exitosamente.`);
-        } catch (error) {
-            console.error("Error al procesar la imagen:", error);
-            Alert.alert("Error", "No se pudo actualizar la imagen. Por favor, intenta de nuevo.");
-        }
-    };
+  const handleUpdate = async () => {
+    if (pendingCount === 0) {
+      Alert.alert("Sin cambios", "No hay documentos nuevos por confirmar.");
+      return;
+    }
 
-    const handleUpdate = async () => {
-        //console.log("Imágenes actualizadas en el servidor");
-        Alert.alert("Actualización", "Las imágenes se han actualizado exitosamente.");
-    };
+    const userId = user?.uid || user?.id;
+    if (!userId) {
+      Alert.alert("Error", "No se pudo identificar al usuario autenticado.");
+      return;
+    }
 
-    return (
-        <View style={[styles.container, colorScheme === 'dark' ? styles.containerDark : styles.containerLight]}>
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => {
-                    if (data === 'Process') {
-                        navigation.navigate('Map', { openModal: true });
-                    } else {
-                        navigation.goBack();
-                    }
-                }}>
-                    <AntDesign name="arrowleft" size={24} color={colorScheme === 'dark' ? '#fff' : 'black'} />
-                </TouchableOpacity>
-                <Text style={[styles.headerText, colorScheme === 'dark' ? styles.textDark : styles.textLight]}>{"Documentos"} </Text>
-                <Ionicons
-                    name="images-outline"
-                    size={24}
-                    color={colorScheme === 'dark' ? '#fff' : 'black'}
-                    style={styles.headerIcon}
-                />
-            </View>
-            <View style={styles.carouselContainer}>
-                <FlatList
-                    data={images} // Solo se muestran las imágenes filtradas si es customer
-                    horizontal
-                    keyExtractor={(item, index) => index.toString()}
-                    renderItem={({ item }) => (
-                        <TouchableOpacity onPress={() => handleImagePress(item)}>
-                            <View style={[styles.cardContainer, colorScheme === 'dark' ? styles.cardDark : styles.cardLight]}>
-                                <Text style={[styles.imageLabel, colorScheme === 'dark' ? styles.labelDark : styles.labelLight]}>{item.name}</Text>
-                                {item.uri ? (
-                                    <Image source={{ uri: item.uri }} style={styles.galleryImage} />
-                                ) : (
-                                    <View style={styles.noImageContainer}>
-                                        <Text style={styles.noImageText}> 📷️Tocar para subir la imagen </Text>
-                                    </View>
-                                )}
-                            </View>
-                        </TouchableOpacity>
-                    )}
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={styles.scrollContent}
-                    pagingEnabled
-                    snapToAlignment="center"
-                    decelerationRate="fast"
-                    snapToInterval={CARD_WIDTH}
-                />
-                <TouchableOpacity style={styles.updateButton} onPress={handleUpdate}>
-                    <Text style={styles.updateButtonText}>Actualizar Ahora</Text>
-                </TouchableOpacity>
-            </View>
-            <Modal
-                animationType="slide"
-                transparent={true}
-                visible={modalVisible}
-                onRequestClose={() => setModalVisible(false)}
-            >
-                <View style={styles.modalContainer}>
-                    <View style={[styles.modalView, colorScheme === 'dark' ? styles.modalDark : styles.modalLight]}>
-                        <Text style={[styles.modalText, colorScheme === 'dark' ? styles.textDark : styles.textLight]}>SELECCIONA UNA OPCIÓN</Text>
-                        <TouchableOpacity style={styles.button} onPress={pickImage}>
-                            <Ionicons name="images" size={24} color="white" style={styles.modalIcon} />
-                            <Text style={styles.buttonText}>Cargar Imagen</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.buttonLoad} onPress={takePhoto}>
-                            <Ionicons name="camera" size={24} color="white" style={styles.modalIcon} />
-                            <Text style={styles.buttonText}>Tomar Foto</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={styles.cancelButton}
-                            onPress={() => setModalVisible(false)}
-                        >
-                            <MaterialIcons name="cancel" size={24} color="white" style={styles.modalIcon} />
-                            <Text style={styles.cancelButtonText}>Cancelar</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </Modal>
-        </View>
+    Alert.alert(
+      "Confirmar actualización",
+      `Vas a reemplazar ${pendingCount} documento(s). ¿Deseas continuar?`,
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Confirmar",
+          style: "default",
+          onPress: async () => {
+            try {
+              setLoadingUpload(true);
+              const updated: Partial<Record<DocKey, string | null>> = {};
+
+              const entries = Object.entries(pendingUris) as Array<[DocKey, string]>;
+              for (const [docKey, uri] of entries) {
+                const remoteUrl = await uploadDoc(userId, docKey, uri);
+                updated[docKey] = remoteUrl;
+              }
+
+              setSavedUris((prev) => ({
+                ...prev,
+                ...updated,
+              }));
+
+              setPendingUris({});
+              Alert.alert("Listo", "Los documentos se actualizaron correctamente.");
+            } catch (error) {
+              console.error("Error updating docs:", error);
+              Alert.alert("Error", "No se pudieron actualizar los documentos. Intenta nuevamente.");
+            } finally {
+              setLoadingUpload(false);
+            }
+          },
+        },
+      ]
     );
+  };
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.bgLayer}>
+        <Animated.View
+          style={[
+            styles.bgGlow,
+            styles.bgGlowTop,
+            { transform: [{ scale: glowScale }], opacity: glowOpacity },
+          ]}
+        />
+        <Animated.View
+          style={[
+            styles.bgGlow,
+            styles.bgGlowBottom,
+            { transform: [{ scale: glowScale }], opacity: glowOpacity },
+          ]}
+        />
+        <Animated.View style={[styles.bgOrb, { transform: [{ rotate: orbRotate }] }]} />
+        <View style={styles.bgGrid} />
+      </View>
+
+      <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.headerBtn}
+          onPress={() => {
+            if (data === "Process") {
+              navigation.navigate("Map", { openModal: true });
+            } else {
+              navigation.goBack();
+            }
+          }}
+        >
+          <AntDesign name="arrowleft" size={22} color="#E9F6FF" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Documentos</Text>
+        <View style={styles.headerIconWrap}>
+          <Ionicons name="images-outline" size={18} color="#00E5FF" />
+        </View>
+      </View>
+
+      <ScrollView contentContainerStyle={styles.content}>
+        <Text style={styles.subtitle}>Revisa la imagen actual y confirma cualquier cambio antes de guardar.</Text>
+
+        {docs.map((doc) => (
+          <View key={doc.key} style={styles.docCard}>
+            <View style={styles.docTop}>
+              <View style={[styles.docIcon, { borderColor: `${doc.accent}66` }]}>
+                <Ionicons name={doc.icon} size={20} color={doc.accent} />
+              </View>
+              <View style={styles.docInfo}>
+                <Text style={styles.docTitle}>{doc.label}</Text>
+                <Text style={styles.docStatus}>
+                  {doc.nextUri ? "Cambio pendiente de confirmar" : doc.currentUri ? "Imagen guardada" : "Sin imagen"}
+                </Text>
+              </View>
+              <TouchableOpacity style={styles.changeBtn} onPress={() => openSourcePicker(doc)}>
+                <Ionicons name="camera-outline" size={18} color="#00E5FF" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.previewRow}>
+              <TouchableOpacity style={styles.previewCard} onPress={() => showImagePreview(doc.currentUri)} activeOpacity={0.9}>
+                <Text style={styles.previewLabel}>Actual</Text>
+                {doc.currentUri ? (
+                  <Image source={{ uri: doc.currentUri }} style={styles.previewImage} />
+                ) : (
+                  <View style={styles.previewEmpty}>
+                    <Ionicons name="image-outline" size={20} color="#6F96A9" />
+                    <Text style={styles.previewEmptyText}>Sin imagen</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.previewCard} onPress={() => showImagePreview(doc.nextUri || null)} activeOpacity={0.9}>
+                <Text style={styles.previewLabel}>Nueva</Text>
+                {doc.nextUri ? (
+                  <Image source={{ uri: doc.nextUri }} style={styles.previewImage} />
+                ) : (
+                  <View style={styles.previewEmpty}>
+                    <Ionicons name="swap-horizontal-outline" size={20} color="#6F96A9" />
+                    <Text style={styles.previewEmptyText}>Sin cambio</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        ))}
+
+        <TouchableOpacity style={[styles.updateBtn, loadingUpload && styles.updateBtnDisabled]} onPress={handleUpdate} disabled={loadingUpload}>
+          <Text style={styles.updateBtnText}>
+            {loadingUpload ? "Actualizando..." : `Actualizar Ahora${pendingCount > 0 ? ` (${pendingCount})` : ""}`}
+          </Text>
+        </TouchableOpacity>
+      </ScrollView>
+
+      <Modal transparent animationType="slide" visible={sourceModalVisible} onRequestClose={() => setSourceModalVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Selecciona una opción</Text>
+            <TouchableOpacity style={styles.modalPrimaryBtn} onPress={getImageFromLibrary}>
+              <Ionicons name="images" size={18} color="#062331" />
+              <Text style={styles.modalPrimaryText}>Cargar Imagen</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.modalSecondaryBtn} onPress={getImageFromCamera}>
+              <Ionicons name="camera" size={18} color="#E9F6FF" />
+              <Text style={styles.modalSecondaryText}>Tomar Foto</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setSourceModalVisible(false)}>
+              <MaterialIcons name="cancel" size={18} color="#FF6A7B" />
+              <Text style={styles.modalCancelText}>Cancelar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal transparent animationType="fade" visible={compareModalVisible} onRequestClose={discardCandidate}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, styles.compareModalCard]}>
+            <Text style={styles.modalTitle}>Confirmar cambio</Text>
+            <Text style={styles.compareSubtitle}>Verifica la imagen nueva antes de reemplazar la actual.</Text>
+
+            <View style={styles.compareRow}>
+              <View style={styles.compareBox}>
+                <Text style={styles.compareLabel}>Actual</Text>
+                {selectedDoc && savedUris[selectedDoc.key] ? (
+                  <Image source={{ uri: savedUris[selectedDoc.key] as string }} style={styles.compareImage} />
+                ) : (
+                  <View style={styles.previewEmpty}>
+                    <Text style={styles.previewEmptyText}>Sin imagen</Text>
+                  </View>
+                )}
+              </View>
+
+              <View style={styles.compareBox}>
+                <Text style={styles.compareLabel}>Nueva</Text>
+                {candidateUri ? (
+                  <Image source={{ uri: candidateUri }} style={styles.compareImage} />
+                ) : (
+                  <View style={styles.previewEmpty}>
+                    <Text style={styles.previewEmptyText}>Sin imagen</Text>
+                  </View>
+                )}
+              </View>
+            </View>
+
+            <View style={styles.compareActions}>
+              <TouchableOpacity style={styles.keepOldBtn} onPress={discardCandidate}>
+                <Text style={styles.keepOldText}>Conservar actual</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.confirmBtn} onPress={confirmCandidate}>
+                <Text style={styles.confirmText}>Confirmar cambio</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal transparent animationType="fade" visible={previewModalVisible} onRequestClose={() => setPreviewModalVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.imagePreviewModal}>
+            <TouchableOpacity style={styles.previewCloseBtn} onPress={() => setPreviewModalVisible(false)}>
+              <Ionicons name="close" size={22} color="#E9F6FF" />
+            </TouchableOpacity>
+            {previewUri ? <Image source={{ uri: previewUri }} style={styles.fullImage} /> : null}
+          </View>
+        </View>
+      </Modal>
+    </View>
+  );
 };
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-    },
-    containerLight: {
-        backgroundColor: "#F5F5F5",
-    },
-    containerDark: {
-        backgroundColor: "#121212",
-    },
-    header: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginHorizontal: 20,
-        marginVertical: 10,
-    },
-    headerText: {
-        fontSize: 24,
-        fontWeight: "bold",
-    },
-    textLight: {
-        color: "#000",
-    },
-    textDark: {
-        color: "#fff",
-    },
-    headerIcon: {
-        backgroundColor: "#E0E0E0",
-        borderRadius: 12,
-        padding: 4,
-    },
-    carouselContainer: {
-        flex: 1,
-        justifyContent: 'center',
-    },
-    scrollContent: {
-        alignItems: 'center',
-    },
-    cardContainer: {
-        width: CARD_WIDTH,
-        height: CARD_HEIGHT,
-        marginHorizontal: 10,
-        borderRadius: 10,
-        overflow: 'hidden',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 12 },
-        shadowOpacity: 0.58,
-        shadowRadius: 16.00,
-        elevation: 24,
-    },
-    cardLight: {
-        backgroundColor: '#fff',
-    },
-    cardDark: {
-        backgroundColor: '#1e1e1e',
-    },
-    imageLabel: {
-        position: 'absolute',
-        top: 5,
-        left: 5,
-        paddingHorizontal: 10,
-        paddingVertical: 5,
-        borderRadius: 5,
-        zIndex: 1,
-        overflow: 'hidden',
-    },
-    labelLight: {
-        backgroundColor: 'rgba(255, 0, 0, 0.49)',
-        color: '#fff',
-    },
-    labelDark: {
-        backgroundColor: 'rgba(255, 0, 0, 0.7)',
-        color: '#fff',
-    },
-    galleryImage: {
-        width: '100%',
-        height: '100%',
-    },
-    modalContainer: {
-        flex: 1,
-        justifyContent: "center",
-        alignItems: "center",
-        backgroundColor: "rgba(0, 0, 0, 0.5)",
-    },
-    modalView: {
-        width: 320,
-        borderRadius: 20,
-        padding: 25,
-        alignItems: "center",
-        elevation: 10,
-    },
-    modalLight: {
-        backgroundColor: "white",
-    },
-    modalDark: {
-        backgroundColor: "#2c2c2c",
-    },
-    modalText: {
-        fontSize: 20,
-        fontWeight: "bold",
-        marginBottom: 20,
-    },
-    button: {
-        flexDirection: "row",
-        alignItems: "center",
-        backgroundColor: "#00f4f5",
-        padding: 15,
-        borderRadius: 10,
-        marginBottom: 15,
-        width: "100%",
-        justifyContent: "center",
-        elevation: 5,
-    },
-    buttonLoad: {
-        flexDirection: "row",
-        alignItems: "center",
-        backgroundColor: "#00204a",
-        padding: 15,
-        borderRadius: 10,
-        marginBottom: 15,
-        width: "100%",
-        justifyContent: "center",
-        elevation: 5,
-    },
-    buttonText: {
-        color: "white",
-        fontSize: 16,
-        fontWeight: "bold",
-    },
-    modalIcon: {
-        marginRight: 10,
-    },
-    cancelButton: {
-        flexDirection: "row",
-        alignItems: "center",
-        padding: 15,
-        borderRadius: 10,
-        marginTop: 10,
-        width: "100%",
-        justifyContent: "center",
-        elevation: 5,
-        borderWidth: 1,
-    },
-    cancelButtonText: {
-        fontSize: 16,
-        fontWeight: "bold",
-    },
-    updateButton: {
-        backgroundColor: '#00f4f5',
-        padding: 15,
-        borderRadius: 23,
-        alignItems: 'center',
-        marginLeft: 60,
-        marginRight: 60,
-        marginBottom: 50
-    },
-    updateButtonText: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: 'bold',
-    },
-    noImageContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: '#f0f0f0', // Opcional: color de fondo para el marcador
-    },
-    noImageText: {
-        color: '#888', // Opcional: color para el texto del marcador
-        fontSize: 16,
-        fontWeight: 'bold',
-    },
+  container: {
+    flex: 1,
+    backgroundColor: "#051A26",
+  },
+  bgLayer: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 0,
+    overflow: "hidden",
+  },
+  bgGlow: {
+    position: "absolute",
+    borderRadius: 999,
+    backgroundColor: "#00E5FF",
+  },
+  bgGlowTop: {
+    width: 280,
+    height: 280,
+    top: -120,
+    right: -110,
+  },
+  bgGlowBottom: {
+    width: 220,
+    height: 220,
+    left: -90,
+    bottom: 120,
+    backgroundColor: "#00B8D4",
+  },
+  bgOrb: {
+    position: "absolute",
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    borderWidth: 1,
+    borderColor: "rgba(0,229,255,0.1)",
+    right: -100,
+    top: "45%",
+  },
+  bgGrid: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(4, 20, 30, 0.6)",
+  },
+  header: {
+    zIndex: 2,
+    paddingTop: 52,
+    paddingHorizontal: 20,
+    paddingBottom: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  headerBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    borderWidth: 1,
+    borderColor: "rgba(0,229,255,0.2)",
+    backgroundColor: "rgba(10, 46, 61, 0.68)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headerTitle: {
+    color: "#E9F6FF",
+    fontSize: 20,
+    fontWeight: "800",
+  },
+  headerIconWrap: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(0,229,255,0.18)",
+    backgroundColor: "rgba(10, 46, 61, 0.68)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  content: {
+    zIndex: 2,
+    paddingHorizontal: 18,
+    paddingBottom: 30,
+    gap: 12,
+  },
+  subtitle: {
+    color: "#9EC2D4",
+    fontSize: 12,
+    marginBottom: 8,
+    lineHeight: 18,
+  },
+  docCard: {
+    borderRadius: 18,
+    backgroundColor: "rgba(10,46,61,0.62)",
+    borderWidth: 1,
+    borderColor: "rgba(0,229,255,0.14)",
+    padding: 14,
+    gap: 12,
+  },
+  docTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  docIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(5,25,37,0.8)",
+  },
+  docInfo: {
+    flex: 1,
+  },
+  docTitle: {
+    color: "#E9F6FF",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  docStatus: {
+    color: "#8DB2C4",
+    fontSize: 12,
+    marginTop: 2,
+  },
+  changeBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(0,229,255,0.22)",
+    backgroundColor: "rgba(0,229,255,0.08)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  previewRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  previewCard: {
+    flex: 1,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "rgba(6, 25, 36, 0.8)",
+    padding: 8,
+    gap: 8,
+  },
+  previewLabel: {
+    color: "#A7C5D4",
+    fontSize: 11,
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    fontWeight: "600",
+  },
+  previewImage: {
+    width: "100%",
+    height: 92,
+    borderRadius: 10,
+    resizeMode: "cover",
+  },
+  previewEmpty: {
+    height: 92,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(0,229,255,0.12)",
+    backgroundColor: "rgba(3, 15, 23, 0.9)",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+  },
+  previewEmptyText: {
+    color: "#6F96A9",
+    fontSize: 11,
+    fontWeight: "600",
+  },
+  updateBtn: {
+    marginTop: 10,
+    borderRadius: 18,
+    backgroundColor: "#00E5FF",
+    paddingVertical: 15,
+    alignItems: "center",
+    shadowColor: "#00E5FF",
+    shadowOpacity: 0.32,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 7 },
+    elevation: 10,
+  },
+  updateBtnDisabled: {
+    opacity: 0.7,
+  },
+  updateBtnText: {
+    color: "#052333",
+    fontSize: 15,
+    fontWeight: "800",
+  },
+  modalOverlay: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    paddingHorizontal: 18,
+  },
+  modalCard: {
+    width: "100%",
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: "rgba(0,229,255,0.24)",
+    backgroundColor: "rgba(10, 38, 53, 0.95)",
+    padding: 18,
+    gap: 12,
+  },
+  modalTitle: {
+    color: "#E9F6FF",
+    fontSize: 18,
+    fontWeight: "800",
+    textAlign: "center",
+  },
+  modalPrimaryBtn: {
+    borderRadius: 14,
+    backgroundColor: "#00E5FF",
+    paddingVertical: 13,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
+  },
+  modalPrimaryText: {
+    color: "#052333",
+    fontWeight: "800",
+    fontSize: 14,
+  },
+  modalSecondaryBtn: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(0,229,255,0.28)",
+    backgroundColor: "rgba(6,25,36,0.9)",
+    paddingVertical: 13,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
+  },
+  modalSecondaryText: {
+    color: "#E9F6FF",
+    fontWeight: "700",
+    fontSize: 14,
+  },
+  modalCancelBtn: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(255,106,123,0.38)",
+    backgroundColor: "rgba(255,106,123,0.08)",
+    paddingVertical: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
+  },
+  modalCancelText: {
+    color: "#FF6A7B",
+    fontWeight: "700",
+    fontSize: 14,
+  },
+  compareModalCard: {
+    gap: 10,
+  },
+  compareSubtitle: {
+    textAlign: "center",
+    color: "#9BBCCD",
+    fontSize: 12,
+    marginBottom: 4,
+  },
+  compareRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  compareBox: {
+    flex: 1,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "rgba(6,25,36,0.9)",
+    padding: 8,
+    gap: 6,
+  },
+  compareLabel: {
+    color: "#A7C5D4",
+    fontSize: 11,
+    fontWeight: "600",
+    textTransform: "uppercase",
+  },
+  compareImage: {
+    width: "100%",
+    height: 116,
+    borderRadius: 10,
+    resizeMode: "cover",
+  },
+  compareActions: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 6,
+  },
+  keepOldBtn: {
+    flex: 1,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.18)",
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  keepOldText: {
+    color: "#E9F6FF",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  confirmBtn: {
+    flex: 1,
+    borderRadius: 12,
+    backgroundColor: "#00E5FF",
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  confirmText: {
+    color: "#052333",
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  imagePreviewModal: {
+    width: "100%",
+    borderRadius: 16,
+    overflow: "hidden",
+    backgroundColor: "#051A26",
+    borderWidth: 1,
+    borderColor: "rgba(0,229,255,0.24)",
+  },
+  previewCloseBtn: {
+    position: "absolute",
+    zIndex: 2,
+    top: 10,
+    right: 10,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  fullImage: {
+    width: "100%",
+    height: 380,
+    resizeMode: "contain",
+    backgroundColor: "#020D14",
+  },
 });
 
 export default ImageGalleryComponent;

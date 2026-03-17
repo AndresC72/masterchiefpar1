@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   ScrollView,
   Modal,
   Animated,
+  Easing,
   Alert,
   Platform,
   useColorScheme,
@@ -18,7 +19,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "@/common/store";
 import { Picker } from "@react-native-picker/picker";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { updateProfile } from "@/common/actions/authactions";
+import { updateUserProfileSupabase } from "@/common/actions/userActions";
 import * as ImagePicker from "expo-image-picker";
 import defaultProfileImage from "./../../assets/images/Avatar/1.png"; // Cambia la ruta según la ubicación de tu imagen
 import { getUserVerification } from "@/common/topus-integration";
@@ -53,6 +54,8 @@ const DocumentsScreen = ({ navigation }: Props) => {
   const [successModalVisible, setSuccessModalVisible] = useState(false);
   const [fadeAnim] = useState(new Animated.Value(0)); // Animación de fade
   const settings = useSelector(selectSettings);
+  const glowPulse = useRef(new Animated.Value(0)).current;
+  const orbSpin = useRef(new Animated.Value(0)).current;
 
   //  console.log(settings,"-----------------")
   const [cities] = useState([
@@ -85,199 +88,80 @@ const DocumentsScreen = ({ navigation }: Props) => {
     dispatch(listenToSettingsChanges());
   }, [dispatch]);
 
+  useEffect(() => {
+    const glowLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(glowPulse, {
+          toValue: 1,
+          duration: 2800,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+        Animated.timing(glowPulse, {
+          toValue: 0,
+          duration: 2800,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+      ])
+    );
+
+    const orbLoop = Animated.loop(
+      Animated.timing(orbSpin, {
+        toValue: 1,
+        duration: 20000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    );
+
+    glowLoop.start();
+    orbLoop.start();
+
+    return () => {
+      glowLoop.stop();
+      orbLoop.stop();
+    };
+  }, [glowPulse, orbSpin]);
+
   const handleUpdate = async () => {
     // Datos actualizados del perfil
     const updatedData = {
-      firstName: name,
-      lastName,
-      bankAccount,
-      consulToken,
-      addres,
-      verifyId: docNumber,
+      first_name: name,
+      last_name: lastName,
+      bank_account: bankAccount,
+      consul_token: consulToken,
+      address: addres,
+      verify_id: docNumber,
       city,
-      docType,
+      doc_type: docType,
       email,
     };
-    const actualSecurityData = user?.securityData || [];
-    console.log("entro o no ");
-    // Verificación de antecedentes solo si el documento ha sido actualizado
-    if (
-      (updatedData.docType &&
-        updatedData.verifyId &&
-        user?.verifyId !== updatedData.verifyId) ||
-      !user?.securityData
-    ) {
-      try {
-        const dateRequest = new Date().getTime();
-        let results;
-        console.log("entro o no 2");
-        if (updatedData.consulToken) {
-          const response = await axios.post(
-            "https://us-central1-treasupdate.cloudfunctions.net/getuserdata",
-            {
-              data: updatedData.consulToken,
-            }
-          );
-
-          results = response.data;
-
-          // setData(results);
-
-          // Procesar los resultados para verificar entidades con paso = '2' excepto 'simit'
-          let blockedTopus = false;
-          let blockedReasonTopus = [];
-
-          results.forEach((item) => {
-            if (item.entidad !== "simit" && item.paso === "2") {
-              blockedTopus = true;
-              blockedReasonTopus.push(item.entidad);
-            }
-          });
-
-          /*   // Actualizar filteredData con los nuevos campos
-          filteredData = {
-            ...filteredData,
-            blockedTopus: blockedTopus,
-            blockedReasonTopus: blockedReasonTopus,
-            securityData: {
-              "0": {
-                antecedents: results,
-                date: Date.now(),
-                verifyId: updatedData.verifyId,
-                doc_type: updatedData.docType,
-                firstName: updatedData.firstName,
-                lastName: updatedData.lastName,
-              },
-              consulToken: updatedData.consulToken,
-            },
-          };
-
-          */
-          dispatch(
-            updateProfile({
-              securityData: [
-                {
-                  date: dateRequest,
-                  verifyId: updatedData.verifyId,
-                  firstName: user?.firstName,
-                  lastName: user?.lastName,
-                  docType: updatedData.docType,
-                  antecedents: results,
-                },
-                ...actualSecurityData,
-              ],
-              verifyId: updatedData.verifyId,
-              docType: updatedData.docType,
-            })
-          );
-        } else {
-          results = await verifyUserInTopus(updatedData); // Llamada a la verificación en Topus
-        }
-
-        // Actualiza el perfil con los resultados de la verificación de antecedentes
-        dispatch(
-          updateProfile({
-            securityData: [
-              {
-                date: dateRequest,
-                verifyId: updatedData.verifyId,
-                firstName: user?.firstName,
-                lastName: user?.lastName,
-                docType: updatedData.docType,
-                antecedents: results,
-              },
-              ...actualSecurityData,
-            ],
-            verifyId: updatedData.verifyId,
-            docType: updatedData.docType,
-          })
-        );
-
-        // Comprobar si hay antecedentes
-        const hasAntecedents = results.some((result) => {
-          if (result?.entidad === "policia") {
-            return (
-              result?.respuesta?.mensaje.trim().toLowerCase() !==
-              "no tiene asuntos pendientes con las autoridades judiciales"
-            );
-          } else if (result?.entidad === "simit") {
-            return (
-              result?.respuesta?.Simit.trim().toLowerCase() !==
-              "el ciudadano no presenta multas ni comparendos en el simit."
-            );
-          } else if (result?.entidad === "contraloria") {
-            return (
-              result?.respuesta?.Resultado.trim().toLowerCase() !==
-              "no se encuentra reportado como responsable fiscal"
-            );
-          } else if (result?.entidad === "ofac") {
-            return !result?.respuesta?.archivo_respuesta
-              .trim()
-              .toLowerCase()
-              .includes("no registra en la ofac.");
-          } else if (result?.entidad === "interpol") {
-            return (
-              result?.respuesta?.Resultado.trim().toLowerCase() !==
-              "la persona no presenta cargos ante el interpol."
-            );
-          } else if (result?.entidad === "onu") {
-            return (
-              result?.respuesta?.Resultado.trim().toLowerCase() !==
-              "la persona no registra en la onu :"
-            );
-          } else {
-            return false;
-          }
-        });
-
-        // Resultado de la verificación de antecedentes
-        if (hasAntecedents) {
-          Alert.alert(
-            "Consulta de antecedentes",
-            "Su cuenta ha sido aprobada. ¡Bienvenido a T+Plus!"
-          );
-          dispatch(updateProfile({ blocked: false }));
-        } else {
-          Alert.alert(
-            "Consulta de antecedentes",
-            "Su cuenta no fue aprobada, por favor comuníquese con soporte para resolver su caso."
-          );
-          dispatch(updateProfile({ blocked: true }));
-          return; // Si no se aprueba, termina la función
-        }
-      } catch (error) {
-        Alert.alert(
-          "Error",
-          error.message ||
-            "Ha ocurrido un error en la consulta de antecedentes, intentelo de nuevo"
-        );
-        return;
-      }
-    }
-
-    // Continúa con el proceso original de actualización si no hay antecedentes o si no se cambió el documento
-    const profileUpdateData = { ...updatedData };
-    if (settings.driver_approval) {
-      profileUpdateData.approved = true;
-    }
-    dispatch(updateProfile(profileUpdateData, imageUriVehicle));
-
-    // Mostrar el modal de éxito con animación
-    setSuccessModalVisible(true);
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 500,
-      useNativeDriver: true,
-    }).start();
-
-    // Cerrar el modal después de 2 segundos
-    setTimeout(() => {
+    // Actualiza en Supabase
+    const result = await updateUserProfileSupabase(
+      user?.id,
+      updatedData,
+      dispatch,
+      imageUriVehicle || undefined
+    );
+    if (result.success) {
+      setSuccessModalVisible(true);
       Animated.timing(fadeAnim, {
-        toValue: 0,
+        toValue: 1,
         duration: 500,
         useNativeDriver: true,
-      }).start(() => setSuccessModalVisible(false));
-    }, 2000);
+      }).start();
+      setTimeout(() => {
+        Animated.timing(fadeAnim, {
+          toValue: 0,
+          duration: 500,
+          useNativeDriver: true,
+        }).start(() => setSuccessModalVisible(false));
+      }, 2000);
+      Alert.alert("Perfil actualizado", "Tus datos han sido actualizados correctamente.");
+    } else {
+      Alert.alert("Error", result.error || "No se pudo actualizar el perfil.");
+    }
   };
 
   const selectImage = async (fromCamera) => {
@@ -297,26 +181,64 @@ const DocumentsScreen = ({ navigation }: Props) => {
   };
 
   const styles = createStyles(isDarkMode);
+  const glowScale = glowPulse.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 1.22],
+  });
+  const glowOpacity = glowPulse.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.2, 0.42],
+  });
+  const orbRotate = orbSpin.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", "360deg"],
+  });
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <AntDesign name="arrowleft" size={24} color={isDarkMode ? "#fff" : "#000"} />
-        </TouchableOpacity>
-        <Text style={styles.headerText}>{"Datos Personales"} </Text>
-        <Ionicons
-          name="barcode-outline"
-          size={24}
-          color={isDarkMode ? "#fff" : "#000"}
-          style={styles.headerIcon}
+      <View style={styles.bgLayer}>
+        <Animated.View
+          style={[
+            styles.bgGlow,
+            styles.bgGlowTop,
+            { transform: [{ scale: glowScale }], opacity: glowOpacity },
+          ]}
         />
+        <Animated.View
+          style={[
+            styles.bgGlow,
+            styles.bgGlowBottom,
+            {
+              transform: [{ scale: glowScale }],
+              opacity: glowOpacity,
+            },
+          ]}
+        />
+        <Animated.View
+          style={[styles.bgOrb, { transform: [{ rotate: orbRotate }] }]}
+        />
+        <View style={styles.bgGrid} />
       </View>
+
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.headerBtn} onPress={() => navigation.goBack()}>
+          <AntDesign name="arrow-left" size={22} color="#E9F6FF" />
+        </TouchableOpacity>
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerText}>Datos Personales</Text>
+        </View>
+        <View style={styles.headerBadge}>
+          <Ionicons name="sparkles-outline" size={18} color="#00E5FF" />
+        </View>
+      </View>
+
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <TouchableOpacity
           style={styles.profileContainer}
           onPress={() => setModalVisible(true)}
+          activeOpacity={0.9}
         >
+          <View style={styles.profileRing}>
           {imageUriVehicle ? (
             <Image
               source={{ uri: imageUriVehicle }}
@@ -332,20 +254,23 @@ const DocumentsScreen = ({ navigation }: Props) => {
               style={styles.profileImage}
             />
           )}
-          <View style={styles.cameraIcon}>
-            <Text style={styles.cameraIconText}>📷</Text>
           </View>
+          <View style={styles.cameraIcon}>
+            <Ionicons name="camera" size={16} color="#071822" />
+          </View>
+          <Text style={styles.avatarHint}>Toca para cambiar tu foto</Text>
         </TouchableOpacity>
 
         <View style={styles.buttonContainer}>
           <TouchableOpacity
             style={styles.documentsButton}
             onPress={() => navigation.navigate("ImageGallery")}
+            activeOpacity={0.85}
           >
-            <AntDesign name="idcard" size={24} color="red" />
+            <AntDesign name="idcard" size={22} color="#FF6A7B" />
             <Text style={styles.buttonText}>Documentos</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.updateButton} onPress={handleUpdate}>
+          <TouchableOpacity style={styles.updateButton} onPress={handleUpdate} activeOpacity={0.85}>
             <Text style={styles.updateButtonText}>Actualizar Ahora</Text>
           </TouchableOpacity>
         </View>
@@ -359,7 +284,7 @@ const DocumentsScreen = ({ navigation }: Props) => {
             value={name}
             onChangeText={setName}
             placeholder="Ingrese sus nombres"
-            placeholderTextColor={isDarkMode ? "#ccc" : "#888"}
+            placeholderTextColor="#8AA6B7"
           />
           <Text style={styles.label}>Apellidos</Text>
           <TextInput
@@ -369,7 +294,7 @@ const DocumentsScreen = ({ navigation }: Props) => {
             value={lastName}
             onChangeText={setLastName}
             placeholder="Ingrese sus apellidos"
-            placeholderTextColor={isDarkMode ? "#ccc" : "#888"}
+            placeholderTextColor="#8AA6B7"
           />
 
           <Text style={styles.label}>Número Daviplata</Text>
@@ -407,14 +332,14 @@ const DocumentsScreen = ({ navigation }: Props) => {
                 placeholder={{ label: "Seleccione una ciudad", value: null }}
                 style={{
                   inputIOS: {
-                    color: "black",
+                    color: "#E9F6FF",
                     fontSize: 16,
-                    paddingHorizontal: 10,
-                    paddingVertical: 8,
-                    //borderWidth: 1,
-                    borderColor: "#a1a3a6",
-                    borderRadius: 10,
-                    backgroundColor: colorScheme === "dark" ? "#313131" : "#fff",
+                    paddingHorizontal: 14,
+                    paddingVertical: 12,
+                    borderColor: "rgba(0, 229, 255, 0.2)",
+                    borderWidth: 1,
+                    borderRadius: 14,
+                    backgroundColor: "rgba(7, 35, 48, 0.72)",
                   },
                 }}
               />
@@ -454,13 +379,14 @@ const DocumentsScreen = ({ navigation }: Props) => {
                 placeholderTextColor="#000"
                 style={{
                   inputIOS: {
-                    color: "black",
+                    color: "#E9F6FF",
                     fontSize: 16,
-                    paddingHorizontal: 10,
-                    paddingVertical: 8,
-                    borderColor: "#a1a3a6",
-                    borderRadius: 10,
-                    backgroundColor: colorScheme === "dark" ? "#313131" : "#313131",
+                    paddingHorizontal: 14,
+                    paddingVertical: 12,
+                    borderColor: "rgba(0, 229, 255, 0.2)",
+                    borderWidth: 1,
+                    borderRadius: 14,
+                    backgroundColor: "rgba(7, 35, 48, 0.72)",
                   },
                 }}
               />
@@ -524,7 +450,7 @@ const DocumentsScreen = ({ navigation }: Props) => {
           <Animated.View
             style={[styles.successModalView, { opacity: fadeAnim }]}
           >
-            <Ionicons name="checkmark-circle" size={48} color="#fff" />
+            <Ionicons name="checkmark-circle" size={48} color="#00E5FF" />
             <Text style={styles.successModalText}>Actualizado con éxito</Text>
           </Animated.View>
         </View>
@@ -537,112 +463,208 @@ const createStyles = (isDarkMode: boolean) =>
   StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: isDarkMode ? "#121212" : "#F5F5F5",
-      padding: 20,
+      backgroundColor: "#051A26",
+    },
+    bgLayer: {
+      ...StyleSheet.absoluteFillObject,
+      overflow: "hidden",
+      zIndex: 0,
+    },
+    bgGlow: {
+      position: "absolute",
+      borderRadius: 999,
+      backgroundColor: "#00E5FF",
+      shadowColor: "#00E5FF",
+      shadowOpacity: 0.35,
+      shadowRadius: 32,
+      shadowOffset: { width: 0, height: 8 },
+      elevation: 14,
+    },
+    bgGlowTop: {
+      width: 240,
+      height: 240,
+      top: -110,
+      right: -80,
+    },
+    bgGlowBottom: {
+      width: 210,
+      height: 210,
+      bottom: 120,
+      left: -90,
+      backgroundColor: "#00B8D4",
+    },
+    bgOrb: {
+      position: "absolute",
+      width: 200,
+      height: 200,
+      borderRadius: 100,
+      borderWidth: 1,
+      borderColor: "rgba(0,229,255,0.12)",
+      top: "42%",
+      right: -90,
+    },
+    bgGrid: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: "rgba(2, 16, 24, 0.58)",
     },
     header: {
       flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "center",
-      marginBottom: 20,
+      paddingHorizontal: 20,
+      paddingTop: 48,
+      paddingBottom: 12,
+      zIndex: 2,
+    },
+    headerBtn: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      borderWidth: 1,
+      borderColor: "rgba(0,229,255,0.15)",
+      backgroundColor: "rgba(10, 46, 61, 0.65)",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    headerCenter: {
+      flex: 1,
+      alignItems: "center",
     },
     headerText: {
-      fontSize: 24,
-      fontWeight: "bold",
-      color: isDarkMode ? "#fff" : "#000",
+      fontSize: 20,
+      fontWeight: "800",
+      color: "#E9F6FF",
+      letterSpacing: 0.2,
     },
-    headerIcon: {
-      backgroundColor: isDarkMode ? "#333" : "#E0E0E0",
-      borderRadius: 12,
-      padding: 4,
+    headerBadge: {
+      width: 44,
+      height: 44,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: "rgba(0,229,255,0.18)",
+      backgroundColor: "rgba(10, 46, 61, 0.65)",
+      alignItems: "center",
+      justifyContent: "center",
     },
     profileContainer: {
       alignItems: "center",
-      marginBottom: 20,
+      marginTop: 8,
+      marginBottom: 24,
+    },
+    profileRing: {
+      width: 124,
+      height: 124,
+      borderRadius: 62,
+      padding: 3,
+      backgroundColor: "#00E5FF",
+      shadowColor: "#00E5FF",
+      shadowOpacity: 0.3,
+      shadowRadius: 20,
+      shadowOffset: { width: 0, height: 10 },
+      elevation: 12,
     },
     profileImage: {
-      width: 100,
-      height: 100,
-      borderRadius: 50,
+      width: 118,
+      height: 118,
+      borderRadius: 59,
+      backgroundColor: "#0A2E3D",
     },
     cameraIcon: {
       position: "absolute",
-      bottom: 0,
-      right: "35%",
-      backgroundColor: "#fff",
-      padding: 5,
-      borderRadius: 20,
+      bottom: 18,
+      right: "33%",
+      width: 34,
+      height: 34,
+      borderRadius: 17,
+      backgroundColor: "#00E5FF",
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 2,
+      borderColor: "#051A26",
     },
-    cameraIconText: {
-      fontSize: 18,
-      color: "#0d0d0d",
+    avatarHint: {
+      marginTop: 10,
+      color: "#8FB3C5",
+      fontSize: 12,
+      fontWeight: "500",
     },
     buttonContainer: {
       flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "center",
-      marginVertical: 20,
+      marginBottom: 22,
+      gap: 10,
     },
     updateButton: {
-      backgroundColor: "#00f4f5",
-      padding: 15,
-      borderRadius: 23,
+      backgroundColor: "#00E5FF",
+      paddingVertical: 14,
+      borderRadius: 20,
       alignItems: "center",
       flex: 1,
-      marginHorizontal: 5,
+      shadowColor: "#00E5FF",
+      shadowOpacity: 0.34,
+      shadowRadius: 12,
+      shadowOffset: { width: 0, height: 6 },
+      elevation: 8,
     },
     updateButtonText: {
-      color: "#fff",
-      fontSize: 16,
-      fontWeight: "bold",
+      color: "#04202C",
+      fontSize: 14,
+      fontWeight: "800",
+      letterSpacing: 0.2,
     },
     documentsButton: {
-      backgroundColor: isDarkMode ? "#1e1e1e" : "#ffff",
-      padding: 15,
-      borderRadius: 23,
+      backgroundColor: "rgba(9, 45, 60, 0.72)",
+      paddingVertical: 14,
+      borderRadius: 20,
       alignItems: "center",
       flexDirection: "row",
+      justifyContent: "center",
       flex: 1,
-      marginHorizontal: 5,
-      elevation: 5,
       borderWidth: 1,
-      borderColor: "#00f4f5",
+      borderColor: "rgba(255, 106, 123, 0.4)",
     },
     buttonText: {
-      color: "red",
-      fontSize: 16,
-      fontWeight: "bold",
-      marginLeft: 10,
+      color: "#FF6A7B",
+      fontSize: 14,
+      fontWeight: "700",
+      marginLeft: 8,
     },
     scrollContent: {
-      paddingBottom: 20,
+      paddingHorizontal: 20,
+      paddingBottom: 28,
+      zIndex: 2,
     },
     modalContainer: {
       flex: 1,
       justifyContent: "center",
       alignItems: "center",
-      backgroundColor: "rgba(0, 0, 0, 0.5)",
+      backgroundColor: "rgba(2, 10, 16, 0.74)",
     },
     modalView: {
       width: 320,
       padding: 20,
-      backgroundColor: isDarkMode ? "#333" : "white",
-      borderRadius: 20,
+      backgroundColor: "rgba(9, 39, 52, 0.95)",
+      borderRadius: 22,
+      borderWidth: 1,
+      borderColor: "rgba(0, 229, 255, 0.28)",
       alignItems: "center",
       elevation: 10,
     },
     modalText: {
-      fontSize: 20,
-      fontWeight: "bold",
-      color: isDarkMode ? "#fff" : "#333",
+      fontSize: 18,
+      fontWeight: "700",
+      color: "#E9F6FF",
       marginBottom: 20,
     },
     botonCamera: {
       flexDirection: "row",
       alignItems: "center",
-      backgroundColor: "#00204a",
+      backgroundColor: "#0A2E3D",
       padding: 15,
-      borderRadius: 10,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: "rgba(0, 229, 255, 0.24)",
       marginBottom: 15,
       width: "100%",
       justifyContent: "center",
@@ -653,7 +675,7 @@ const createStyles = (isDarkMode: boolean) =>
       alignItems: "center",
       backgroundColor: "#00f4f5",
       padding: 15,
-      borderRadius: 10,
+      borderRadius: 14,
       marginBottom: 15,
       width: "100%",
       justifyContent: "center",
@@ -667,15 +689,15 @@ const createStyles = (isDarkMode: boolean) =>
     cancelButton: {
       flexDirection: "row",
       alignItems: "center",
-      backgroundColor: isDarkMode ? "#555" : "#fff",
+      backgroundColor: "rgba(9, 39, 52, 0.85)",
       padding: 15,
-      borderRadius: 10,
+      borderRadius: 14,
       marginTop: 10,
       width: "100%",
       justifyContent: "center",
       elevation: 5,
       borderWidth: 1,
-      borderColor: "#00f4f5",
+      borderColor: "rgba(0, 229, 255, 0.28)",
     },
     cancelButtonText: {
       color: "#00f4f5",
@@ -686,18 +708,20 @@ const createStyles = (isDarkMode: boolean) =>
       flex: 1,
       justifyContent: "center",
       alignItems: "center",
-      backgroundColor: "rgba(0, 0, 0, 0.5)",
+      backgroundColor: "rgba(2, 10, 16, 0.74)",
     },
     successModalView: {
       width: 250,
       padding: 20,
-      backgroundColor: "#00f4f5",
-      borderRadius: 10,
+      backgroundColor: "rgba(9, 39, 52, 0.95)",
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: "rgba(0, 229, 255, 0.35)",
       alignItems: "center",
       elevation: 10,
     },
     successModalText: {
-      color: "#fff",
+      color: "#E9F6FF",
       fontSize: 18,
       fontWeight: "bold",
       marginTop: 10,
@@ -714,46 +738,52 @@ const createStyles = (isDarkMode: boolean) =>
       fontWeight: "bold",
     },
     infoContainer: {
-      backgroundColor: isDarkMode ? "#1e1e1e" : "#fff",
-      borderRadius: 10,
+      backgroundColor: "rgba(8, 36, 49, 0.72)",
+      borderRadius: 20,
       padding: 16,
+      borderWidth: 1,
+      borderColor: "rgba(0, 229, 255, 0.14)",
     },
     label: {
-      fontSize: 14,
-      color: isDarkMode ? "#fff" : "#404040",
+      fontSize: 12,
+      color: "#9EC2D4",
       marginBottom: 8,
+      marginTop: 2,
+      fontWeight: "600",
+      textTransform: "uppercase",
+      letterSpacing: 0.7,
     },
     input: {
       borderWidth: 1,
-      borderColor: isDarkMode ? "#555" : "#a1a3a6",
-      borderRadius: 10,
+      borderColor: "rgba(0, 229, 255, 0.2)",
+      borderRadius: 14,
       padding: 12,
       marginBottom: 16,
       fontSize: 16,
-      color: isDarkMode ? "#fff" : "#0d0d0d",
-      backgroundColor: isDarkMode ? "#333" : "#fff",
+      color: "#E9F6FF",
+      backgroundColor: "rgba(7, 35, 48, 0.72)",
     },
     inputNone: {
       borderWidth: 1,
-      borderColor: isDarkMode ? "#555" : "#a1a3a6",
-      borderRadius: 10,
+      borderColor: "rgba(0, 229, 255, 0.2)",
+      borderRadius: 14,
       padding: 12,
       marginBottom: 16,
       fontSize: 16,
-      color: isDarkMode ? "#fff" : "#0d0d0d",
-      backgroundColor: isDarkMode ? "#333" : "#fff",
+      color: "#E9F6FF",
+      backgroundColor: "rgba(7, 35, 48, 0.72)",
     },
     pickerContainer: {
       borderWidth: 1,
-      borderColor: isDarkMode ? "#555" : "#a1a3a6",
-      borderRadius: 10,
+      borderColor: "rgba(0, 229, 255, 0.2)",
+      borderRadius: 14,
       marginBottom: 16,
-      backgroundColor: isDarkMode ? "#333" : "#fff",
+      backgroundColor: "rgba(7, 35, 48, 0.72)",
     },
     picker: {
       width: "100%",
       height: 50,
-      color: isDarkMode ? "#fff" : "#000",
+      color: "#E9F6FF",
     },
   });
 

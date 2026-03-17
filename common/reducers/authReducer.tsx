@@ -63,7 +63,7 @@ const authSlice = createSlice({
           verifyIdImage: action.payload.verify_id_image,
           verify_id_image: action.payload.verify_id_image,
           verifyId: action.payload.license_number,
-          docType: null,
+          docType: action.payload.user_type === 'driver' ? 'Licencia' : 'Cédula',
           emailVerified: Boolean((state.user as any)?.email_confirmed_at) || Boolean(action.payload.is_verified),
         };
 

@@ -23,6 +23,7 @@ const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 const API_KEY = process.env.GOOGLE_MAPS_API_KEY_ANDROID || process.env.GOOGLE_MAPS_API_KEY_IOS || '';
 const MAPBOX_ACCESS_TOKEN = process.env.MAPBOX_ACCESS_TOKEN || '';
+const RNMAPBOX_MAPS_DOWNLOAD_TOKEN = process.env.RNMAPBOX_MAPS_DOWNLOAD_TOKEN || process.env.MAPBOX_DOWNLOAD_TOKEN || '';
 
 module.exports = {
     name: AppConfig.app_name,
@@ -133,6 +134,7 @@ module.exports = {
         "permissions": [
             "CAMERA",
             "READ_EXTERNAL_STORAGE",
+            "READ_MEDIA_IMAGES",
             "WRITE_EXTERNAL_STORAGE",
             "ACCESS_FINE_LOCATION",
             "ACCESS_COARSE_LOCATION",
@@ -203,7 +205,8 @@ module.exports = {
             "@rnmapbox/maps",
             {
                 "RNMapboxMapsVersion": "11.0.0",
-                "RNMapboxMapsImpl": "mapbox"
+                "RNMapboxMapsImpl": "mapbox",
+                "RNMapboxMapsDownloadToken": RNMAPBOX_MAPS_DOWNLOAD_TOKEN
             }
         ],
         "expo-router"

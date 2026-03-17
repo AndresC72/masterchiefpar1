@@ -42,7 +42,7 @@ type Props = NativeStackScreenProps<any>;
 import { Button, Input } from "react-native-elements";
 import { AntDesign, MaterialIcons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
-import { updateProfile } from "@/common/actions/authactions";
+import { updateUserProfileSupabase } from "@/common/actions/userActions";
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
 import { getUserVerification } from "@/common/topus-integration";
 import { ActivityIndicator } from "react-native"; // Asegúrate de importar ActivityIndicator
@@ -118,12 +118,12 @@ const CustomerMap = ({ navigation: propsNavigation }: Props) => {
   const [uriImage, setUriImage] = useState("");
   // Array de mensajes para cada paso
   const stepMessages = [
-    "Estás en el paso 1 de 6: ",
-    "Estás en el paso 2 de 6: ",
-    "Estás en el paso 3 de 6: ",
-    "Estás en el paso 4 de 6: ",
-    "Estás en el paso 5 de 6: ",
-    "Estás en el paso 6 de 6: ",
+    "Está en el paso 1 de 6:",
+    "Está en el paso 2 de 6:",
+    "Está en el paso 3 de 6:",
+    "Está en el paso 4 de 6:",
+    "Está en el paso 5 de 6:",
+    "Está en el paso 6 de 6:",
   ];
   const [loading, setLoading] = useState(false); // Estado para controlar el loader
   const [loadingMessage, setLoadingMessage] = useState("Estamos verificando tu cuenta para asegurarnos de que todo esté en orden y así protegerte a ti y a los demás usuarios. Este proceso solo tomará unos 5 minutos. Es muy importante para nosotros garantizar la seguridad tanto de nuestros usuarios como de nuestros conductores. Agradecemos tu paciencia");
@@ -469,85 +469,31 @@ const CustomerMap = ({ navigation: propsNavigation }: Props) => {
   };
   const handleFinishTour = async () => {
     try {
-      
-      
-  
       if (!user) {
         console.warn("No hay usuario autenticado.");
         return;
       }
-  
       setLoading(true);
-  
-      const storage = getStorage();
-      const imageRef = storageRef(storage, `users/${user.uid}/verifyIdImage.jpg`);
-  
-      try {
-        const response = await fetch(userData.verifyIdImage);
-        const blob = await response.blob();
-  
-        // Subir la imagen a Firebase Storage
-        await uploadBytes(imageRef, blob);
-  
-        const downloadURL = await getDownloadURL(imageRef);
-        setUserData({ ...userData, verifyIdImage: downloadURL });
-  
-        dispatch(updateProfile({ ...userData, verifyIdImage: downloadURL }, userData.profile_image));
-  
-      } catch (error) {
-        console.error("Error al subir la imagen de verificación:", error);
-        throw error;
+      // Actualiza en Supabase
+      const result = await updateUserProfileSupabase(
+        user.id,
+        {
+          ...userData,
+          verify_id_image: userData.verifyIdImage,
+        },
+        dispatch,
+        userData.profile_image || undefined
+      );
+      setLoading(false);
+      setTourVisible(false);
+      if (result.success) {
+        alert("Perfil actualizado correctamente.");
+      } else {
+        alert(result.error || "No se pudo actualizar el perfil.");
       }
-  
-      try {
-        const response = await axios.post(
-          "https://us-central1-treasupdate.cloudfunctions.net/getUserVerification",
-          {
-            doc_type: user.docType || userData.docType,
-            identification: user.verifyId || userData.verifyId,
-            name: `${user.firstName || userData.firstName} ${user.lastName || userData.lastName}`,
-            uid: user.uid,
-          },
-          { timeout: 300000 }
-        );
-  
-        const results = response.data;
-        let blockedTopus = false;
-          let blockedReasonTopus: string[] = [];
-  
-          results.forEach((item: any) => {
-          if (item.entidad !== "simit" && item.paso === "2") {
-            blockedTopus = true;
-            blockedReasonTopus.push(item.entidad);
-          }
-        });
-  
-        const filteredData = {
-          blockedTopus,
-          blockedReasonTopus,
-          securityData: [
-            {
-              antecedents: results,
-              date: Date.now(),
-              verifyId: user.verifyId || userData.verifyId,
-              doc_type: user.docType || userData.docType,
-              firstName: user.firstName || userData.firstName,
-              lastName: user.lastName || userData.lastName,
-            },
-          ],
-        };
-  
-        await dispatch(updateProfile(filteredData));
-        setLoading(false);
-        setTourVisible(false);
-  
-      } catch (error) {
-        console.error("Error en la verificación:", error);
-      }
-  
     } catch (error) {
       console.error("Error general en handleFinishTour:", error);
-      alert("Hubo un error al subir la imagen. Por favor, inténtalo de nuevo.");
+      alert("Hubo un error al actualizar el perfil. Por favor, inténtalo de nuevo.");
     }
   };
 
@@ -1006,7 +952,7 @@ const CustomerMap = ({ navigation: propsNavigation }: Props) => {
           break;
         case 2:
           // Navegar a la pantalla de "Reservas"
-          navigation.getParent()?.navigate('RideList');
+          navigation.getParent()?.navigate('ReservationsScreen');
           break;
         case 3:
           // Abrir WhatsApp
@@ -1043,8 +989,8 @@ const CustomerMap = ({ navigation: propsNavigation }: Props) => {
       },
       {
         id: 2,
-        title: "¡Tus Reservas Activas!",
-        subtitle: `¡Tienes ${activeBookingsCount} ${activeBookingsCount === 1 ? 'reserva activa' : 'reservas activas'}! Toca aquí para ver los detalles y estar al día con tus viajes programados e inmediatos ¡No te pierdas ninguna aventura!`,
+        title: "¡Tus Reservas!",
+        subtitle: `Tienes ${activeBookingsCount} ${activeBookingsCount === 1 ? 'reserva activa' : 'reservas activas'}. Toca aquí para ver detalles y estar al tanto de tus viajes.`,
         image: require("@/assets/images/iconos3d/45.png"),
         badge: activeBookingsCount > 0 ? {
           value: activeBookingsCount,
@@ -1185,8 +1131,8 @@ const CustomerMap = ({ navigation: propsNavigation }: Props) => {
 
   const HorizontalImageBanner = () => {
     const banners = [
-      { image: require("@/assets/images/Combuscol.png"), url: "https://treasapp.com/beneficios" },
-      { image: require("@/assets/images/Fitvision.png"), url: "https://treasapp.com/beneficios" },
+      { image: require("@/assets/images/Combuscol.png"), url: "https://tmasplus.com/beneficios" },
+      { image: require("@/assets/images/Fitvision.png"), url: "https://tmasplus.com/beneficios" },
   
     ];
 
@@ -1400,6 +1346,15 @@ const CustomerMap = ({ navigation: propsNavigation }: Props) => {
       ]
     }
   ];
+
+  const goToMainMenu = () => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+      return;
+    }
+    navigation.getParent()?.navigate("HomeScreen");
+  };
+
   return (
 
     <View style={styles.container}>
@@ -1669,70 +1624,74 @@ const CustomerMap = ({ navigation: propsNavigation }: Props) => {
         {!isMapVisible && ( // Mostrar el mapa solo si isMapVisible es verdadero
 
           <View style={{ flex: 1 }}>
-            <View pointerEvents="none" style={styles.glassOrbTop} />
-            <View pointerEvents="none" style={styles.glassOrbBottom} />
             <ScrollView style={styles.homeScroll} contentContainerStyle={styles.homeScrollContent}>
 
               <StatusBar hidden={true} />
               <View style={styles.notificationCard}>
-                <TouchableOpacity
-                  style={[styles.menuButton, { backgroundColor: colorScheme === 'dark' ? '#fff' : '#000', marginBottom: 10 }]}
-                  onPress={() => navigation.getParent()?.navigate("Carnet")}
-                >
-                  <Image
-                    source={user?.profile_image ? { uri: user?.profile_image } : require("@/assets/images/Avatar/1.png")}
-                    style={{ width: 30, height: 30 }}
-                  />
-                </TouchableOpacity>
-                <Text style={styles.notificationText}>
-                  {(() => {
-                    const currentHour = new Date().getHours();
-                    const greeting = currentHour < 12
-                      ? "Buenos días"
-                      : currentHour < 18
-                        ? "Buenas tardes"
-                        : "Buenas noches";
-                    const firstName = dbFirstName || user?.first_name || "Usuario";
-                    return `${greeting}, ${firstName}`;
-                  })()}
-                </Text>
+                <View style={styles.headerControls}>
+                  <TouchableOpacity
+                    style={styles.headerBackBtn}
+                    onPress={goToMainMenu}
+                    activeOpacity={0.85}
+                  >
+                    <Ionicons name="arrow-back" size={18} style={styles.headerBackIcon} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.profileMenuButton}
+                    onPress={() => navigation.getParent()?.navigate("Carnet")}
+                  >
+                    <Image
+                      source={user?.profile_image ? { uri: user?.profile_image } : require("@/assets/images/Avatar/1.png")}
+                      style={styles.headerAvatar}
+                    />
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.notificationTextWrap}>
+                  <Text numberOfLines={1} ellipsizeMode="tail" style={styles.notificationText}>
+                    {(() => {
+                      const currentHour = new Date().getHours();
+                      const greeting = currentHour < 12
+                        ? "Buenos días"
+                        : currentHour < 18
+                          ? "Buenas tardes"
+                          : "Buenas noches";
+                      const firstName = dbFirstName || user?.first_name || "Usuario";
+                      return `${greeting}, ${firstName}`;
+                    })()}
+                  </Text>
+                </View>
 
               </View>
 
               {/* Main CTA Button - A donde vamos */}
-              <Animatable.View animation="fadeInUp" duration={400} delay={100} style={{ marginVertical: 16, paddingHorizontal: 16 }}>
+              <Animatable.View
+                animation="fadeInUp"
+                duration={500}
+                delay={100}
+                useNativeDriver
+                style={styles.destCardWrap}
+              >
                 <TouchableOpacity
-                  style={{
-                    backgroundColor: '#00f4f5',
-                    borderRadius: 12,
-                    paddingVertical: 16,
-                    paddingHorizontal: 20,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                  }}
+                  activeOpacity={0.92}
+                  style={styles.destCard}
                   onPress={() => {
                     navigation.navigate('TripPreviewScreen', {});
                   }}
                 >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                    <AntDesign name="environment" size={20} color="#000" style={{ marginRight: 12 }} />
-                    <Text style={{ fontSize: 16, fontWeight: '600', color: '#000' }}>¿A dónde vamos?</Text>
+                  <View style={styles.destInner}>
+                    <Ionicons name="location-outline" size={20} style={styles.destLeadingIcon} />
+
+                    <Text style={styles.destText}>¿A dónde vamos?</Text>
+
+                    <View style={styles.destArrow}>
+                      <Ionicons name="arrow-forward" size={18} color="#00E5FF" />
+                    </View>
                   </View>
-                  <AntDesign name="right" size={16} color="#000" />
                 </TouchableOpacity>
               </Animatable.View>
 
               <View >
                 {SavedAddresses()}
-
-
-
-
-
-
-
-
                 <View style={{ marginBottom: 100 }}>
                   {/* Tipos de vehículos movidos a TripPreviewScreen */}
                   {!isMapVisible && DailySavings()}
@@ -1793,7 +1752,7 @@ const CustomerMap = ({ navigation: propsNavigation }: Props) => {
           <TouchableOpacity style={styles.centerButton} onPress={centerMap}>
             <Text style={styles.centerButtonText}>
               Centra aquí{" "}
-              <AntDesign name="right" size={18} color="red" />
+              <AntDesign name="right" size={18} color="#FFFFFF" />
             </Text>
           </TouchableOpacity>
         )}
@@ -1897,26 +1856,6 @@ const lightStyles = StyleSheet.create({
   containerSuper: {
     backgroundColor: "#e9f1f5",
     height: "300%",
-  },
-  glassOrbTop: {
-    position: "absolute",
-    top: -80,
-    right: -40,
-    width: 240,
-    height: 240,
-    borderRadius: 120,
-    backgroundColor: "rgba(0, 244, 245, 0.16)",
-    zIndex: 0,
-  },
-  glassOrbBottom: {
-    position: "absolute",
-    bottom: 80,
-    left: -60,
-    width: 260,
-    height: 260,
-    borderRadius: 130,
-    backgroundColor: "rgba(0, 32, 74, 0.10)",
-    zIndex: 0,
   },
   homeScroll: {
     width: "auto",
@@ -2030,6 +1969,62 @@ const lightStyles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
   },
+  destCardWrap: {
+    marginVertical: 16,
+    paddingHorizontal: 16,
+  },
+  destCard: {
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: 24,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.38)",
+    shadowColor: "#001428",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.14,
+    shadowRadius: 14,
+    elevation: 5,
+  },
+  destInner: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  destLeadingIcon: {
+    marginRight: 12,
+    color: "#00E5FF",
+  },
+  iconPulseWrap: {
+    width: 42,
+    height: 42,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 14,
+  },
+  destIconCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#00E5FF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  destText: {
+    flex: 1,
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#0A1A24",
+  },
+  destArrow: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "rgba(255,255,255,0.22)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.45)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
   imagePlaceholderText: {
     color: "#000",
     fontSize: 16,
@@ -2122,7 +2117,7 @@ const lightStyles = StyleSheet.create({
     marginTop: 4,
   },
   containerDayli: {
-    marginVertical: 20,
+    marginVertical: 24,
     paddingHorizontal: 10,
   },
   headerDayli: {
@@ -2136,36 +2131,37 @@ const lightStyles = StyleSheet.create({
     flexDirection: "row",
   },
   cardDayli: {
-    backgroundColor: "rgba(255, 255, 255, 0.74)",
-    borderRadius: 16,
-    width: 200,
+    backgroundColor: "rgba(255,255,255,0.22)",
+    borderRadius: 24,
+    width: 220,
     marginRight: 15,
-    padding: 12,
-    shadowColor: "#00204a",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.07,
-    shadowRadius: 8,
-    elevation: 2,
+    padding: 16,
+    shadowColor: "#001428",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 14,
+    elevation: 5,
     borderWidth: 1,
-    borderColor: "rgba(0, 244, 245, 0.28)",
+    borderColor: "rgba(255,255,255,0.34)",
+    overflow: "hidden",
   },
   cardImageDayli: {
-    width: "70%",
-    height: 100,
-    borderRadius: 10,
-    marginBottom: 10,
+    width: "74%",
+    height: 104,
+    borderRadius: 12,
+    marginBottom: 12,
     alignSelf: "center",
   },
   cardTitleDayli: {
     color: "#00204a",
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: "800",
   },
   cardSubtitleDayli: {
-    color: "#8a9bae",
+    color: "rgba(0,32,74,0.66)",
     fontSize: 13,
-    marginTop: 5,
-    lineHeight: 18,
+    marginTop: 6,
+    lineHeight: 19,
   },
   containerAddress: {
     marginHorizontal: 10,
@@ -2439,35 +2435,76 @@ const lightStyles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(0, 244, 245, 0.22)",
   },
+  notificationTextWrap: {
+    flex: 1,
+    justifyContent: "center",
+  },
+  headerControls: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginRight: 10,
+  },
+  headerBackBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.85)",
+    borderWidth: 1,
+    borderColor: "rgba(0, 244, 245, 0.35)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 8,
+  },
+  headerBackIcon: {
+    color: "#00204a",
+  },
+  profileMenuButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 2,
+    backgroundColor: "#000",
+  },
+  headerAvatar: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+  },
   suggestionDescription: {
     fontSize: 12,
-  }
+  },
+  mainMenuBackWrap: {
+    position: "absolute",
+    top: 16,
+    left: 16,
+    zIndex: 5,
+  },
+  mainMenuBackBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "rgba(255, 255, 255, 0.85)",
+    borderWidth: 1,
+    borderColor: "rgba(0, 244, 245, 0.35)",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#00204a",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 5,
+    elevation: 2,
+  },
+  mainMenuBackIcon: {
+    color: "#00204a",
+  },
 });
 
 
 const darkStyles = StyleSheet.create({
   containerSuper: {
     backgroundColor: "#01060a",
-  },
-  glassOrbTop: {
-    position: "absolute",
-    top: -90,
-    right: -40,
-    width: 260,
-    height: 260,
-    borderRadius: 130,
-    backgroundColor: "rgba(21, 229, 233, 0.14)",
-    zIndex: 0,
-  },
-  glassOrbBottom: {
-    position: "absolute",
-    bottom: 70,
-    left: -70,
-    width: 280,
-    height: 280,
-    borderRadius: 140,
-    backgroundColor: "rgba(0, 32, 74, 0.26)",
-    zIndex: 0,
   },
   homeScroll: {
     width: "auto",
@@ -2561,6 +2598,62 @@ const darkStyles = StyleSheet.create({
     fontWeight: "bold",
     justifyContent: "center",
   },
+  destCardWrap: {
+    marginVertical: 16,
+    paddingHorizontal: 16,
+  },
+  destCard: {
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: 24,
+    backgroundColor: "rgba(255,255,255,0.14)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.28)",
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.22,
+    shadowRadius: 16,
+    elevation: 6,
+  },
+  destInner: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  destLeadingIcon: {
+    marginRight: 12,
+    color: "#00E5FF",
+  },
+  iconPulseWrap: {
+    width: 42,
+    height: 42,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 14,
+  },
+  destIconCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#00E5FF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  destText: {
+    flex: 1,
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#EAF2F7",
+  },
+  destArrow: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.3)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
   modalBackground: {
     flex: 1,
     justifyContent: "center",
@@ -2635,7 +2728,7 @@ const darkStyles = StyleSheet.create({
     marginTop: 4,
   },
   containerDayli: {
-    marginVertical: 20,
+    marginVertical: 24,
     paddingHorizontal: 10,
   },
   headerDayli: {
@@ -2649,32 +2742,38 @@ const darkStyles = StyleSheet.create({
     flexDirection: "row",
   },
   cardDayli: {
-    backgroundColor: "rgba(4, 39, 58, 0.45)",
-    borderRadius: 16,
-    width: 200,
+    backgroundColor: "rgba(10,46,61,0.48)",
+    borderRadius: 24,
+    width: 220,
     marginRight: 15,
-    padding: 12,
+    padding: 16,
     borderWidth: 1,
-    borderColor: "rgba(21, 229, 233, 0.35)",
+    borderColor: "rgba(0,229,255,0.18)",
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.22,
+    shadowRadius: 16,
+    elevation: 6,
+    overflow: "hidden",
   },
   cardImageDayli: {
-    width: "70%",
-    height: 100,
-    borderRadius: 10,
-    marginBottom: 10,
+    width: "74%",
+    height: 104,
+    borderRadius: 12,
+    marginBottom: 12,
     alignSelf: "center",
 
   },
   cardTitleDayli: {
     color: "#ffffff",
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: "800",
   },
   cardSubtitleDayli: {
-    color: "#8a9bae",
+    color: "rgba(234,242,247,0.66)",
     fontSize: 13,
-    marginTop: 5,
-    lineHeight: 18,
+    marginTop: 6,
+    lineHeight: 19,
   },
   containerAddress: {
     paddingHorizontal: 10,
@@ -2980,6 +3079,49 @@ const darkStyles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(21, 229, 233, 0.32)",
   },
+  notificationTextWrap: {
+    flex: 1,
+    justifyContent: "center",
+  },
+  notificationText: {
+    fontSize: 18,
+    fontWeight: "800",
+    letterSpacing: 0.3,
+    color: "#fff",
+  },
+  headerControls: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginRight: 10,
+  },
+  headerBackBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(4, 39, 58, 0.82)",
+    borderWidth: 1,
+    borderColor: "rgba(21, 229, 233, 0.35)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 8,
+  },
+  headerBackIcon: {
+    color: "#00f4f5",
+  },
+  profileMenuButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 2,
+    backgroundColor: "#fff",
+  },
+  headerAvatar: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+  },
   bookNowContainer: {
     flexDirection: "row",
     alignItems: "center",
@@ -2990,6 +3132,30 @@ const darkStyles = StyleSheet.create({
     fontSize: 12,
     color: "#fff",
     marginBottom: 10,
+  },
+  mainMenuBackWrap: {
+    position: "absolute",
+    top: 16,
+    left: 16,
+    zIndex: 5,
+  },
+  mainMenuBackBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "rgba(4, 39, 58, 0.78)",
+    borderWidth: 1,
+    borderColor: "rgba(21, 229, 233, 0.35)",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  mainMenuBackIcon: {
+    color: "#00f4f5",
   },
   promoCard: {
     backgroundColor: 'rgba(4, 39, 58, 0.52)',

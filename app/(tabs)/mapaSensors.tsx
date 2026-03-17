@@ -3,22 +3,25 @@ import {
   View,
   Dimensions,
   Alert,
-  PermissionsAndroid,
   Platform,
-  useColorScheme,
+  StyleSheet,
   Text,
   Image,
 } from "react-native";
-import Mapbox, { MAPBOX_STYLES, GYROSCOPE_CONFIG } from "@/config/MapboxConfig";
-
+import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
-import { fonts } from "@/scripts/font";
 import { useSelector } from "react-redux";
 import { RootState } from "@/common/store";
 import markerIcon from "@/assets/images/NavegApp.png";
-import { getDistance, getRhumbLineBearing } from "geolib"; // Asegúrate de tener esta importación
+import { getDistance } from "geolib";
 
 const screen = Dimensions.get("window");
+const DEFAULT_REGION = {
+  latitude: 4.7110,
+  longitude: -74.0721,
+  latitudeDelta: 0.005,
+  longitudeDelta: 0.005,
+};
 
 // Define estilos para el modo claro
 const mapStyleLight = [
@@ -219,124 +222,122 @@ const darkMapStyle = [
 
 interface MapSensorProps {
   children?: ReactNode;
+  currentPosition?: [number, number] | null;
 }
 
-const MapSensor: React.FC<MapSensorProps> = ({ children }) => {
-  const user = useSelector((state: RootState) => state.auth.user);
-  const [heading, setHeading] = useState(0); // Estado para el ángulo de rotación
-  const cameraRef = useRef<Mapbox.Camera>(null); // Referencia a la cámara
-  const [currentLocation, setCurrentLocation] = useState<[number, number] | null>(null);
-  const colorScheme = useColorScheme(); // Hook para detectar si es modo oscuro o claro
-
-  const [lastPosition, setLastPosition] = useState<{
-    latitude: number;
-    longitude: number;
-  } | null>(null);
-  const [lastHeading, setLastHeading] = useState<number | null>(null);
-
-  // ⚠️ FUNCIÓN ELIMINADA - requestLocationPermission ya no es necesaria
-  // porque expo-location maneja los permisos internamente
+const MapSensor: React.FC<MapSensorProps> = ({ children, currentPosition = null }) => {
+  const mapRef = useRef<MapView>(null);
+  const [region, setRegion] = useState({
+    latitude: currentPosition ? currentPosition[1] : DEFAULT_REGION.latitude,
+    longitude: currentPosition ? currentPosition[0] : DEFAULT_REGION.longitude,
+    latitudeDelta: 0.003,
+    longitudeDelta: 0.003,
+  });
+  const [heading, setHeading] = useState(0);
+  const [locationReady, setLocationReady] = useState(false);
 
   useEffect(() => {
     let subscription: Location.LocationSubscription | null = null;
 
-    const startLocationTracking = async () => {
+    const startTracking = async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert('Permiso denegado', 'No se puede acceder a la ubicación.');
+        setLocationReady(true);
         return;
       }
 
+      try {
+        const first = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.High,
+        });
+        const { latitude, longitude, heading: h } = first.coords;
+        setRegion(prev => ({ ...prev, latitude, longitude }));
+        setHeading(h || 0);
+        setLocationReady(true);
+        mapRef.current?.animateCamera(
+          { center: { latitude, longitude }, heading: h || 0, pitch: 68, zoom: 19 },
+          { duration: 400 }
+        );
+      } catch {
+        setLocationReady(true);
+      }
+
       subscription = await Location.watchPositionAsync(
-        {
-          accuracy: Location.Accuracy.Highest,
-          distanceInterval: 1,
-          timeInterval: 1000,
-          mayShowUserSettingsDialog: true,
-        },
-        (location) => {
-          const { latitude, longitude, heading: gpsHeading } = location.coords;
-          setCurrentLocation([longitude, latitude]);
-
-          const positionChanged = () => {
-            if (!lastPosition) return true;
-            const distance = getDistance(lastPosition, { latitude, longitude });
-            return distance > 1;
-          };
-
-          if (positionChanged()) {
-            if (gpsHeading !== null && !isNaN(gpsHeading)) {
-              setHeading(gpsHeading);
-              setLastHeading(gpsHeading);
-            }
-
-            animateCamera({ coords: { latitude, longitude } }, gpsHeading);
-            setLastPosition({ latitude, longitude });
-          }
+        { accuracy: Location.Accuracy.Highest, distanceInterval: 2, timeInterval: 1500 },
+        (loc) => {
+          const { latitude, longitude, heading: h } = loc.coords;
+          const newHeading = (h !== null && !isNaN(h)) ? h : heading;
+          setRegion(prev => ({ ...prev, latitude, longitude }));
+          setHeading(newHeading);
+          mapRef.current?.animateCamera(
+            { center: { latitude, longitude }, heading: newHeading, pitch: 68, zoom: 19 },
+            { duration: 800 }
+          );
         }
       );
     };
 
-    startLocationTracking();
-
-    return () => {
-      if (subscription) {
-        subscription.remove();
-      }
-    };
+    startTracking();
+    return () => { subscription?.remove(); };
   }, []);
 
-  const animateCamera = (
-    location: { coords: { latitude: number; longitude: number } },
-    currentHeading: number | null
-  ) => {
-    if (cameraRef.current && currentLocation) {
-      cameraRef.current.setCamera({
-        centerCoordinate: currentLocation,
-        heading: currentHeading || heading,
-        pitch: 45,
-        zoomLevel: 17,
-        animationDuration: 1000,
-      });
+  useEffect(() => {
+    if (currentPosition) {
+      const [longitude, latitude] = currentPosition;
+      setRegion(prev => ({ ...prev, latitude, longitude }));
+      mapRef.current?.animateCamera(
+        { center: { latitude, longitude }, heading, pitch: 68, zoom: 19 },
+        { duration: 400 }
+      );
     }
-  };
+  }, [currentPosition]);
 
   return (
-    <View style={{ flex: 1 }}>
-      <Mapbox.MapView
-        style={{ width: screen.width, height: screen.height }}
-        styleURL={colorScheme === "dark" ? MAPBOX_STYLES.DARK : MAPBOX_STYLES.STREET}
-        compassEnabled={true}
-        compassViewPosition={3}
+    <View style={styles.container}>
+      <MapView
+        ref={mapRef}
+        style={styles.map}
+        provider={PROVIDER_GOOGLE}
+        showsUserLocation={true}
+        showsMyLocationButton={false}
+        showsCompass={false}
+        scrollEnabled={true}
+        zoomEnabled={true}
+        rotateEnabled={true}
+        pitchEnabled={true}
+        initialCamera={{
+          center: { latitude: region.latitude, longitude: region.longitude },
+          pitch: 68,
+          heading,
+          zoom: 19,
+          altitude: 200,
+        }}
       >
-        <Mapbox.Camera
-          ref={cameraRef}
-          followUserLocation={GYROSCOPE_CONFIG.trackUserCourse}
-          followPitch={GYROSCOPE_CONFIG.followPitch}
-          followZoomLevel={17}
-        />
-        
-        <Mapbox.UserLocation
-          visible={true}
-          showsUserHeadingIndicator={GYROSCOPE_CONFIG.showsUserHeadingIndicator}
-          androidRenderMode="compass"
-        />
-        
-        {currentLocation && (
-          <Mapbox.PointAnnotation
-            id="currentLocationMarker"
-            coordinate={currentLocation}
+        {locationReady && (
+          <Marker
+            coordinate={{ latitude: region.latitude, longitude: region.longitude }}
+            anchor={{ x: 0.5, y: 0.5 }}
+            flat={true}
+            rotation={heading}
           >
-            <View style={{ alignItems: "center" }}>
-              <Image source={markerIcon} style={{ width: 66, height: 60 }} />
+            <View style={styles.markerWrap}>
+              <Image source={markerIcon} style={styles.markerImg} />
             </View>
-          </Mapbox.PointAnnotation>
+          </Marker>
         )}
         {children}
-      </Mapbox.MapView>
+      </MapView>
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  map: { width: screen.width, height: screen.height },
+  markerWrap: { alignItems: 'center', justifyContent: 'center' },
+  markerImg: { width: 52, height: 52, resizeMode: 'contain' },
+});
 
 export default React.memo(MapSensor);
 

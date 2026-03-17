@@ -18,16 +18,19 @@ const fallbackStyleURL = {
 } as const;
 
 let Mapbox: any;
+let mapboxNativeAvailable = false;
 
 try {
   const mapboxModule = require('@rnmapbox/maps');
   Mapbox = mapboxModule.default ?? mapboxModule;
+  mapboxNativeAvailable = true;
 
   const mapboxAccessToken = getMapboxAccessToken();
   if (mapboxAccessToken) {
     Mapbox.setAccessToken(mapboxAccessToken);
   }
 } catch {
+  mapboxNativeAvailable = false;
   Mapbox = {
     setAccessToken: () => undefined,
     StyleURL: fallbackStyleURL,
@@ -85,5 +88,7 @@ export const GYROSCOPE_CONFIG = {
   followPitch: 45, // Inclinación de la cámara cuando se sigue al usuario
   followZoomLevel: 18,
 } as const;
+
+export const IS_MAPBOX_NATIVE_AVAILABLE = mapboxNativeAvailable;
 
 export default Mapbox;

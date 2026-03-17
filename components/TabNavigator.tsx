@@ -12,7 +12,7 @@ import ActiveBookingScreen from "@/app/Booking/ActiveBookingScreen";
 import { useSelector } from "react-redux";
 import { RootState } from "@/common/store";
 import { AntDesign, Ionicons } from "@expo/vector-icons";
-import { Platform, Dimensions, useColorScheme, StyleSheet } from "react-native";
+import { Platform, Dimensions, useColorScheme, StyleSheet, View, ActivityIndicator } from "react-native";
 import { colors } from "@/scripts/theme";
 
 const Tab = createBottomTabNavigator();
@@ -72,13 +72,23 @@ const useHasNotch = () => {
 const TabNavigator: React.FC = () => {
   const user = useSelector((state: RootState) => state.auth.user);
   const profile = useSelector((state: RootState) => state.auth.profile);
-  const currentUserType =
+  const currentUserTypeRaw =
     profile?.user_type ||
     (user as any)?.usertype ||
     (user as any)?.user_type ||
+    (user as any)?.userType ||
     (user as any)?.user_metadata?.usertype ||
     (user as any)?.user_metadata?.user_type ||
-    'customer';
+    (user as any)?.user_metadata?.userType ||
+    null;
+
+  const currentUserType = useMemo(() => {
+    const normalized = String(currentUserTypeRaw || "").trim().toLowerCase();
+    if (normalized === "driver" || normalized === "customer" || normalized === "company") {
+      return normalized;
+    }
+    return null;
+  }, [currentUserTypeRaw]);
   const hasNotch = useHasNotch();
   const colorScheme = useColorScheme();
 
@@ -154,6 +164,14 @@ const TabNavigator: React.FC = () => {
     return tabScreens[0]?.name ?? "RideList";
   }, [currentUserType, tabScreens]);
 
+  if (!currentUserType) {
+    return (
+      <View style={styles.loadingWrap}>
+        <ActivityIndicator size="small" color="#00f4f5" />
+      </View>
+    );
+  }
+
   return (
     <Tab.Navigator
       initialRouteName={initialRoute}
@@ -174,7 +192,7 @@ const TabNavigator: React.FC = () => {
           tabBarBadge:
             screen?.badge && screen.badgeCount > 0 ? screen.badgeCount : undefined,
           tabBarBadgeStyle: styles.badge,
-          tabBarStyle: currentUserType === "customer" ? { display: "none" } : tabBarStyle,
+          tabBarStyle: { display: "none" },
           tabBarLabelStyle: styles.label,
         };
       }}
@@ -195,6 +213,12 @@ const TabNavigator: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
+  loadingWrap: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#041B2D",
+  },
   badge: {
     transform: [{ scaleX: 1 }],
   },

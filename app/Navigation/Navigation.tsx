@@ -39,6 +39,8 @@ import UserLookupScreen from "../(tabs)/UserLookupScreen";
 import MapScreen from "../(tabs)/mapaSensors";
 
 import UpdatesScreen from '../(tabs)/UpdatesScreen';
+import ReservationsScreen from '../(tabs)/ReservationsScreen';
+import DriverActivityScreen from '../(tabs)/DriverActivityScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -95,6 +97,8 @@ const Navigation = () => {
           <Stack.Screen name="UserLookup" component={UserLookupScreen} />
           <Stack.Screen name="MapSensors" component={MapScreen} />
           <Stack.Screen name="Updates" component={UpdatesScreen} />
+          <Stack.Screen name="ReservationsScreen" component={ReservationsScreen} />
+                  <Stack.Screen name="DriverActivity" component={DriverActivityScreen} />
         </Stack.Group>
       ) : (
         <Stack.Group screenOptions={{ headerShown: false }}>

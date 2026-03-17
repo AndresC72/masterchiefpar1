@@ -129,7 +129,7 @@ export const uploadCarImage = async (
       .from(STORAGE_BUCKETS.CAR_IMAGES)
       .upload(fileName, imageFile, {
         contentType,
-        upsert: true,
+        upsert: false,
       });
 
     if (error) {
@@ -142,7 +142,6 @@ export const uploadCarImage = async (
       .from(STORAGE_BUCKETS.CAR_IMAGES)
       .getPublicUrl(fileName);
 
-    console.log('Car image uploaded:', urlData.publicUrl);
     return {
       url: urlData.publicUrl,
       error: null,

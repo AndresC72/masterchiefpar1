@@ -66,69 +66,52 @@ const createUserProfile = (userData: SupabaseUserData): UserProfile => {
 };
 
 /**
- * Obtiene datos del usuario de Supabase y los dispatcha al Redux store
- * @param authId - UUID del usuario autenticado en auth.users
+ * Actualiza el perfil del usuario en Supabase y Redux
+ * @param userId - ID del usuario en la tabla users
+ * @param profileData - Datos a actualizar (campos personales)
  * @param dispatch - Dispatch de Redux
- * @returns Función para desinscribirse (compatible con Firebase)
+ * @param imageUri - (opcional) URI de imagen para subir
+ * @returns Resultado de la operación
  */
-export const fetchAndDispatchUserData = (authId: string, dispatch: Dispatch): (() => void) => {
-  const unsubscribed = { current: false };
-
-  const fetchUser = async () => {
-    if (unsubscribed.current) return;
-
-    const now = Date.now();
-    const lastFetchTime = lastProfileFetchAt.get(authId) || 0;
-    if (profileFetchInFlight.has(authId) || now - lastFetchTime < PROFILE_FETCH_DEDUP_MS) {
-      return;
+export const updateUserProfileSupabase = async (
+  userId: string,
+  profileData: Partial<UserProfile>,
+  dispatch: Dispatch,
+  imageUri?: string
+) => {
+  try {
+    let imageUrl = profileData.profile_image || null;
+    // Si hay imagen, subirla a Supabase Storage (o Firebase si se requiere)
+    if (imageUri) {
+      // Aquí puedes agregar lógica para subir la imagen a Supabase Storage
+      // Por ejemplo, usando supabase.storage
+      // imageUrl = await subirImagenASupabase(imageUri, userId);
+      // Por ahora, solo asigna el URI
+      imageUrl = imageUri;
     }
 
-    profileFetchInFlight.add(authId);
-    lastProfileFetchAt.set(authId, now);
+    // Actualizar datos en Supabase
+    const { data, error } = await supabase
+      .from('users')
+      .update({ ...profileData, profile_image: imageUrl, updated_at: new Date().toISOString() })
+      .eq('id', userId)
+      .select('*')
+      .single();
 
-    try {
-      console.log(`[UserActions] Fetching user profile for auth_id: ${authId}`);
+    if (error) {
+      console.error('[UserActions] Error actualizando perfil en Supabase:', error.message);
+      return { success: false, error: error.message };
+    }
 
-      const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('auth_id', authId)
-        .single();
-
-      if (unsubscribed.current) return;
-
-      if (error) {
-        console.error('[UserActions] Error fetching user profile:', error.message);
-        return;
-      }
-
-      if (!data) {
-        console.warn('[UserActions] No user data found in Supabase');
-        return;
-      }
-
-      if (!data.user_type) {
-        console.error('[UserActions] User type is undefined');
-        return;
-      }
-
+    // Actualizar Redux
+    if (data) {
       const userProfile = createUserProfile(data as SupabaseUserData);
-      console.log('[UserActions] User profile created:', userProfile);
       dispatch(setProfile(userProfile));
-    } catch (error) {
-      if (!unsubscribed.current) {
-        console.error('[UserActions] Unexpected error fetching user data:', error);
-      }
-    } finally {
-      profileFetchInFlight.delete(authId);
     }
-  };
 
-  // Realizar la búsqueda inicial
-  fetchUser();
-
-  // Retornar función de limpieza
-  return () => {
-    unsubscribed.current = true;
-  };
+    return { success: true, data };
+  } catch (err: any) {
+    console.error('[UserActions] Error inesperado actualizando perfil:', err);
+    return { success: false, error: err?.message || 'Error desconocido' };
+  }
 };

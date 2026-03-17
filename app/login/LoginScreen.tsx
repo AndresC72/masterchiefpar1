@@ -391,9 +391,35 @@ const LoginScreen = ({ navigation }: Props) => {
         .insert([userRecord] as any);
 
       if (insertError) {
-        console.error('❌ [handleSignUp] Error insertando en tabla users:', insertError.message);
-        console.error('❌ [handleSignUp] Detalles del error:', insertError);
-        console.warn('⚠️ [handleSignUp] Usuario creado en auth pero no en tabla users. Puede ser creado por trigger.');
+        if (insertError.code === '23505') {
+          const { data: existingUser, error: existingUserError } = await supabase
+            .from('users')
+            .select('id, auth_id, email')
+            .eq('email', sanitizedEmail)
+            .maybeSingle();
+
+          if (!existingUserError && existingUser) {
+            const belongsToCurrentSignup =
+              existingUser.auth_id === data.user.id || existingUser.id === data.user.id;
+
+            if (belongsToCurrentSignup) {
+              console.log('ℹ️ [handleSignUp] El perfil ya existía en tabla users. Se continúa como registro exitoso.');
+            } else {
+              setEmailExists(true);
+              setError('Este correo ya está registrado');
+              Alert.alert('Error', 'Este correo ya está registrado. Intenta iniciar sesión.');
+              return;
+            }
+          } else {
+            setEmailExists(true);
+            setError('Este correo ya está registrado');
+            Alert.alert('Error', 'Este correo ya está registrado. Intenta iniciar sesión.');
+            return;
+          }
+        } else {
+          console.warn('⚠️ [handleSignUp] No se pudo insertar en tabla users:', insertError.message);
+          console.warn('⚠️ [handleSignUp] Usuario creado en auth pero no en tabla users. Puede ser creado por trigger.');
+        }
       } else {
         console.log('✅ [handleSignUp] Usuario insertado correctamente en tabla users');
       }
@@ -1076,10 +1102,11 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 20,
+    paddingTop: 80,
+    paddingBottom: 20,
   },
   authBox: {
     width: '100%',
@@ -1089,6 +1116,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderRadius: 28,
     padding: 40,
+    marginTop: 20,
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 30 },

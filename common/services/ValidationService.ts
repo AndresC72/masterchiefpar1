@@ -1,6 +1,19 @@
 import supabase from '@/config/SupabaseConfig';
 
-const QUERY_TIMEOUT = 5000; // 5 segundos timeout para evitar cuelgues
+const QUERY_TIMEOUT = 5000; // 5 segundos como en la lógica que sí funcionaba
+
+const runWithTimeout = async <T>(promise: Promise<T>, timeoutMs: number): Promise<T> => {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error('Query timeout')), timeoutMs);
+  });
+
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+};
 
 /**
  * Servicio de validación contra Supabase
@@ -93,43 +106,61 @@ export const ValidationService = {
     const startTime = Date.now();
     
     try {
-      const fullPhone = `${countryCode}${phone}`;  // +573133752565
-      const mobileOnly = phone;                    // 3133752565
-      
+      const mobileOnly = String(phone || '').replace(/\D/g, '');
+      const fullPhone = `${countryCode}${mobileOnly}`;
+
       console.log('📱 [ValidationService] Verificando teléfono:', { fullPhone, mobileOnly });
-      
-      const queryPromise = supabase
+
+      const fullPhoneQuery = supabase
         .from('users')
-        .select('mobile', { count: 'exact' })
-        .in('mobile', [fullPhone, mobileOnly]);
-      
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Query timeout')), QUERY_TIMEOUT)
-      );
-      
-      const { data, error, count } = await Promise.race([
-        queryPromise,
-        timeoutPromise
-      ]) as any;
-      
-      const duration = Date.now() - startTime;
-      
-      if (error) {
-        console.error(`❌ [ValidationService] Error verificando teléfono (${duration}ms):`, error.message);
-        return { 
-          exists: false, 
-          error: error.message 
+        .select('id,mobile')
+        .eq('mobile', fullPhone)
+        .limit(1);
+
+      const { data: fullPhoneData, error: fullPhoneError } = await fullPhoneQuery as any;
+
+      if (fullPhoneError) {
+        const duration = Date.now() - startTime;
+        console.error(`❌ [ValidationService] Error verificando fullPhone (${duration}ms):`, fullPhoneError.message);
+        return {
+          exists: false,
+          error: fullPhoneError.message,
         };
       }
-      
-      const exists = (count ?? 0) > 0;
-      
-      if (exists) {
-        console.log(`✅ [ValidationService] Teléfono existe en BD (${duration}ms)`);
-      } else {
-        console.log(`✓ [ValidationService] Teléfono disponible (${duration}ms)`);
+
+      if (Array.isArray(fullPhoneData) && fullPhoneData.length > 0) {
+        const duration = Date.now() - startTime;
+        console.log(`❌ [ValidationService] users.mobile: NO DISPONIBLE (${duration}ms)`);
+        console.log('[ValidationService] Coincidencia users.mobile:', fullPhoneData[0]?.mobile);
+        return { exists: true };
       }
-      
+
+      const mobileOnlyQuery = supabase
+        .from('users')
+        .select('id,mobile')
+        .eq('mobile', mobileOnly)
+        .limit(1);
+
+      const { data: mobileOnlyData, error: mobileOnlyError } = await mobileOnlyQuery as any;
+      const duration = Date.now() - startTime;
+
+      if (mobileOnlyError) {
+        console.error(`❌ [ValidationService] Error verificando mobileOnly (${duration}ms):`, mobileOnlyError.message);
+        return {
+          exists: false,
+          error: mobileOnlyError.message,
+        };
+      }
+
+      const exists = Array.isArray(mobileOnlyData) && mobileOnlyData.length > 0;
+
+      if (exists) {
+        console.log(`❌ [ValidationService] users.mobile: NO DISPONIBLE (${duration}ms)`);
+        console.log('[ValidationService] Coincidencia users.mobile:', mobileOnlyData?.[0]?.mobile);
+      } else {
+        console.log(`✅ [ValidationService] users.mobile: DISPONIBLE (${duration}ms)`);
+      }
+
       return { exists };
     } catch (error: any) {
       const duration = Date.now() - startTime;

@@ -1,21 +1,18 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  Modal,
-  FlatList,
+  Animated,
+  Easing,
+  ScrollView,
 } from "react-native";
-import {
-  AntDesign,
-  MaterialIcons,
-  FontAwesome,
-} from "@expo/vector-icons";
+import { Ionicons, MaterialIcons, FontAwesome, Feather } from "@expo/vector-icons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useSelector, useDispatch } from "react-redux";
 import { RootState, AppDispatch } from "@/common/store";
-import { format, addMonths } from "date-fns";
+import { format } from "date-fns";
 import {
   fetchWalletHistory,
   selectWalletHistory,
@@ -25,8 +22,8 @@ import {
   fetchMemberships,
   selectMembershipLoading,
 } from "@/common/reducers/membershipSlice";
-import { listenToSettingsChanges, selectSettings } from '@/common/reducers/settingsSlice';
-import { useColorScheme } from 'react-native';
+import { listenToSettingsChanges, selectSettings } from "@/common/reducers/settingsSlice";
+
 type Props = NativeStackScreenProps<any>;
 
 const WalletDetails = ({ navigation }: Props) => {
@@ -38,24 +35,18 @@ const WalletDetails = ({ navigation }: Props) => {
   );
   const isLoadingMemberships = useSelector(selectMembershipLoading);
   const dispatch = useDispatch<AppDispatch>();
-  const [modalVisible, setModalVisible] = useState(false);
-  const [modalPayuVisible, setModalPayuVisible] = useState(false);
   const settings = useSelector(selectSettings);
-  const colorScheme = useColorScheme();
 
-  //console.log("Configuraciones:", settings);
-  const styles = colorScheme === "dark" ? darkStyles : lightStyles; // Estilos dinámicos
+  const glow1 = useRef(new Animated.Value(0)).current;
+  const glow2 = useRef(new Animated.Value(0)).current;
+  const glow3 = useRef(new Animated.Value(0)).current;
+  const orbRotate = useRef(new Animated.Value(0)).current;
+  const shineAnim = useRef(new Animated.Value(0)).current;
 
-  const [selectedMethod, setSelectedMethod] = useState("");
-
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<
-    string | null
-  >(null);
-  const [showAllHistory, setShowAllHistory] = useState(false);
   useEffect(() => {
-    // Start listening to settings changes
     dispatch(listenToSettingsChanges());
   }, [dispatch]);
+
   useEffect(() => {
     if (user?.id) {
       dispatch(fetchWalletHistory(user?.id));
@@ -63,50 +54,79 @@ const WalletDetails = ({ navigation }: Props) => {
     }
   }, [dispatch, user?.id]);
 
-  const handlePress = (method: string) => {
-    if (method === "PayU") {
-      setModalPayuVisible(true);
-    } else {
-      setSelectedPaymentMethod(method);
-      setModalVisible(true);
-    }
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(glow1, {
+          toValue: 1,
+          duration: 3000,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(glow1, {
+          toValue: 0,
+          duration: 3000,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
 
-    setSelectedMethod(method);
-    setModalPayuVisible(true); // Open modal when payment method is selected
-  };
-  const handleOptionSelect = (amount: string) => {
-    if (selectedMethod === "PayU") {
-      const reference = generateReference();
-      const payData = {
-        order_id: `wallet-${user?.id}-${reference}`,
-        email: user?.email,
-        amount, // Pass the selected amount
-        currency: "COP",
-      };
-      setModalPayuVisible(false); // Close the modal
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(glow2, {
+          toValue: 1,
+          duration: 4200,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(glow2, {
+          toValue: 0,
+          duration: 4200,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
 
-      setSelectedMethod(""); // Reset method selection
-      navigation.navigate("WebViewLayout", { payData }); // Navigate to PayU screen
-    } else if (selectedMethod === "Daviplata") {
-      setModalPayuVisible(false); // Close the modal
-      setSelectedMethod(""); // Reset method selection
-      navigation.navigate("DaviplataPayment", { amount }); // Navigate to DaviplataPayment screen
-    }
-  };
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(glow3, {
+          toValue: 1,
+          duration: 2600,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(glow3, {
+          toValue: 0,
+          duration: 2600,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
 
-  const generateReference = () => {
-    const c = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    return [...Array(4)].map((_) => c[~~(Math.random() * c.length)]).join("");
-  };
+    Animated.loop(
+      Animated.timing(orbRotate, {
+        toValue: 1,
+        duration: 20000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    ).start();
 
-  const expirationDate = user?.memberTime
-    ? new Date(user?.memberTime * 1000)
-    : new Date();
-  const nextMonthExpiration = addMonths(expirationDate, 1);
-  const formattedDate = format(nextMonthExpiration, "dd/MM/yyyy");
+    Animated.loop(
+      Animated.timing(shineAnim, {
+        toValue: 1,
+        duration: 6000,
+        easing: Easing.inOut(Easing.ease),
+        useNativeDriver: true,
+      })
+    ).start();
+  }, [glow1, glow2, glow3, orbRotate, shineAnim]);
 
   const calculateDaysRemaining = (endDate: Date | undefined) => {
-    if (!endDate) return 0; // Return 0 if endDate is undefined
+    if (!endDate) return 0;
     const today = new Date();
     const timeDiff = endDate.getTime() - today.getTime();
     return Math.ceil(timeDiff / (1000 * 3600 * 24));
@@ -119,163 +139,207 @@ const WalletDetails = ({ navigation }: Props) => {
     ? calculateDaysRemaining(new Date(activeMembership?.fecha_terminada))
     : 0;
 
-  const renderHistoryItem = ({ item }) => (
-    <View style={styles.historyItem}>
-      <Text style={styles.infoLabel}>
-        <Text style={styles.labelBold}>Fecha:</Text>{" "}
-        {format(new Date(item.date), "dd/MM/yyyy HH:mm")}
-      </Text>
-      {user?.cartype === "TREAS-X" ? (
-        <Text style={styles.infoLabel}>
-          <Text style={styles.labelBold}>Kilometros descontados:</Text>{" "}
-          {item.kilometros ?? 0} KM
-        </Text>
-      ) : (
-        <Text style={styles.infoLabel}>
-          <Text style={styles.labelBold}>Valor del servicio:</Text> ${" "}
-          {item.amount}
-        </Text>
-      )}
-      {user?.cartype === "TREAS-X" ? (
-        <Text style={styles.infoLabel}>
-          <Text style={styles.labelBold}>Referencia:</Text> {item.txRef}
-        </Text>
-      ) : (
-        <Text style={styles.infoLabel}>
-          <Text style={styles.labelBold}>Referencia:</Text> {item.txRef}
-        </Text>
-      )}
-    </View>
-  );
   if (walletLoading || isLoadingMemberships) return <Text>Loading...</Text>;
 
-  // Si no hay historial o el saldo es 0 o undefined, muestra los valores en 0 y el mensaje de no historial
   const walletBalance = user?.walletBalance || 0;
-  const hasHistory = walletHistory?.length > 0;
+  const hasHistory = Array.isArray(walletHistory) && walletHistory.length > 0;
+  const latestHistory = hasHistory ? walletHistory[walletHistory.length - 1] : null;
+  const membershipStatus = activeMembership ? "Activo" : "Expirado";
+  const expiryDate = activeMembership?.fecha_terminada
+    ? format(new Date(activeMembership.fecha_terminada), "dd/MM/yyyy")
+    : "-- / --";
+
+  const orbSpin = orbRotate.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", "360deg"],
+  });
+
+  const shineX = shineAnim.interpolate({
+    inputRange: [0, 0.8, 1],
+    outputRange: [-320, -320, 420],
+  });
+
+  const cardGlowOpacity = glow1.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.16, 0.28],
+  });
+
+  const topGlowScale = glow1.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 1.18],
+  });
+
+  const leftGlowScale = glow2.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 1.2],
+  });
+
+  const midGlowScale = glow3.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 1.25],
+  });
+
+  const renewalText =
+    activeMembership && daysRemaining > 0
+      ? `Te quedan ${daysRemaining} dias de membresia`
+      : "Necesita renovar su suscripcion";
 
   return (
     <View style={styles.container}>
+      {/* Eliminado: elipses/círculos de fondo (walletGlowOne, walletGlowTwo, walletGlowThree, walletOrb, walletOrbInner) */}
+
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <AntDesign name="arrowleft" size={24} color={colorScheme === "dark" ? "#FFF" : "#000"} />
+        <TouchableOpacity style={styles.headerIconBtn} onPress={() => navigation.goBack()}>
+          <Ionicons name="chevron-back" size={22} color="#D9F6FF" />
         </TouchableOpacity>
-        <Text style={styles.headerText}>{"Mi Billetera"} </Text>
-
-        <TouchableOpacity onPress={() => navigation.navigate("Memberships")}>
-         
+        <Text style={styles.headerText}>Mi Billetera</Text>
+        <TouchableOpacity style={styles.headerIconBtn} onPress={() => navigation.navigate("Memberships")}> 
+          <Feather name="settings" size={19} color="#D9F6FF" />
         </TouchableOpacity>
       </View>
-      <View style={styles.cardContainer}>
-        <View style={styles.card}>
-          <Text style={styles.cardStatus}>Active</Text>
-          <Text style={styles.cardType}> $ {walletBalance}</Text>
-
-          <>
-            {user?.usertype === "driver" && user?.cartype === "TREAS-X" && (
-              <View style={styles.row}>
-                <Text style={styles.cardDetail}>KM disponibles: </Text>
-
-                <Text style={styles.cardIcon}>{user?.kilometers}</Text>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.cardWrap}>
+          <View style={styles.membershipCard}>
+            <Animated.View style={[styles.cardShine, { transform: [{ translateX: shineX }] }]} />
+            <View style={styles.cardTopRow}>
+              <View style={styles.cardLogoWrap}>
+                <Text style={styles.cardLogoMain}>T</Text>
+                <Text style={styles.cardLogoPlus}>+</Text>
               </View>
-            )}
-            <View style={styles.row}>
-              <Text style={styles.cardDetail}>Membresía caduca en: </Text>
-
-              <Text style={styles.cardIcon}>
-                {" "}
-                {activeMembership?.fecha_terminada}
-              </Text>
-
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.cardDetail}>Días restantes: </Text>
-              {daysRemaining < 4 ? (
-                <Text style={[styles.cardIcon, { color: "red" }]}>
-                  Necesita renovar su suscripción
+              <View
+                style={[
+                  styles.statusPill,
+                  !activeMembership && styles.statusPillExpired,
+                ]}
+              >
+                <View
+                  style={[
+                    styles.statusDot,
+                    !activeMembership && styles.statusDotExpired,
+                  ]}
+                />
+                <Text
+                  style={[
+                    styles.statusPillText,
+                    !activeMembership && styles.statusPillTextExpired,
+                  ]}
+                >
+                  {membershipStatus}
                 </Text>
-              ) : (
-                <Text style={styles.cardIcon}> {daysRemaining}</Text>
-              )}
-            </View>
-            {activeMembership && (
-              <View style={styles.row}>
-                <Text style={styles.cardDetail}>Membresía activa: </Text>
-                <Text style={styles.cardIcon}>${activeMembership.costo}</Text>
               </View>
-            )}
-          </>
+            </View>
 
-          {/*
-<View style={styles.row}>
-  <Text style={styles.cardDetail}>Número de recargas realizadas:</Text>
-  <Text style={styles.cardIcon}>4</Text>
-</View>
-*/}
+            <View style={styles.balanceSection}>
+              <Text style={styles.balanceLabel}>Saldo Disponible</Text>
+              <View style={styles.balanceRow}>
+                <Text style={styles.balanceCurrency}>$</Text>
+                <Text style={styles.balanceAmount}>{Number(walletBalance || 0).toLocaleString("es-CO")}</Text>
+              </View>
+            </View>
+
+            <View style={styles.cardFooter}>
+              <View>
+                <Text style={styles.cardFooterLabel}>Membresia</Text>
+                <Text style={styles.cardFooterValue}>Conductor Premium</Text>
+              </View>
+              <View style={styles.cardFooterRight}>
+                <Text style={styles.cardFooterLabel}>Vence</Text>
+                <Text style={styles.cardFooterDate}>{expiryDate}</Text>
+              </View>
+            </View>
+          </View>
         </View>
-      </View>
 
-      <View style={styles.infoContainer}>
-        <View style={styles.infoHeader}>
-          <Text style={styles.infoText}>Historial de tu último servicio</Text>
-          {showAllHistory && (
-            <TouchableOpacity onPress={() => setShowAllHistory(false)}>
-              <Text style={styles.closeText}>Cerrar</Text>
-            </TouchableOpacity>
+        <View style={styles.alertBanner}>
+          <View style={styles.alertIconWrap}>
+            <Ionicons name="warning-outline" size={18} color="#FFFFFF" />
+          </View>
+          <View style={styles.alertTextWrap}>
+            <Text style={styles.alertTitle}>Membresia por Vencer</Text>
+            <Text style={styles.alertSub}>{renewalText}</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.renewMiniBtn}
+            onPress={() => navigation.navigate("ChosePlan", { mode: "membership" })}
+          >
+            <Text style={styles.renewMiniBtnText}>Renovar</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.statsRow}>
+          <View style={styles.statCard}>
+            <View style={styles.statIconWrap}>
+              <Ionicons name="car-sport-outline" size={18} color="#00E5FF" />
+            </View>
+            <Text style={styles.statValue}>{walletHistory?.length || 0}</Text>
+            <Text style={styles.statLabel}>Viajes</Text>
+          </View>
+
+          <View style={styles.statCard}>
+            <View style={styles.statIconWrap}>
+              <Ionicons name="cash-outline" size={18} color="#00E5FF" />
+            </View>
+            <Text style={styles.statValue}>${Number(walletBalance || 0).toLocaleString("es-CO")}</Text>
+            <Text style={styles.statLabel}>Ganado</Text>
+          </View>
+
+          <View style={styles.statCard}>
+            <View style={styles.statIconWrap}>
+              <Ionicons name="star-outline" size={18} color="#00E5FF" />
+            </View>
+            <Text style={styles.statValue}>5.0</Text>
+            <Text style={styles.statLabel}>Rating</Text>
+          </View>
+        </View>
+
+        <View style={styles.historySection}>
+          <View style={styles.historyHeader}>
+            <View>
+              <Text style={styles.historyTitle}>Historial de Servicios</Text>
+              <Text style={styles.historyBadge}>Ultimo Servicio</Text>
+            </View>
+          </View>
+
+          {latestHistory ? (
+            <View style={styles.historyCard}>
+              <Text style={styles.historyLine}>Fecha: {format(new Date(latestHistory.date), "dd/MM/yyyy HH:mm")}</Text>
+              <Text style={styles.historyLine}>
+                {user?.cartype === "TREAS-X"
+                  ? `Kilometros descontados: ${latestHistory.kilometros ?? 0} KM`
+                  : `Valor del servicio: $${latestHistory.amount ?? 0}`}
+              </Text>
+              <Text style={styles.historyLine}>Referencia: {latestHistory.txRef || "N/A"}</Text>
+            </View>
+          ) : (
+            <View style={styles.emptyWrap}>
+              <View style={styles.emptyIconWrap}>
+                <Ionicons name="document-text-outline" size={28} color="#00E5FF" />
+              </View>
+              <Text style={styles.emptyTitle}>Sin historial aun</Text>
+              <Text style={styles.emptySub}>Tus servicios completados apareceran aqui</Text>
+            </View>
           )}
         </View>
 
-        {hasHistory ? (
-          <FlatList
-            data={showAllHistory ? walletHistory.slice().reverse() : [walletHistory[0]]}
-            renderItem={renderHistoryItem}
-            keyExtractor={(item, index) => index.toString()}
-            ItemSeparatorComponent={() => <View style={styles.separator} />}
-          />
-        ) : (
-          <Text>No tienes historial</Text>
-        )}
-
-        {!showAllHistory && walletHistory.length > 1 && (
-          <TouchableOpacity onPress={() => setShowAllHistory(true)}>
-            <Text style={styles.showMoreText}>Ver más</Text>
+        <View style={styles.ctaWrap}>
+          <TouchableOpacity
+            style={styles.ctaMain}
+            onPress={() => navigation.navigate("ChosePlan", { mode: "membership" })}
+          >
+            <Ionicons name="refresh-outline" size={20} color="#051A26" />
+            <Text style={styles.ctaMainText}>Renovar Membresia</Text>
           </TouchableOpacity>
-        )}
-      </View>
+        </View>
 
-      {/*
-       *   <Text style={styles.infoText}>Recarga con</Text>
-     *   <TouchableOpacity
-        style={styles.button}
-        onPress={() => handlePress("Daviplata")}
-      >
-        <Image
-          source={require("@/assets/payment-icons/daviplata-logo.png")}
-          style={{ width: 70, height: 40 }}
-        />
-        <Text style={styles.buttonText}>Daviplata</Text>
-      </TouchableOpacity>
-
-      
-         <Text style={styles.infoText}>Recarga con</Text>
-        <TouchableOpacity
-        style={styles.button}
-        onPress={() => handlePress("PayU")}
-      >
-        <Image
-          source={require("@/assets/payment-icons/payulatam-logo.png")}
-          style={{ width: 80, height: 40 }}
-        />
-        <Text style={styles.buttonText}>PayU</Text>
-      </TouchableOpacity> 
-     */}
-
-      <View style={{ width: "100%", top: 30 }}>
+        <View style={styles.packagesWrap}>
         {[
-          // Solo se añade el botón de "Membresía" si settings.Membership es true
           ...(settings.Membership
             ? [{ icon: "local-offer", text: "Membresía", mode: "membership" }]
             : []),
-          // Solo se añade el botón de "Kilómetros" si user?.cartype es 'TREAS-X' y settings.KilimetrsWallet es true
           ...(user && user?.cartype === "TREAS-X" && settings.KilimetrsWallet
             ? [{ icon: "road", text: "Kilómetros", mode: "kms" }]
             : []),
@@ -283,9 +347,8 @@ const WalletDetails = ({ navigation }: Props) => {
           <TouchableOpacity
             key={mode}
             style={[
-              styles.button,
-              styles.membershipButton,
-              idx === 1 && { marginHorizontal: 1 },
+              styles.packageBtn,
+              idx === 1 && { marginTop: 10 },
             ]}
             onPress={() => navigation.navigate("ChosePlan", { mode })}
           >
@@ -294,583 +357,425 @@ const WalletDetails = ({ navigation }: Props) => {
             ) : (
               <FontAwesome name={icon} size={24} color="white" />
             )}
-            <Text style={[styles.buttonText, { color: "white" }]}>
+            <Text style={styles.packageBtnText}>
               Paquete {text}
             </Text>
           </TouchableOpacity>
         ))}
-      </View>
-
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={modalVisible}
-        onRequestClose={() => {
-          setModalVisible(!modalVisible);
-        }}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalView}>
-            <Text style={styles.modalText}>Seleccione el tipo de recarga</Text>
-            {user?.cartype === "TREAS-X" && (
-              <>
-                <TouchableOpacity
-                  style={[styles.modalButton, { backgroundColor: "#4f0000" }]}
-                  onPress={() => handleOptionSelect("Seguro")}
-                >
-                  <Text style={styles.textStyle}>Seguro</Text>
-                </TouchableOpacity>
-              </>
-            )}
-            {user?.cartype !== "TREAS-X" && (
-              <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: "#ae0606" }]}
-                onPress={() => handleOptionSelect("Membresía")}
-              >
-                <Text style={styles.textStyle}>Membresía</Text>
-              </TouchableOpacity>
-            )}
-            <TouchableOpacity
-              style={[styles.modalButton, { backgroundColor: "#ae0606" }]}
-              onPress={() => handleOptionSelect("Wallet")}
-            >
-              <Text style={styles.textStyle}>Billetera</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.modalButton, { backgroundColor: "#f44336" }]}
-              onPress={() => setModalVisible(!modalVisible)}
-            >
-              <Text style={styles.textStyle}>Cancelar</Text>
-            </TouchableOpacity>
-          </View>
         </View>
-      </Modal>
-      <Modal
-        animationType="fade"
-        transparent={true}
-        visible={modalPayuVisible}
-        onRequestClose={() => setModalPayuVisible(false)}
-      >
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalView}>
-            <Text style={styles.modalTitle}>Elige el monto de tu recarga</Text>
-
-            <View style={styles.amountOptionsContainer}>
-              {user?.cartype === "TREAS-X" && (
-                <TouchableOpacity
-                  style={[styles.amountOption, styles.amountOptionFirst]}
-                  onPress={() => handleOptionSelect("15000")}
-                >
-                  <Text style={styles.amountText}>$15,000</Text>
-                </TouchableOpacity>
-              )}
-              {user?.cartype === "TREAS-Van" && (
-                <TouchableOpacity
-                  style={styles.amountOption}
-                  onPress={() => handleOptionSelect("96000")}
-                >
-                  <Text style={styles.amountText}>$96,000</Text>
-                </TouchableOpacity>
-              )}
-              {user?.cartype === "TREAS-X" && (
-                <TouchableOpacity
-                  style={styles.amountOption}
-                  onPress={() => handleOptionSelect("48000")}
-                >
-                  <Text style={styles.amountText}>$48,000</Text>
-                </TouchableOpacity>
-              )}
-              {user?.cartype !== "TREAS-T" && (
-                <TouchableOpacity
-                  style={styles.amountOption}
-                  onPress={() => handleOptionSelect("36000")}
-                >
-                  <Text style={styles.amountText}>$36,000</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-
-            <TouchableOpacity
-              style={styles.cancelButton}
-              onPress={() => setModalPayuVisible(false)}
-            >
-              <Text style={styles.cancelText}>Cancelar</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+      </ScrollView>
     </View>
   );
 };
 
-const lightStyles = StyleSheet.create({
+const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F5F5F5",
-    padding: 20,
+    backgroundColor: "#051A26",
+  },
+  bgLayer: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  walletGlowOne: {
+    position: "absolute",
+    width: 320,
+    height: 320,
+    borderRadius: 160,
+    backgroundColor: "#00E5FF",
+    top: -80,
+    right: -80,
+    opacity: 0.2,
+  },
+  walletGlowTwo: {
+    position: "absolute",
+    width: 250,
+    height: 250,
+    borderRadius: 125,
+    backgroundColor: "#00b0ff",
+    left: -80,
+    bottom: "18%",
+    opacity: 0.18,
+  },
+  walletGlowThree: {
+    position: "absolute",
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor: "rgba(0,229,255,0.65)",
+    left: "50%",
+    top: "45%",
+    marginLeft: -90,
+    marginTop: -90,
+    opacity: 0.1,
+  },
+  walletOrb: {
+    position: "absolute",
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    top: "20%",
+    right: -60,
+    borderWidth: 1,
+    borderColor: "rgba(0,229,255,0.14)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  walletOrbInner: {
+    width: 155,
+    height: 155,
+    borderRadius: 77.5,
+    borderWidth: 1,
+    borderColor: "rgba(0,229,255,0.08)",
   },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 20,
+    paddingTop: 48,
+    paddingHorizontal: 20,
+    paddingBottom: 10,
+    backgroundColor: "rgba(5,26,38,0.75)",
+  },
+  headerIconBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(10,46,61,0.55)",
+    borderWidth: 1,
+    borderColor: "rgba(0,229,255,0.18)",
+    alignItems: "center",
+    justifyContent: "center",
   },
   headerText: {
-    fontSize: 24,
-    fontWeight: "bold",
+    fontSize: 19,
+    fontWeight: "700",
+    color: "#FFFFFF",
   },
-  headerIcon: {
-    backgroundColor: "#E0E0E0",
-    borderRadius: 12,
-    padding: 4,
+  scroll: {
+    flex: 1,
   },
-  cardContainer: {
-    alignItems: "center",
-    marginBottom: 20,
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 28,
   },
-  card: {
-    backgroundColor: "#000",
-    borderRadius: 12,
-    padding: 20,
-    width: "100%",
-  },
-  cardStatus: {
-    color: "#00f4f5",
-    fontWeight: "bold",
-    marginBottom: 10,
-    left: 140,
-  },
-  cardType: {
-    color: "#FFF",
-    fontSize: 18,
-    fontWeight: "bold",
-    marginBottom: 10,
-    left: 130,
-  },
-  cardDetail: {
-    color: "#FFF",
-    marginBottom: 5,
-  },
-  cardIcon: {
-    position: "absolute",
-    right: 20,
-    bottom: 5,
-    color: "#FFF",
-    alignItems: "center",
-  },
-  cardBoton: {
-    position: "absolute",
-    right: 20,
-    bottom: 5,
-    color: "#00f4f5",
-    alignItems: "center",
-  },
-  infoContainer: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 20,
-  },
-  infoHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 10,
-    backgroundColor: "#fff",
-  },
-  infoLabel: {
-    color: "#888",
-    marginBottom: 5,
-  },
-  labelBold: {
-    fontWeight: "bold",
-  },
-  infoText: {
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  closeText: {
-    color: "#00f4f5",
-    fontWeight: "bold",
-  },
-  showMoreText: {
-    color: "#00f4f5",
-    textAlign: "center",
+  cardWrap: {
     marginTop: 10,
+    marginBottom: 14,
   },
-  button: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FFF",
-    padding: 15,
-    borderRadius: 12,
-    marginBottom: 10,
-  },
-  buttonText: {
-    marginLeft: 10,
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#888",
-  },
-  modalContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-  },
-  modalView: {
-    margin: 20,
-    backgroundColor: "white",
-    borderRadius: 20,
-    padding: 35,
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  modalText: {
-    marginBottom: 15,
-    textAlign: "center",
-    fontSize: 18,
-    fontWeight: "bold",
-  },
-  modalButton: {
-    borderRadius: 20,
-    padding: 10,
-    elevation: 2,
-    marginVertical: 5,
-    width: 200,
-    alignItems: "center",
-  },
-  textStyle: {
-    color: "white",
-    fontWeight: "bold",
-    textAlign: "center",
-  },
-  historyItem: {
-    backgroundColor: "#FFF",
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 10,
-  },
-  separator: {
-    height: 1,
-    backgroundColor: "#00f4f5",
-    marginVertical: 10,
-  },
-  modalBackdrop: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.6)", // Fondo más suave para mejor enfoque
-  },
-  modalView: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 15,
-    padding: 30,
-    width: "90%",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  modalTitle: {
-    fontSize: 22,
-    fontWeight: "600",
-    color: "#333",
-    marginBottom: 20,
-    textAlign: "center",
-  },
-  amountOptionsContainer: {
+  membershipCard: {
+    borderRadius: 26,
+    paddingHorizontal: 18,
+    paddingVertical: 18,
     width: "100%",
-    marginBottom: 20,
+    backgroundColor: "rgba(0, 55, 84, 0.9)",
+    borderWidth: 1,
+    borderColor: "rgba(0,229,255,0.28)",
+    overflow: "hidden",
   },
-  amountOption: {
-    backgroundColor: "#F44336",
-    borderRadius: 10,
-    paddingVertical: 15,
-    marginVertical: 10,
-    alignItems: "center",
-    width: "100%",
-    elevation: 3,
+  cardShine: {
+    position: "absolute",
+    top: -20,
+    width: 140,
+    height: 300,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    transform: [{ rotate: "-20deg" }],
   },
-  amountOptionFirst: {
-    backgroundColor: "#FF5252", // Color más claro para resaltar la primera opción
-  },
-  amountText: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "bold",
-  },
-  cancelButton: {
-    backgroundColor: "#B71C1C",
-    borderRadius: 10,
-    paddingVertical: 15,
-    paddingHorizontal: 40,
-    width: "100%",
-    alignItems: "center",
-  },
-  cancelText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-
-  membershipButton: {
-    backgroundColor: "#00f4f5",
-    alignItems: "center",
-    justifyContent: "center",
-    elevation: 5, // Elevación para Android
-    shadowColor: "#000", // Color de la sombra
-    shadowOffset: {
-        width: 0,
-        height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84, // Radio de la sombra
-  },
-});
-const darkStyles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#474747",
-    padding: 20,
-  },
-  header: {
+  cardTopRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 20,
   },
-  headerText: {
+  cardLogoWrap: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+  cardLogoMain: {
+    color: "#FFFFFF",
+    fontSize: 30,
+    fontWeight: "800",
+    lineHeight: 34,
+  },
+  cardLogoPlus: {
+    color: "#00E5FF",
+    fontSize: 20,
+    fontWeight: "800",
+    marginTop: -2,
+  },
+  statusPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 30,
+    backgroundColor: "rgba(0,229,255,0.14)",
+    borderWidth: 1,
+    borderColor: "rgba(0,229,255,0.32)",
+    gap: 6,
+  },
+  statusPillExpired: {
+    backgroundColor: "transparent",
+    borderColor: "#FFFFFF",
+  },
+  statusDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: "#00E5FF",
+  },
+  statusDotExpired: {
+    backgroundColor: "#FFFFFF",
+  },
+  statusPillText: {
+    color: "#00E5FF",
+    fontSize: 11,
+    fontWeight: "700",
+    textTransform: "uppercase",
+  },
+  statusPillTextExpired: {
+    color: "#FFFFFF",
+  },
+  balanceSection: {
+    paddingVertical: 18,
+    alignItems: "center",
+  },
+  balanceLabel: {
+    color: "rgba(255,255,255,0.55)",
+    fontSize: 12,
+    letterSpacing: 0.7,
+    textTransform: "uppercase",
+    marginBottom: 6,
+  },
+  balanceRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+  balanceCurrency: {
+    color: "rgba(255,255,255,0.75)",
     fontSize: 24,
-    fontWeight: "bold",
-    color: "#FFF",
+    marginTop: 8,
+    marginRight: 3,
+    fontWeight: "600",
   },
-  headerIcon: {
-    backgroundColor: "#E0E0E0",
-    borderRadius: 12,
-    padding: 4,
+  balanceAmount: {
+    color: "#FFFFFF",
+    fontSize: 46,
+    fontWeight: "800",
+    letterSpacing: -1.5,
   },
-  cardContainer: {
-    alignItems: "center",
-    marginBottom: 20,
+  cardFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    borderTopWidth: 1,
+    borderTopColor: "rgba(0,229,255,0.16)",
+    paddingTop: 12,
   },
-  card: {
-    backgroundColor: "#000",
-    borderRadius: 12,
-    padding: 20,
-    width: "100%",
+  cardFooterRight: {
+    alignItems: "flex-end",
   },
-  cardStatus: {
-    color: "#00f4f5",
-    fontWeight: "bold",
-    marginBottom: 10,
-    left: 140,
+  cardFooterLabel: {
+    color: "rgba(255,255,255,0.38)",
+    fontSize: 11,
+    textTransform: "uppercase",
   },
-  cardType: {
-    color: "#FFF",
-    fontSize: 18,
-    fontWeight: "bold",
-    marginBottom: 10,
-    left: 130,
+  cardFooterValue: {
+    color: "#00E5FF",
+    fontSize: 14,
+    fontWeight: "700",
+    marginTop: 2,
   },
-  cardDetail: {
-    color: "#FFF",
-    marginBottom: 5,
+  cardFooterDate: {
+    color: "rgba(255,255,255,0.8)",
+    fontSize: 14,
+    fontWeight: "700",
+    marginTop: 2,
   },
-  cardIcon: {
-    position: "absolute",
-    right: 20,
-    bottom: 5,
-    color: "#FFF",
-    alignItems: "center",
-  },
-  cardBoton: {
-    position: "absolute",
-    right: 20,
-    bottom: 5,
-    color: "#00f4f5",
+  alertBanner: {
+    marginBottom: 12,
+    borderRadius: 16,
+    padding: 12,
+    backgroundColor: "transparent",
+    borderWidth: 1,
+    borderColor: "#FFFFFF",
+    flexDirection: "row",
     alignItems: "center",
   },
-  infoContainer: {
-    backgroundColor: "#333333",
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 20,
+  alertIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "transparent",
+    borderWidth: 1,
+    borderColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
   },
-  infoHeader: {
+  alertTextWrap: {
+    flex: 1,
+  },
+  alertTitle: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+    fontSize: 13,
+  },
+  alertSub: {
+    color: "rgba(255,255,255,0.65)",
+    marginTop: 1,
+    fontSize: 12,
+  },
+  renewMiniBtn: {
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#FFFFFF",
+    backgroundColor: "transparent",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  renewMiniBtnText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  statsRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 16,
+  },
+  statCard: {
+    flex: 1,
+    borderRadius: 16,
+    paddingVertical: 13,
+    paddingHorizontal: 8,
+    backgroundColor: "rgba(10,46,61,0.6)",
+    borderWidth: 1,
+    borderColor: "rgba(0,229,255,0.18)",
+    alignItems: "center",
+  },
+  statIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(0,229,255,0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 6,
+  },
+  statValue: {
+    color: "#FFFFFF",
+    fontWeight: "800",
+    fontSize: 17,
+    textAlign: "center",
+  },
+  statLabel: {
+    marginTop: 2,
+    color: "rgba(255,255,255,0.55)",
+    fontSize: 11,
+    textTransform: "uppercase",
+  },
+  historySection: {
+    marginBottom: 18,
+  },
+  historyHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    marginBottom: 8,
+  },
+  historyTitle: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+    fontSize: 18,
+  },
+  historyBadge: {
+    marginTop: 4,
+    alignSelf: "flex-start",
+    color: "#00E5FF",
+    backgroundColor: "rgba(0,229,255,0.13)",
+    borderRadius: 20,
+    overflow: "hidden",
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    fontSize: 11,
+    textTransform: "uppercase",
+    fontWeight: "600",
+  },
+  historyCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(0,229,255,0.18)",
+    backgroundColor: "rgba(8,33,46,0.75)",
+    padding: 12,
+    gap: 6,
+  },
+  historyLine: {
+    color: "rgba(255,255,255,0.8)",
+    fontSize: 13,
+  },
+  emptyWrap: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(0,229,255,0.14)",
+    backgroundColor: "rgba(8,33,46,0.5)",
+    alignItems: "center",
+    paddingVertical: 24,
+    paddingHorizontal: 16,
+  },
+  emptyIconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderWidth: 1,
+    borderColor: "rgba(0,229,255,0.18)",
+    backgroundColor: "rgba(0,229,255,0.08)",
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: 10,
   },
-  infoLabel: {
-    color: "#CACACA",
-    marginBottom: 5,
-  },
-  labelBold: {
-    fontWeight: "bold",
-    color: "#FFF",
-  },
-  infoText: {
+  emptyTitle: {
+    color: "rgba(255,255,255,0.82)",
     fontSize: 16,
-    fontWeight: "bold",
-    color: "#FFF",    
+    fontWeight: "700",
   },
-  closeText: {
-    color: "#00f4f5",
-    fontWeight: "bold",
+  emptySub: {
+    color: "rgba(255,255,255,0.55)",
+    fontSize: 13,
+    marginTop: 4,
   },
-  showMoreText: {
-    color: "#00f4f5",
-    textAlign: "center",
-    marginTop: 10,
+  ctaWrap: {
+    marginBottom: 14,
   },
-  button: {
+  ctaMain: {
+    borderRadius: 22,
+    backgroundColor: "#00E5FF",
+    paddingVertical: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
+  },
+  ctaMainText: {
+    color: "#051A26",
+    fontWeight: "800",
+    fontSize: 16,
+  },
+  packagesWrap: {
+    paddingBottom: 24,
+  },
+  packageBtn: {
+    borderRadius: 14,
+    paddingVertical: 13,
+    backgroundColor: "rgba(0,229,255,0.2)",
+    borderWidth: 1,
+    borderColor: "rgba(0,229,255,0.35)",
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFF",
-    padding: 15,
-    borderRadius: 12,
-    marginBottom: 10,
-  },
-  buttonText: {
-    marginLeft: 10,
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#888",
-  },
-  modalContainer: {
-    flex: 1,
     justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    gap: 8,
   },
-  modalView: {
-    margin: 20,
-    backgroundColor: "white",
-    borderRadius: 20,
-    padding: 35,
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  modalText: {
-    marginBottom: 15,
-    textAlign: "center",
-    fontSize: 18,
-    fontWeight: "bold",
-  },
-  modalButton: {
-    borderRadius: 20,
-    padding: 10,
-    elevation: 2,
-    marginVertical: 5,
-    width: 200,
-    alignItems: "center",
-  },
-  textStyle: {
-    color: "white",
-    fontWeight: "bold",
-    textAlign: "center",
-  },
-  historyItem: {
-    backgroundColor: "#333333",
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 10,
-  },
-  separator: {
-    height: 1,
-    backgroundColor: "#00f4f5",
-    marginVertical: 10,
-  },
-  modalBackdrop: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.6)", // Fondo más suave para mejor enfoque
-  },
-  modalView: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 15,
-    padding: 30,
-    width: "90%",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  modalTitle: {
-    fontSize: 22,
-    fontWeight: "600",
-    color: "#333",
-    marginBottom: 20,
-    textAlign: "center",
-  },
-  amountOptionsContainer: {
-    width: "100%",
-    marginBottom: 20,
-  },
-  amountOption: {
-    backgroundColor: "#F44336",
-    borderRadius: 10,
-    paddingVertical: 15,
-    marginVertical: 10,
-    alignItems: "center",
-    width: "100%",
-    elevation: 3,
-  },
-  amountOptionFirst: {
-    backgroundColor: "#FF5252", // Color más claro para resaltar la primera opción
-  },
-  amountText: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "bold",
-  },
-  cancelButton: {
-    backgroundColor: "#B71C1C",
-    borderRadius: 10,
-    paddingVertical: 15,
-    paddingHorizontal: 40,
-    width: "100%",
-    alignItems: "center",
-  },
-  cancelText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-
-  membershipButton: {
-    backgroundColor: "#00f4f5",
-    alignItems: "center",
-    justifyContent: "center",
-    elevation: 5, // Elevación para Android
-    shadowColor: "#000", // Color de la sombra
-    shadowOffset: {
-        width: 0,
-        height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84, // Radio de la sombra
+  packageBtnText: {
+    color: "#E8FCFF",
+    fontWeight: "700",
+    fontSize: 14,
   },
 });
 

@@ -272,14 +272,8 @@ const CustomerHomeScreen = () => {
       >
         <Animatable.View animation="fadeInUp" duration={500} delay={50} useNativeDriver>
           <Scalable onPress={() => nav.navigate('TripPreviewScreen')} scaleTo={0.97} liftBy={-2} style={s.destCard}>
-            <Image source={CARD_TEXTURE} style={s.destTexture} resizeMode="cover" />
             <View style={s.destInner}>
-              <View style={s.iconPulseWrap}>
-                <Animated.View pointerEvents="none" style={[s.destPulseRing, { transform: [{ scale: pulseScale }], opacity: pulseOp }]} />
-                <View style={s.destIconCircle}>
-                  <Ionicons name="radio-button-on" size={20} color="#051A26" />
-                </View>
-              </View>
+              <Ionicons name="location-outline" size={20} style={s.destLeadingIcon} />
               <Text style={s.destText}>¿A dónde vamos?</Text>
               <View style={s.destArrow}>
                 <Ionicons name="arrow-forward" size={18} color="#00E5FF" />
@@ -321,13 +315,13 @@ const CustomerHomeScreen = () => {
             <Text style={s.cardDesc}>Presenta tu carnet T+plus para identificarte fácilmente. ¡Es tu acceso seguro y confiable!</Text>
             <View style={s.cardAction}><Text style={s.cardActionTxt}>Ver carnet</Text><Ionicons name="chevron-forward" size={16} color="#00E5FF" /></View>
           </Scalable>
-          <Scalable onPress={() => nav.navigate('RideList')} liftBy={-4} style={[s.tplusCard, s.cardReservas]}>
+          <Scalable onPress={() => nav.navigate('ReservationsScreen')} liftBy={-4} style={[s.tplusCard, s.cardReservas]}>
             <View style={s.cardIconWrap}><Ionicons name="time-outline" size={40} color="#00E5FF" /></View>
             <Text style={s.cardTitle}>¡Tus Reservas!</Text>
-            <Text style={s.cardDesc}>Toca aquí para ver detalles y estar al tanto de tus viajes activos.</Text>
+            <Text style={s.cardDesc}>Tienes 0 reservas activas. Toca aquí para ver detalles y estar al tanto de tus viajes.</Text>
             <View style={s.cardAction}><Text style={s.cardActionTxt}>Ver reservas</Text><Ionicons name="chevron-forward" size={16} color="#00E5FF" /></View>
           </Scalable>
-          <Scalable onPress={() => nav.navigate('TripPreviewScreen')} liftBy={-4} style={[s.tplusCard, s.cardHistorial]}>
+          <Scalable onPress={() => nav.navigate('ReservationsScreen')} liftBy={-4} style={[s.tplusCard, s.cardHistorial]}>
             <View style={s.cardIconWrap}><Ionicons name="document-text-outline" size={40} color="#00E5FF" /></View>
             <Text style={s.cardTitle}>Historial</Text>
             <Text style={s.cardDesc}>Revisa tu historial de viajes, pagos y actividad reciente en un solo lugar.</Text>
@@ -363,7 +357,7 @@ const CustomerHomeScreen = () => {
       <View style={[s.bottomNav, { bottom: navBottomOffset }]}>
         <View style={s.navItems}>
           <View style={s.navItem}><Ionicons name="home" size={22} color="#00E5FF" /><Text style={[s.navLbl, s.navLblActive]}>Inicio</Text><View style={s.navInd} /></View>
-          <TouchableOpacity style={s.navItem} onPress={() => nav.navigate('RideList')} activeOpacity={0.7}><Ionicons name="time-outline" size={22} color="rgba(255,255,255,0.3)" /><Text style={s.navLbl}>Historial</Text></TouchableOpacity>
+          <TouchableOpacity style={s.navItem} onPress={() => nav.navigate('ReservationsScreen')} activeOpacity={0.7}><Ionicons name="pulse-outline" size={22} color="rgba(255,255,255,0.3)" /><Text style={s.navLbl}>Actividad</Text></TouchableOpacity>
           <TouchableOpacity style={s.navCenterItem} onPress={onCenterPress} activeOpacity={1}>
             <View style={s.navCenterPulseWrap}>
               <Animated.View pointerEvents="none" style={[s.navCenterPulseRing, { transform: [{ scale: navPulseScale }], opacity: navPulseOp }]} />
@@ -397,14 +391,14 @@ const s = StyleSheet.create({
   notifBtnPressed: { backgroundColor: 'rgba(0,229,255,0.15)', borderColor: 'rgba(0,229,255,0.3)' },
   scroll: { flex: 1 },
   scrollContent: { paddingHorizontal: H_PAD, paddingTop: 18 },
-  destCard: { marginBottom: 28, paddingVertical: 16, paddingHorizontal: 24, borderRadius: 28, backgroundColor: 'rgba(0,229,255,0.09)', overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(0,229,255,0.2)', shadowColor: '#00E5FF', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.2, shadowRadius: 20, elevation: 4 },
+  destCard: { marginBottom: 28, paddingVertical: 16, paddingHorizontal: 24, borderRadius: 28, backgroundColor: 'rgba(255,255,255,0.15)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.28)', shadowColor: '#000000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.2, shadowRadius: 14, elevation: 5 },
   destTexture: { ...StyleSheet.absoluteFillObject, opacity: 0.32 },
-  destPulseRing: { position: 'absolute', width: 40, height: 40, borderRadius: 20, borderWidth: 2, borderColor: 'rgba(0,229,255,0.3)' },
   destInner: { flexDirection: 'row', alignItems: 'center' },
+  destLeadingIcon: { marginRight: 12, color: '#00E5FF' },
   iconPulseWrap: { width: 40, height: 40, marginRight: 14, justifyContent: 'center', alignItems: 'center' },
   destIconCircle: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#00E5FF', justifyContent: 'center', alignItems: 'center', shadowColor: '#00E5FF', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.5, shadowRadius: 10, elevation: 8 },
-  destText: { flex: 1, fontSize: 16, fontWeight: '600', color: '#ffffff', letterSpacing: -0.2 },
-  destArrow: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0,229,255,0.1)', justifyContent: 'center', alignItems: 'center' },
+  destText: { flex: 1, fontSize: 16, fontWeight: '700', color: '#EAF2F7', letterSpacing: -0.2 },
+  destArrow: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.2)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', justifyContent: 'center', alignItems: 'center' },
   sectionHeader: { flexDirection: 'row', alignItems: 'baseline', marginBottom: 14, marginTop: 4 },
   sectionTitle: { fontSize: 20, fontWeight: '700', color: '#ffffff', letterSpacing: -0.3, marginRight: 8 },
   sectionSub: { fontSize: 13, color: 'rgba(255,255,255,0.5)' },
